@@ -18,8 +18,11 @@ let rec dim typ =
   match typ with
   | Star -> 0
   | Arrow (t, _, _) -> 1 + (dim t)
-                     
+
 type ctx = (string * ty) list
+         
+type decl =
+  | Coh of string * ctx * ty
 
 type 'a err =
   | Fail of string

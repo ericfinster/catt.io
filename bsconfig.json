@@ -1,19 +1,35 @@
 {
-  "name": "catt",
-  "version": "0.1.0",
-  "sources": {
-    "dir" : "src",
-    "subdirs" : true
-  },
-  "package-specs": {
-    "module": "commonjs",
-    "in-source": true
-  },
-  "suffix": ".bs.js",
-  "bs-dependencies": [
-  ],
-  "warnings": {
-    "error" : "+101"
-  },
-  "refmt": 3
+    "name": "catt",
+    "version": "0.1.0",
+    "generators" : [
+        {
+            "name" : "menhir",
+            "command" : "menhir $in"
+        },
+        {
+            "name" : "ocamllex",
+            "command" : "ocamllex $in"
+        }
+    ],
+    "sources": {
+        "dir" : "src",
+        "subdirs" : true,
+        "generators" : [
+            {
+                "name" : "menhir",
+                "edge" : ["parser.ml", "parser.mli", ":", "parser.mly"]
+            }
+        ]
+    },
+    "package-specs": {
+        "module": "commonjs",
+        "in-source": true
+    },
+    "suffix": ".bs.js",
+    "bs-dependencies": [
+    ],
+    "warnings": {
+        "error" : "+101"
+    },
+    "refmt": 3
 }
