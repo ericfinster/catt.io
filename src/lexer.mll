@@ -6,13 +6,16 @@ let space = ' ' | '\t' | '\r'
 
 rule token = parse
 
+  | "def"        { DEF }
+  | "let"        { LET } 
   | "coh"        { COH }
+  | "comp"       { COMP }
   | "->"         { ARROW }
   | "*"          { OBJ }
-  | "|"          { PIPE }
   | "("          { LPAR }
   | ")"          { RPAR }
   | ":"          { COLON }
+  | "="          { EQUALS }
 
   (* Identifiers *)
   | (['a'-'z''A'-'Z''0'-'9']['-''+''a'-'z''A'-'Z''0'-'9''_''@''{''}''/'',''\'']* as str) { IDENT str }

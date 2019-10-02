@@ -16,7 +16,7 @@ let parse s =
 
 let check_file f =
   let s = Node.Fs.readFileAsUtf8Sync f in 
-  match check_decls (parse s) [] with
+  match check_cmds (parse s) [] with
   | Succeed () -> print_endline "Finished"
   | Fail msg -> Printf.printf "Typechecking error: %s\n" msg ; exit (-1)
    
