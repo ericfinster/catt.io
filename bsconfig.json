@@ -11,16 +11,22 @@
             "command" : "ocamllex $in"
         }
     ],
-    "sources": {
-        "dir" : "src",
-        "subdirs" : true,
-        "generators" : [
-            {
-                "name" : "menhir",
-                "edge" : ["parser.ml", "parser.mli", ":", "parser.mly"]
-            }
-        ]
-    },
+    "sources" : [
+        {
+            "generators" : [
+                {
+                    "name" : "menhir",
+                    "edge" : ["parser.ml", "parser.mli", ":", "parser.mly"]
+                },
+                {
+                    "name" : "ocamllex",
+                    "edge" : ["lexer.ml", ":", "lexer.mll"]
+                }
+            ],
+            "dir" : "src",
+            "subdirs" : true
+        }
+    ],
     "package-specs": {
         "module": "commonjs",
         "in-source": true

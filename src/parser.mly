@@ -1,6 +1,6 @@
 %{
 
-  open Catt
+  open Typecheck
   
 %} 
 
@@ -10,7 +10,7 @@
 %token EOF
 
 %start prog
-%type <Catt.decl list> prog
+%type <Typecheck.decl list> prog
 %%
 
 prog:
