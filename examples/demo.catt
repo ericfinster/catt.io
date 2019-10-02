@@ -1,0 +1,8 @@
+#
+#  demo.catt - a demonstraction of catt
+#
+
+coh id (x : *) : * | x -> x
+
+coh comp (x : *) (y : *) (f : * | x -> y)
+                 (z : *) (g : * | y -> z) : * | x -> z
