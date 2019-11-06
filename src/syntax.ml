@@ -2,35 +2,51 @@
  * syntax.ml - syntactic definitions
  *)
 
-(* Raw, user level expressions *)
+(* Slightly refined user expressions *)
+          
+type ty_expr =
+  | ObjTypE
+  | ArrowTypE of tm_expr * tm_expr
 
-type expr =
-  | ObjE
-  | ArrowE of expr * expr
-  | VarE of string
-  | CohE of (string * expr) list * expr
-  | CompE of (string * expr) list * expr
-  | AppE of expr * expr
+ and tm_expr =
+   | VarTmE of string
+   | AppTmE of tm_expr * tm_expr
+   | CohTmE of coh_expr
 
+ and coh_expr =
+   | CohE of (string * ty_expr) list * ty_expr
+   | CompE of (string * ty_expr) list * ty_expr
+     
 (* Commands *)
 type cmd =
-  | Def of string * (string * expr) list * expr
-  | Let of string * (string * expr) list * expr * expr
-          
-(* Our semantic type domain allows for function
- * types.  These will be used internally to type
- * coherences an lets, but no exposed Pi types 
- * exist.
- *)
+  | Def of string * (string * ty_expr) list * ty_expr
+  | Let of string * (string * ty_expr) list * ty_expr * tm_expr
 
-type dom =
-  
-  (* Types *)
+(* Internal, locally nameless representation *)
+         
+type ty_term =
+  | ObjT
+  | ArrowT of ty_term * tm_term * tm_term
+
+ and tm_term =
+   | CattT of catt_term
+   | AppT of tm_term * tm_term
+   | BVarT of int
+   | FVarT of string
+
+ and catt_term =
+   | CohT of ty_term list * ty_term
+   | CompT of ty_term list * ty_term   
+   
+            
+(* Semantic domain for normalization *)
+            
+type dom_ty =
   | ObjD
-  | ArrowD of dom * dom * dom
-  | PiD of dom * (dom -> dom)
+  | ArrowD of dom_ty * dom_tm * dom_tm
+  | PiD of dom_ty * (dom_tm -> dom_ty)
 
-  (* Terms *)
-  | VarD of int
-  | AppD of dom * dom 
+ and dom_tm =
+   | VarD of int
+   | AppD of dom_tm * dom_tm
          

@@ -5,6 +5,8 @@
 open Printf
 open Common
 open Syntax
+
+(* Old style syntax.  This will soon be replace ...*)
    
 type ty =
   | Star
@@ -13,6 +15,7 @@ type ty =
 and tm =
   | Var of string
   | Coh of pd * ty * tm list
+(* | Comp of pd * yt * tm list *)
 
 and pd =
   | PNil of string
@@ -164,10 +167,9 @@ and tc_infer x =
   | Var string -> tc_lookup string
   | Coh (_, _, _) -> tc_fail "unimplemented"
 
-
-(* type cmd = *)
-(*   | Def of string * (string * expr) list * expr *)
-(*   | Let of string * (string * expr) list * expr * expr *)
+(*
+ *  Top-level command execution
+ *)
                    
 let rec check_cmds cmds =
   match cmds with
