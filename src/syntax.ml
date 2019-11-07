@@ -32,7 +32,7 @@ type ty_term =
   | ArrT of ty_term * tm_term * tm_term
           
  and tm_term =
-   | BVarT of int
+   | VarT of string
    | DefAppT of string * tm_term list
    | CellAppT of cell_term * tm_term list
 
@@ -51,7 +51,7 @@ and print_tm_term t =
   let print_args args =
     String.concat ", " (List.map print_tm_term args) in 
   match t with
-  | BVarT k -> sprintf "%d" k
+  | VarT id -> id
   | DefAppT (id, args) ->
      sprintf "%s(%s)" id (print_args args)
   | CellAppT (cell, args) -> 

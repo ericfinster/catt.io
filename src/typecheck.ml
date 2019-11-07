@@ -29,7 +29,7 @@ let rec tc_lookup ident gma =
        Succeed typ
      else
        tc_lookup ident gs
-
+    
 (* Find the dimension of a regular type *)
 let rec tc_dim_of typ =
   match typ with
@@ -47,13 +47,6 @@ let rec tc_tgt_of a t k =
   else match t with
        | ObjT -> tc_fail "Object has no target"
        | ArrT (typ, _, tgt) -> tc_tgt_of tgt typ (k-1)
-
-(* Will need freshness checking at some point ... *)                     
-(* let rec is_fresh id pd = *)
-(*   match pd with *)
-(*   | PNil obj_id -> (obj_id <> id) *)
-(*   | PCns (pd', (tgt_id, _), (fill_id, _)) -> *)
-(*      (is_fresh id pd') && (tgt_id <> id) && (fill_id <> id) *)
                      
 (* 
 * Typechecking Rules
@@ -65,10 +58,10 @@ let rec tc_check_ty t =
   | ArrE (src, tgt) ->
      tc_infer_tm src >>= fun (src_tm, src_ty) ->
      tc_infer_tm tgt >>= fun (tgt_tm, tgt_ty) ->
-     if (src_ty = tgt_ty) then
-       tc_ok (ArrT (src_ty, src_tm, tgt_tm))
-     else
+     if (src_ty <> tgt_ty) then
        tc_fail "Ill-formed arrow type"
+     else
+       tc_ok (ArrT (src_ty, src_tm, tgt_tm))
 
 and tc_check_tm x ty =
   tc_infer_tm x >>= fun (x_tm, x_ty) ->
@@ -81,7 +74,9 @@ and tc_check_tm x ty =
        
 and tc_infer_tm x =
   match x with
-  | VarE id -> tc_fail "unimplemented" (* tc_lookup id *)
+  | VarE id -> 
+     tc_lookup id >>= fun typ ->
+     tc_ok (VarT id, typ)
   | DefAppE (id, args) -> tc_fail "unimplemented"
   | CellAppE (cell, args) -> tc_fail "unimplemented"
 
@@ -93,26 +88,26 @@ and tc_infer_cell c =
 and tc_check_pd pd =
   match pd with
   | [] -> tc_fail "Empty context is not a pasting diagram"
-  | (id, ObjE) :: [] -> tc_ok ((id, ObjT) :: [], 0, ObjT)
+  | (id, ObjE) :: [] -> tc_ok ((id, ObjT) :: [], id, ObjT)
   | (_, _) :: [] -> tc_fail "Pasting diagram does not begin with an object"
   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
-     tc_check_pd pd'                                          >>= fun (res_pd, pidx, ptyp) ->
+     tc_check_pd pd'                                          >>= fun (res_pd, pid, ptyp) ->
      tc_in_ctx res_pd (tc_check_ty tgt_typ)                   >>= fun tgt_typ_tm ->
      tc_with_var tgt_id tgt_typ_tm (tc_check_ty fill_typ)     >>= fun fill_typ_tm ->
      tc_dim_of ptyp                                           >>= fun pdim ->
      tc_dim_of tgt_typ_tm                                     >>= fun tdim -> 
      let codim = pdim - tdim in
-     tc_tgt_of (BVarT pidx) ptyp codim                        >>= fun (src_tm_tm, src_typ_tm) -> 
+     tc_tgt_of (VarT pid) ptyp codim                          >>= fun (src_tm_tm, src_typ_tm) -> 
      if (tgt_typ_tm <> src_typ_tm) then
        let msg = sprintf "Type error: %s =/= %s"
                          (print_ty_term tgt_typ_tm) (print_ty_term src_typ_tm) in
        tc_fail msg
-     else if (fill_typ_tm <> ArrT (src_typ_tm, src_tm_tm, BVarT 1)) then
+     else if (fill_typ_tm <> ArrT (src_typ_tm, src_tm_tm, VarT tgt_id)) then
        let msg = sprintf "Type error: %s =/= %s"
-                         (print_ty_term (ArrT (src_typ_tm, src_tm_tm, BVarT 1)))
+                         (print_ty_term (ArrT (src_typ_tm, src_tm_tm, VarT tgt_id)))
                          (print_ty_term fill_typ_tm) in
        tc_fail msg
-     else tc_ok ((fill_id, fill_typ_tm) :: (tgt_id, tgt_typ_tm) :: res_pd, 0, fill_typ_tm)
+     else tc_ok ((fill_id, fill_typ_tm) :: (tgt_id, tgt_typ_tm) :: res_pd, fill_id, fill_typ_tm)
         
 (*
  *  Top-level command execution
