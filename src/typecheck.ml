@@ -111,6 +111,12 @@ and tc_infer_cell c =
   | CohE (pd, ty) -> tc_fail "unimplemented"
   | CompE (pd, ty) -> tc_fail "unimplemented"
 
+(* Okay, here we need to generate a "standard form" for the variables
+ * in a pasting diagram.  This is because we will need to compare them
+ * during typing, and this has to be up to alpha equivalence.  I guess
+ * indices would normally be the solution to this problem, but it turns
+ * out that this makes calculating sources and targets *really* painful.
+ *)                    
 and tc_check_pd pd =
   match pd with
   | [] -> tc_fail "Empty context is not a pasting diagram"

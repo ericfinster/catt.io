@@ -3,7 +3,9 @@
  *)
 
 open Printf
-   
+
+module SS = Set.Make(String)
+          
 (* Raw, user-level expressions *)
           
 type ty_expr =
@@ -46,6 +48,30 @@ let rec dim_of typ =
   | ObjT -> 0
   | ArrT (ty, _, _) -> 1 + (dim_of ty)
 
+(* Free variables *)
+let rec ty_free_vars t =
+  match t with
+  | ObjT -> SS.empty
+  | ArrT (typ, src, tgt) ->
+     let typ_fvs = ty_free_vars typ in
+     let src_fvs = tm_free_vars src in
+     let tgt_fvs = tm_free_vars tgt in
+     List.fold_right SS.union [typ_fvs; src_fvs; tgt_fvs] SS.empty
+
+and tm_free_vars t =
+  match t with
+  | VarT id -> SS.singleton id
+  | DefAppT (_, args) ->
+     List.fold_right SS.union (List.map tm_free_vars args) SS.empty
+  | CellAppT (cell, args) -> 
+     let args_fvs = List.fold_right SS.union (List.map tm_free_vars args) SS.empty in
+     SS.union (cell_free_vars cell) args_fvs
+
+and cell_free_vars t =
+  match t with
+  | CohT (_, typ) -> ty_free_vars typ
+  | CompT (_, typ) -> ty_free_vars typ
+                     
 (* Printing of types and terms *)                     
 let rec print_ty_term t =
   match t with
