@@ -40,6 +40,13 @@ type ty_term =
    | CohT of ty_term list * ty_term
    | CompT of ty_term list * ty_term   
 
+(* Find the dimension of a type *)
+let rec dim_of typ =
+  match typ with
+  | ObjT -> 0
+  | ArrT (ty, _, _) -> 1 + (dim_of ty)
+
+(* Printing of types and terms *)                     
 let rec print_ty_term t =
   match t with
   | ObjT -> "*"
@@ -69,10 +76,10 @@ and print_cell_term t =
      sprintf "comp %s : %s" (print_pd pd) (print_ty_term typ)
 
 
-(* Contexts *)
+(* Contexts and Environments *)
     
 type ctx = (string * ty_term) list
-
+type env = (string * tm_term) list 
     
 (* Semantic domain for normalization *)
             

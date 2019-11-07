@@ -6,6 +6,8 @@ open Printf
 open Common
 open Syntax
 
+module SS = Set.Make(String)
+          
 (* The typechecking monad *)
 type 'a tcm = ctx -> 'a err
 
@@ -30,13 +32,6 @@ let rec tc_lookup ident gma =
      else
        tc_lookup ident gs
     
-(* Find the dimension of a regular type *)
-let rec tc_dim_of typ =
-  match typ with
-  | ObjT -> tc_ok 0
-  | ArrT (ty, _, _) ->
-     tc_dim_of ty >>= fun d ->
-     tc_ok (d + 1)
     
 (* Find the k-th target of the given term an type *)    
 let rec tc_tgt_of a t k =
@@ -47,7 +42,38 @@ let rec tc_tgt_of a t k =
   else match t with
        | ObjT -> tc_fail "Object has no target"
        | ArrT (typ, _, tgt) -> tc_tgt_of tgt typ (k-1)
-                     
+
+let tc_ctx_vars gma =
+  Succeed (List.map fst gma)
+
+let rec tc_pd_src k pd =
+  match pd with
+  | [] -> tc_fail "Empty pasting diagram"
+  | (id, ObjT) :: [] -> tc_ok ((id, ObjT) :: [])
+  | (_, _) :: [] -> tc_fail "Malformed pd"
+  | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
+     if (dim_of tgt_typ >= k) then
+       tc_pd_src k pd'
+     else
+       tc_pd_src k pd' >>= fun pd_src ->
+       tc_ok ((fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd_src)
+
+let rec tc_pd_tgt k pd =
+  match pd with
+  | [] -> tc_fail "Empty pasting diagram"
+  | (id, ObjT) :: [] -> tc_ok ((id, ObjT) :: [])
+  | (_, _) :: [] -> tc_fail "Malformed pd"
+  | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
+     let d = dim_of tgt_typ in
+     if (d > k) then
+       tc_pd_tgt k pd'
+     else tc_pd_tgt k pd' >>= fun pd_tgt ->
+          if (d = k) then
+            match pd_tgt with
+            | [] -> tc_fail "Empty pasting diagram target"
+            | _ :: pd_tgt' -> tc_ok ((tgt_id, tgt_typ) :: pd_tgt')
+          else tc_ok ((fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd_tgt)
+
 (* 
 * Typechecking Rules
 *)
@@ -94,9 +120,8 @@ and tc_check_pd pd =
      tc_check_pd pd'                                          >>= fun (res_pd, pid, ptyp) ->
      tc_in_ctx res_pd (tc_check_ty tgt_typ)                   >>= fun tgt_typ_tm ->
      tc_with_var tgt_id tgt_typ_tm (tc_check_ty fill_typ)     >>= fun fill_typ_tm ->
-     tc_dim_of ptyp                                           >>= fun pdim ->
-     tc_dim_of tgt_typ_tm                                     >>= fun tdim -> 
-     let codim = pdim - tdim in
+     tc_ctx_vars                                              >>= fun cvars ->
+     let codim = (dim_of ptyp) - (dim_of tgt_typ_tm) in
      tc_tgt_of (VarT pid) ptyp codim                          >>= fun (src_tm_tm, src_typ_tm) -> 
      if (tgt_typ_tm <> src_typ_tm) then
        let msg = sprintf "Type error: %s =/= %s"
@@ -107,6 +132,12 @@ and tc_check_pd pd =
                          (print_ty_term (ArrT (src_typ_tm, src_tm_tm, VarT tgt_id)))
                          (print_ty_term fill_typ_tm) in
        tc_fail msg
+     else if (fill_id = tgt_id) then
+       tc_fail (sprintf "Fill and target cell have the same identifier: %s" fill_id)
+     else if (List.mem fill_id cvars) then
+       tc_fail (sprintf "Filling identifier %s already exists" fill_id)
+     else if (List.mem tgt_id cvars) then 
+       tc_fail (sprintf "Target identifier %s already exists" tgt_id)
      else tc_ok ((fill_id, fill_typ_tm) :: (tgt_id, tgt_typ_tm) :: res_pd, fill_id, fill_typ_tm)
         
 (*
