@@ -23,16 +23,16 @@ let tc_in_ctx gma m _ = m gma
 let tc_ctx gma = Succeed gma
 let tc_with_var id ty m gma = m ((id, ty) :: gma)
 let tc_with_vars vars m gma = m (vars @ gma)
-                                   
+let tc_ctx_vars gma = Succeed (List.map fst gma)
+
+(* Lookup and identifier in the context *)
 let rec tc_lookup ident gma =
   match gma with
   | [] -> Fail (Printf.sprintf "Unknown identifier: %s" ident)
   | (id,typ) :: gs ->
      if (id = ident) then
        Succeed typ
-     else
-       tc_lookup ident gs
-    
+     else tc_lookup ident gs
     
 (* Find the k-th target of the given term an type *)    
 let rec tc_tgt_of a t k =
@@ -44,14 +44,12 @@ let rec tc_tgt_of a t k =
        | ObjT -> tc_fail "Object has no target"
        | ArrT (typ, _, tgt) -> tc_tgt_of tgt typ (k-1)
 
-let tc_ctx_vars gma =
-  Succeed (List.map fst gma)
-
+(* Source pasting diagram *)
 let rec tc_pd_src k pd =
   match pd with
   | [] -> tc_fail "Empty pasting diagram"
   | (id, ObjT) :: [] -> tc_ok ((id, ObjT) :: [])
-  | (_, _) :: [] -> tc_fail "Malformed pd"
+  | (_, _) :: [] -> tc_fail "Malformed pasting diagram"
   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
      if (dim_of tgt_typ >= k) then
        tc_pd_src k pd'
@@ -59,11 +57,12 @@ let rec tc_pd_src k pd =
        tc_pd_src k pd' >>= fun pd_src ->
        tc_ok ((fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd_src)
 
+(* Target pasting diagram *)
 let rec tc_pd_tgt k pd =
   match pd with
   | [] -> tc_fail "Empty pasting diagram"
   | (id, ObjT) :: [] -> tc_ok ((id, ObjT) :: [])
-  | (_, _) :: [] -> tc_fail "Malformed pd"
+  | (_, _) :: [] -> tc_fail "Malformed pasting diagram"
   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
      let d = dim_of tgt_typ in
      if (d > k) then
@@ -99,8 +98,8 @@ and tc_check_tm x ty =
     (*                   (print_tm x) (print_ty t) (print_ty xt) in  *)
     tc_fail msg
 
-and tc_infer_tm x =
-  match x with
+and tc_infer_tm tm =
+  match tm with
   | VarE id -> 
      tc_lookup id >>= fun typ ->
      tc_ok (VarT id, typ)
