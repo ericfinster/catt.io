@@ -7,7 +7,7 @@ open Common
 open Syntax
 
 module SS = Set.Make(String)
-          
+  
 (* The typechecking monad *)
 type 'a tcm = ctx -> 'a err
 
@@ -17,12 +17,13 @@ let ( >>= ) m f gma =
   | Fail s -> Fail s
   | Succeed a -> f a gma
                
-let tc_ok a = fun _ -> Succeed a
-let tc_fail msg = fun _ -> Fail msg
-let tc_in_ctx gma m = fun _ -> m gma
-let tc_ctx = fun gma -> Succeed gma
-let tc_with_var id ty m = fun gma -> m ((id, ty) :: gma)
-                      
+let tc_ok a _ = Succeed a
+let tc_fail msg _ = Fail msg
+let tc_in_ctx gma m _ = m gma
+let tc_ctx gma = Succeed gma
+let tc_with_var id ty m gma = m ((id, ty) :: gma)
+let tc_with_vars vars m gma = m (vars @ gma)
+                                   
 let rec tc_lookup ident gma =
   match gma with
   | [] -> Fail (Printf.sprintf "Unknown identifier: %s" ident)
@@ -97,16 +98,45 @@ and tc_check_tm x ty =
     (*                    but was inferred to have type %s" *)
     (*                   (print_tm x) (print_ty t) (print_ty xt) in  *)
     tc_fail msg
-       
+
 and tc_infer_tm x =
   match x with
   | VarE id -> 
      tc_lookup id >>= fun typ ->
      tc_ok (VarT id, typ)
   | DefAppE (id, args) -> tc_fail "unimplemented"
-  | CellAppE (CohE (pd, typ), args) -> tc_fail "unimplemented"
-  | CellAppE (CompE (pd, typ), args) -> tc_fail "unimplemented"
+  | CellAppE (cell, args) -> tc_fail "unimplemented"
 
+and tc_check_cell cell =
+  match cell with
+  | CohE (pd, typ) -> 
+     tc_check_pd pd >>= fun (pd', _, _) ->
+     tc_with_vars pd' (tc_check_ty typ) >>= fun typ' ->
+     let pd_vars = SS.of_list (List.map fst pd') in
+     let typ_vars = ty_free_vars typ' in
+     if (not (SS.subset pd_vars typ_vars)) then
+       tc_fail "Coherence is not algebraic"
+     else tc_ok (pd', typ')
+  | CompE (pd, ObjE) -> tc_fail "Composition cannot target an object"
+  | CompE (pd, ArrE (src, tgt)) ->
+     tc_check_pd pd >>= fun (pd', _, _) ->
+     let pd_dim = List.fold_right max (List.map (fun (_, typ) -> dim_of typ) pd') 0 in
+     tc_pd_src (pd_dim - 1) pd' >>= fun pd_src ->
+     tc_pd_tgt (pd_dim - 1) pd' >>= fun pd_tgt ->
+     tc_with_vars pd_src (tc_infer_tm src) >>= fun (src_tm, src_typ) ->
+     tc_with_vars pd_tgt (tc_infer_tm tgt) >>= fun (tgt_tm, tgt_typ) ->
+     if (src_typ <> tgt_typ) then
+       tc_fail "Source and target do not have the same type"
+     else let pd_src_vars = SS.of_list (List.map fst pd_src) in
+          let pd_tgt_vars = SS.of_list (List.map fst pd_tgt) in
+          let src_typ_vars = ty_free_vars src_typ in
+          let tgt_typ_vars = ty_free_vars tgt_typ in
+          if (not (SS.subset pd_src_vars src_typ_vars)) then
+            tc_fail "Source is not algebraic"
+          else if (not (SS.subset pd_tgt_vars tgt_typ_vars)) then
+            tc_fail "Target is not algebraic"
+          else tc_ok (pd', ArrT (src_typ, src_tm, tgt_tm))
+                                      
 (* Okay, here we need to generate a "standard form" for the variables
  * in a pasting diagram.  This is because we will need to compare them
  * during typing, and this has to be up to alpha equivalence.  I guess

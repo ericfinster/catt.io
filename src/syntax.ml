@@ -131,14 +131,3 @@ and print_cell_term t =
 type ctx = (string * ty_term) list
 type env = (string * tm_term) list 
     
-(* Semantic domain for normalization *)
-            
-type dom_ty =
-  | ObjD
-  | ArrowD of dom_ty * dom_tm * dom_tm
-  | PiD of dom_ty * (dom_tm -> dom_ty)
-
- and dom_tm =
-   | VarD of int
-   | AppD of dom_tm * dom_tm
-         
