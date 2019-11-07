@@ -7,8 +7,8 @@
 %token DEF LET
 %token COH COMP
 %token OBJ ARROW 
-%token LPAR RPAR
-%token COLON EQUALS
+%token LPAR RPAR LBRACKET RBRACKET
+%token COMMA COLON EQUALS
 %token <string> IDENT 
 %token EOF
 
@@ -35,26 +35,16 @@ var_decl:
 ty_expr:
   | OBJ
     { ObjE }
-  | e1 = tm_expr1 ARROW e2 = tm_expr
+  | e1 = tm_expr ARROW e2 = tm_expr
     { ArrE (e1, e2) }
 
 tm_expr:
-  | t = tm_expr1
-    { t }
-  | cell = cell_expr
-    { CellE cell }
-  
-tm_expr1:
-  | t = tm_expr2
-    { t } 
-  | t1 = tm_expr1 t2 = tm_expr2
-    { AppE (t1, t2) }
-
-tm_expr2:
+  | LBRACKET cell = cell_expr RBRACKET LPAR args = separated_nonempty_list(COMMA, tm_expr) RPAR
+    { CellAppE (cell, args) }
+  | id = IDENT LPAR args = separated_nonempty_list(COMMA, tm_expr) RPAR
+    { DefAppE (id, args) } 
   | id = IDENT
     { VarE id }
-  | LPAR t = tm_expr RPAR
-    { t }
     
 cell_expr:
   | COH pd = var_decl+ COLON ty = ty_expr

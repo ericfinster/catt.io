@@ -14,7 +14,10 @@ rule token = parse
   | "*"          { OBJ }
   | "("          { LPAR }
   | ")"          { RPAR }
+  | "["          { LBRACKET }
+  | "]"          { RBRACKET }
   | ":"          { COLON }
+  | ","          { COMMA }
   | "="          { EQUALS }
 
   (* Identifiers *)
