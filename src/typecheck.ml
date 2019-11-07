@@ -104,12 +104,8 @@ and tc_infer_tm x =
      tc_lookup id >>= fun typ ->
      tc_ok (VarT id, typ)
   | DefAppE (id, args) -> tc_fail "unimplemented"
-  | CellAppE (cell, args) -> tc_fail "unimplemented"
-
-and tc_infer_cell c =
-  match c with
-  | CohE (pd, ty) -> tc_fail "unimplemented"
-  | CompE (pd, ty) -> tc_fail "unimplemented"
+  | CellAppE (CohE (pd, typ), args) -> tc_fail "unimplemented"
+  | CellAppE (CompE (pd, typ), args) -> tc_fail "unimplemented"
 
 (* Okay, here we need to generate a "standard form" for the variables
  * in a pasting diagram.  This is because we will need to compare them

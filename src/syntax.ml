@@ -71,7 +71,31 @@ and cell_free_vars t =
   match t with
   | CohT (_, typ) -> ty_free_vars typ
   | CompT (_, typ) -> ty_free_vars typ
-                     
+
+(* Simultaneous Substitution *)
+
+let rec subst_ty s t =
+  match t with
+  | ObjT -> ObjT
+  | ArrT (typ, src, tgt) ->
+     let typ' = subst_ty s typ in
+     let src' = subst_tm s src in
+     let tgt' = subst_tm s tgt in
+     ArrT (typ', src', tgt')
+
+and subst_tm s t =
+  match t with
+  | VarT id -> List.assoc id s
+  | DefAppT (id, args) ->
+     DefAppT (id, List.map (subst_tm s) args)
+  | CellAppT (cell, args) ->
+     CellAppT (subst_cell s cell, List.map (subst_tm s) args)
+
+and subst_cell s t =
+  match t with
+  | CohT (pd, typ) -> CohT (pd, subst_ty s typ)
+  | CompT (pd, typ) -> CompT (pd, subst_ty s typ)
+    
 (* Printing of types and terms *)                     
 let rec print_ty_term t =
   match t with
