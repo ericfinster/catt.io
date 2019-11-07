@@ -2,22 +2,25 @@
  * syntax.ml - syntactic definitions
  *)
 
-(* Slightly refined user expressions *)
+open Printf
+   
+(* Raw, user-level expressions *)
           
 type ty_expr =
-  | ObjTypE
-  | ArrowTypE of tm_expr * tm_expr
+  | ObjE
+  | ArrE of tm_expr * tm_expr
 
  and tm_expr =
-   | VarTmE of string
-   | AppTmE of tm_expr * tm_expr
-   | CohTmE of coh_expr
+   | VarE of string
+   | AppE of tm_expr * tm_expr
+   | CellE of cell_expr
 
- and coh_expr =
+ and cell_expr =
    | CohE of (string * ty_expr) list * ty_expr
    | CompE of (string * ty_expr) list * ty_expr
      
 (* Commands *)
+            
 type cmd =
   | Def of string * (string * ty_expr) list * ty_expr
   | Let of string * (string * ty_expr) list * ty_expr * tm_expr
@@ -26,18 +29,48 @@ type cmd =
          
 type ty_term =
   | ObjT
-  | ArrowT of ty_term * tm_term * tm_term
-
+  | ArrT of ty_term * tm_term * tm_term
+  | PiT of ty_term * ty_term 
+          
  and tm_term =
-   | CattT of catt_term
-   | AppT of tm_term * tm_term
    | BVarT of int
    | FVarT of string
+   | CellT of cell_term
+   | AppT of tm_term * tm_term
 
- and catt_term =
+ and cell_term =
    | CohT of ty_term list * ty_term
    | CompT of ty_term list * ty_term   
-   
+
+type ctx = (string * ty_term) list
+
+let rec print_ty_term t =
+  match t with
+  | ObjT -> "*"
+  | ArrT (typ, src, tgt) -> 
+     sprintf "%s | %s -> %s" (print_ty_term typ)
+             (print_tm_term src) (print_tm_term tgt)
+  | PiT (a, b) ->
+     sprintf "Pi (%s) (%s)" (print_ty_term a) (print_ty_term b)
+
+and print_tm_term t =
+  match t with
+  | BVarT k -> sprintf "%d" k 
+  | FVarT id -> id
+  | CellT cell -> print_cell_term cell
+  | AppT (u , v) ->
+     sprintf "%s %s" (print_tm_term u) (print_tm_term v)
+             
+and print_cell_term t =
+  let print_decl typ =
+    sprintf "(%s)" (print_ty_term typ) in 
+  let print_pd pd =
+    String.concat " " (List.map print_decl pd) in 
+  match t with
+  | CohT (pd, typ) ->
+     sprintf "coh %s : %s" (print_pd pd) (print_ty_term typ)
+  | CompT (pd, typ) ->
+     sprintf "comp %s : %s" (print_pd pd) (print_ty_term typ)
             
 (* Semantic domain for normalization *)
             

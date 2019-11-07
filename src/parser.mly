@@ -34,17 +34,29 @@ var_decl:
 
 ty_expr:
   | OBJ
-    { ObjTypE }
-  | e1 = tm_expr ARROW e2 = tm_expr
-    { ArrowTypE (e1, e2) }
+    { ObjE }
+  | e1 = tm_expr1 ARROW e2 = tm_expr
+    { ArrE (e1, e2) }
 
 tm_expr:
-  | id = IDENT
-    { VarTmE id }
-  | coh = coh_expr
-    { CohTmE coh }
+  | t = tm_expr1
+    { t }
+  | cell = cell_expr
+    { CellE cell }
+  
+tm_expr1:
+  | t = tm_expr2
+    { t } 
+  | t1 = tm_expr1 t2 = tm_expr2
+    { AppE (t1, t2) }
 
-coh_expr:
+tm_expr2:
+  | id = IDENT
+    { VarE id }
+  | LPAR t = tm_expr RPAR
+    { t }
+    
+cell_expr:
   | COH pd = var_decl+ COLON ty = ty_expr
     { CohE (pd, ty) }
   | COMP pd = var_decl+ COLON ty = ty_expr

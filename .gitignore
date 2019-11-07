@@ -24,3 +24,9 @@ lib/bs
 .vscode
 .merlin
 .bsb.lock
+node_modules/
+*.bs.js
+src/lexer.ml
+src/parser.ml
+src/parser.mli
+notes.org
