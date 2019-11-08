@@ -148,7 +148,7 @@ and tc_check_pd pd =
   | (id, ObjE) :: [] -> tc_ok ((id, ObjT) :: [], id, ObjT)
   | (_, _) :: [] -> tc_fail "Pasting diagram does not begin with an object"
   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
-     printf "Passing filler %s with target %s\n" fill_id tgt_id;
+     (* printf "Passing filler %s with target %s\n" fill_id tgt_id; *)
      tc_check_pd pd'                                          >>= fun (res_pd, pid, ptyp) ->
      tc_in_ctx res_pd (tc_check_ty tgt_typ)                   >>= fun tgt_typ_tm ->
      tc_in_ctx ((tgt_id, tgt_typ_tm) :: res_pd)
@@ -183,8 +183,16 @@ let rec check_cmds cmds =
   | (Def (id, pd, _)) :: ds ->
      printf "Passing coherence: %s\n" id;
      printf "Context: %s\n" (print_expr_ctx pd);
-     (match tc_check_pd pd [] with
-      | Succeed (_, _, _) -> printf "Got a pasting diagram!\n"
+     let m = tc_check_pd pd >>= fun (pd_tm, _, _) ->
+             let d = dim_of_pd (List.map snd pd_tm) in
+             tc_pd_src (d - 1) pd_tm >>= fun pd_src ->
+             tc_pd_tgt (d - 1) pd_tm >>= fun pd_tgt ->
+             tc_ok (pd_tm, pd_src, pd_tgt) in
+     (match m [] with 
+      | Succeed (pd_tm, pd_src, pd_tgt) ->
+         printf "Pd: %s\n" (print_term_ctx pd_tm);
+         printf "Pd src: %s\n" (print_term_ctx pd_src);
+         printf "Pd tgt: %s\n" (print_term_ctx pd_tgt);
       | Fail msg -> printf "Error: %s\n" msg);
      check_cmds ds >>= fun _ -> tc_ok ()
   | (Let (id, _, _, _)) :: ds ->

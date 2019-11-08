@@ -45,6 +45,10 @@ let rec dim_of typ =
   | ObjT -> 0
   | ArrT (ty, _, _) -> 1 + (dim_of ty)
 
+(* Dimension of a pasting diagram *)          
+let dim_of_pd pd =
+  List.fold_right max (List.map dim_of pd) 0
+  
 (* Free variables *)
 let rec ty_free_vars t =
   match t with
@@ -158,3 +162,10 @@ let print_expr_ctx g =
     sprintf "(%s : %s)" id (print_ty_expr typ) in 
   let decls = List.map print_decl g in
   String.concat " " (List.rev decls)
+
+let print_term_ctx g =
+  let print_decl = fun (id, typ) ->
+    sprintf "(%s : %s)" id (print_ty_term typ) in 
+  let decls = List.map print_decl g in
+  String.concat " " (List.rev decls)
+  
