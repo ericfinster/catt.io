@@ -45,20 +45,20 @@ let rec tc_tgt_of a t k =
        | ArrT (typ, _, tgt) -> tc_tgt_of tgt typ (k-1)
 
 (* Source pasting diagram *)
-let rec tc_pd_src k pd =
+let rec tc_pd_kth_src k pd =
   match pd with
   | [] -> tc_fail "Empty pasting diagram"
   | (id, ObjT) :: [] -> tc_ok ((id, ObjT) :: [])
   | (_, _) :: [] -> tc_fail "Malformed pasting diagram"
   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
      if (dim_of tgt_typ >= k) then
-       tc_pd_src k pd'
+       tc_pd_kth_src k pd'
      else
-       tc_pd_src k pd' >>= fun pd_src ->
+       tc_pd_kth_src k pd' >>= fun pd_src ->
        tc_ok ((fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd_src)
 
 (* Target pasting diagram *)
-let rec tc_pd_tgt k pd =
+let rec tc_pd_kth_tgt k pd =
   match pd with
   | [] -> tc_fail "Empty pasting diagram"
   | (id, ObjT) :: [] -> tc_ok ((id, ObjT) :: [])
@@ -66,14 +66,17 @@ let rec tc_pd_tgt k pd =
   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
      let d = dim_of tgt_typ in
      if (d > k) then
-       tc_pd_tgt k pd'
-     else tc_pd_tgt k pd' >>= fun pd_tgt ->
+       tc_pd_kth_tgt k pd'
+     else tc_pd_kth_tgt k pd' >>= fun pd_tgt ->
           if (d = k) then
             match pd_tgt with
             | [] -> tc_fail "Empty pasting diagram target"
             | _ :: pd_tgt' -> tc_ok ((tgt_id, tgt_typ) :: pd_tgt')
           else tc_ok ((fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd_tgt)
 
+let tc_pd_src pd = tc_pd_kth_src ((dim_of_pd pd) - 1) pd
+let tc_pd_tgt pd = tc_pd_kth_tgt ((dim_of_pd pd) - 1) pd
+                 
 (* 
  * Typechecking Rules
  *)
@@ -110,6 +113,7 @@ and tc_check_cell cell =
   match cell with
   | CohE (pd, typ) -> 
      tc_check_pd pd >>= fun (pd', _, _) ->
+     printf "Valid pasting diagram: %s\n" (print_term_ctx pd');
      tc_with_vars pd' (tc_check_ty typ) >>= fun typ' ->
      let pd_vars = SS.of_list (List.map fst pd') in
      let typ_vars = ty_free_vars typ' in
@@ -119,20 +123,24 @@ and tc_check_cell cell =
   | CompE (pd, ObjE) -> tc_fail "Composition cannot target an object"
   | CompE (pd, ArrE (src, tgt)) ->
      tc_check_pd pd >>= fun (pd', _, _) ->
-     let pd_dim = List.fold_right max (List.map (fun (_, typ) -> dim_of typ) pd') 0 in
-     tc_pd_src (pd_dim - 1) pd' >>= fun pd_src ->
-     tc_pd_tgt (pd_dim - 1) pd' >>= fun pd_tgt ->
+     printf "Valid pasting diagram: %s\n" (print_term_ctx pd');
+     tc_pd_src pd' >>= fun pd_src ->
+     printf "Source diagram: %s\n" (print_term_ctx pd_src);
+     tc_pd_tgt pd' >>= fun pd_tgt ->
+     printf "Target diagram: %s\n" (print_term_ctx pd_tgt);
      tc_with_vars pd_src (tc_infer_tm src) >>= fun (src_tm, src_typ) ->
+     printf "Source term is: %s\n" (print_tm_term src_tm); 
      tc_with_vars pd_tgt (tc_infer_tm tgt) >>= fun (tgt_tm, tgt_typ) ->
+     printf "Target term is: %s\n" (print_tm_term tgt_tm); 
      if (src_typ <> tgt_typ) then
        tc_fail "Source and target do not have the same type"
      else let pd_src_vars = SS.of_list (List.map fst pd_src) in
           let pd_tgt_vars = SS.of_list (List.map fst pd_tgt) in
-          let src_typ_vars = ty_free_vars src_typ in
-          let tgt_typ_vars = ty_free_vars tgt_typ in
-          if (not (SS.subset pd_src_vars src_typ_vars)) then
+          let src_vars = SS.union (tm_free_vars src_tm) (ty_free_vars src_typ) in
+          let tgt_vars = SS.union (tm_free_vars tgt_tm) (ty_free_vars tgt_typ) in
+          if (not (SS.subset pd_src_vars src_vars)) then
             tc_fail "Source is not algebraic"
-          else if (not (SS.subset pd_tgt_vars tgt_typ_vars)) then
+          else if (not (SS.subset pd_tgt_vars tgt_vars)) then
             tc_fail "Target is not algebraic"
           else tc_ok (pd', ArrT (src_typ, src_tm, tgt_tm))
                                       
@@ -148,7 +156,6 @@ and tc_check_pd pd =
   | (id, ObjE) :: [] -> tc_ok ((id, ObjT) :: [], id, ObjT)
   | (_, _) :: [] -> tc_fail "Pasting diagram does not begin with an object"
   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
-     (* printf "Passing filler %s with target %s\n" fill_id tgt_id; *)
      tc_check_pd pd'                                          >>= fun (res_pd, pid, ptyp) ->
      tc_in_ctx res_pd (tc_check_ty tgt_typ)                   >>= fun tgt_typ_tm ->
      tc_in_ctx ((tgt_id, tgt_typ_tm) :: res_pd)
@@ -180,22 +187,13 @@ and tc_check_pd pd =
 let rec check_cmds cmds =
   match cmds with
   | [] -> tc_ok ()
-  | (Def (id, pd, _)) :: ds ->
-     printf "Passing coherence: %s\n" id;
-     printf "Context: %s\n" (print_expr_ctx pd);
-     let m = tc_check_pd pd >>= fun (pd_tm, _, _) ->
-             let d = dim_of_pd (List.map snd pd_tm) in
-             tc_pd_src (d - 1) pd_tm >>= fun pd_src ->
-             tc_pd_tgt (d - 1) pd_tm >>= fun pd_tgt ->
-             tc_ok (pd_tm, pd_src, pd_tgt) in
-     (match m [] with 
-      | Succeed (pd_tm, pd_src, pd_tgt) ->
-         printf "Pd: %s\n" (print_term_ctx pd_tm);
-         printf "Pd src: %s\n" (print_term_ctx pd_src);
-         printf "Pd tgt: %s\n" (print_term_ctx pd_tgt);
-      | Fail msg -> printf "Error: %s\n" msg);
-     check_cmds ds >>= fun _ -> tc_ok ()
-  | (Let (id, _, _, _)) :: ds ->
-     printf "Defining symbol: %s\n" id;
-     check_cmds ds >>= fun _ -> tc_ok ()
+  | (CellDef (id, cell)) :: ds ->
+     printf "-----------------\n";
+     printf "Checking cell: %s\n" id;
+     tc_check_cell cell >>= fun (pd, typ) ->
+     printf "Ok!\n";
+     check_cmds ds
+  | (TermDef (id, _, _, _)) :: ds ->
+     printf "Skipping defined symbol: %s\n" id;
+     check_cmds ds 
 

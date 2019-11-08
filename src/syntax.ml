@@ -19,12 +19,12 @@ type ty_expr =
  and cell_expr =
    | CohE of (string * ty_expr) list * ty_expr
    | CompE of (string * ty_expr) list * ty_expr
-     
+
 (* Commands *)
 type cmd =
-  | Def of string * (string * ty_expr) list * ty_expr
-  | Let of string * (string * ty_expr) list * ty_expr * tm_expr
-
+  | CellDef of string * cell_expr
+  | TermDef of string * (string * ty_expr) list * ty_expr * tm_expr
+            
 (* Internal term representation *)
 type ty_term =
   | ObjT
@@ -47,7 +47,7 @@ let rec dim_of typ =
 
 (* Dimension of a pasting diagram *)          
 let dim_of_pd pd =
-  List.fold_right max (List.map dim_of pd) 0
+  List.fold_right max (List.map (fun (_, typ) -> dim_of typ) pd) 0
   
 (* Free variables *)
 let rec ty_free_vars t =
@@ -100,9 +100,11 @@ and subst_cell s t =
 let rec print_ty_term t =
   match t with
   | ObjT -> "*"
-  | ArrT (typ, src, tgt) -> 
-     sprintf "%s | %s -> %s" (print_ty_term typ)
+  | ArrT (_, src, tgt) -> 
+     sprintf "%s -> %s" 
              (print_tm_term src) (print_tm_term tgt)
+     (* sprintf "%s | %s -> %s" (print_ty_term typ) *)
+     (*         (print_tm_term src) (print_tm_term tgt) *)
     
 and print_tm_term t =
   let print_args args =

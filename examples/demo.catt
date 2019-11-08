@@ -2,12 +2,21 @@
 #  demo.catt - a demonstraction of catt
 #
 
-def id (x : *) : x -> x
+let id = coh (x : *) : x -> x
 
-def hcomp (x : *) (y : *) (f : x -> y)
-                  (z : *) (g : y -> z) : x -> z
+let h = comp (x : *)
+             (y : *) (f : x -> y)
+             (z : *) (g : y -> z) : x -> z
 
-def vcomp (x : *) (y : *) (f : x -> y)
-                          (g : x -> y) (a : f -> g)
-                          (h : x -> y) (b : g -> h) : f -> h
+let v = comp (x : *)
+             (y : *) (f : x -> y)
+                     (g : x -> y) (a : f -> g)
+                     (h : x -> y) (b : g -> h) : f -> h
 
+let eric = comp (x : *)
+                (y : *) (f : x -> y)
+                        (g : x -> y) (a : f -> g)
+                                     (b : f -> g) (A : a -> b)
+                        (h : x -> y) (c : g -> h)
+                (z : *) (k : y -> z)
+                        (l : y -> z) (d : k -> l) : x -> y

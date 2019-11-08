@@ -4,11 +4,11 @@
   
 %} 
 
-%token DEF LET
+%token LET
 %token COH COMP
 %token OBJ ARROW 
 %token LPAR RPAR LBRACKET RBRACKET
-%token COMMA COLON EQUALS
+%token COMMA COLON EQUAL
 %token <string> IDENT 
 %token EOF
 
@@ -23,10 +23,10 @@ prog:
     { cmds }
 
 cmd:
-  | DEF id = IDENT ctx = var_decl+ COLON ty = ty_expr
-    { Def (id, List.rev ctx, ty) }
-  | LET id = IDENT ctx = var_decl+ COLON ty = ty_expr EQUALS tm = tm_expr
-    { Let (id, List.rev ctx, ty, tm) }
+  | LET id = IDENT EQUAL cell = cell_expr
+    { CellDef (id, cell) }
+  | LET id = IDENT ctx = var_decl+ COLON ty = ty_expr EQUAL tm = tm_expr
+    { TermDef (id, List.rev ctx, ty, tm) }
 
 var_decl:
   | LPAR id = IDENT COLON ty = ty_expr RPAR
@@ -48,6 +48,6 @@ tm_expr:
     
 cell_expr:
   | COH pd = var_decl+ COLON ty = ty_expr
-    { CohE (pd, ty) }
+    { CohE (List.rev pd, ty) }
   | COMP pd = var_decl+ COLON ty = ty_expr
-    { CompE (pd, ty) }
+    { CompE (List.rev pd, ty) }
