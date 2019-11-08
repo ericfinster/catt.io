@@ -1,5 +1,5 @@
 #
-#  demo.catt - a demonstraction of catt
+#  demo.catt - demo for catt typechecker
 #
 
 let id = coh (x : *) : x -> x

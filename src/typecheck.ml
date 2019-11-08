@@ -7,32 +7,35 @@ open Common
 open Syntax
 
 module SS = Set.Make(String)
-  
+
+type tc_env = {
+    gma : (string * ty_term) list;
+    rho : (string * cell_term) list;
+  }
+
+let empty_env = { gma = [] ; rho = [] }
+              
 (* The typechecking monad *)
-type 'a tcm = ctx -> 'a err
+type 'a tcm = tc_env -> 'a err
 
 (* Bind for the typechecking monad *)
-let ( >>= ) m f gma =
-  match m gma with
+let ( >>= ) m f env =
+  match m env with
   | Fail s -> Fail s
-  | Succeed a -> f a gma
+  | Succeed a -> f a env
                
 let tc_ok a _ = Succeed a
 let tc_fail msg _ = Fail msg
-let tc_in_ctx gma m _ = m gma
-let tc_ctx gma = Succeed gma
-let tc_with_var id ty m gma = m ((id, ty) :: gma)
-let tc_with_vars vars m gma = m (vars @ gma)
-let tc_ctx_vars gma = Succeed (List.map fst gma)
+let tc_in_ctx g m env = m { env with gma = g }
+let tc_ctx env = Succeed env.gma
+let tc_with_var id ty m env = m { env with gma = ((id, ty) :: env.gma) }
+let tc_with_vars vars m env = m { env with gma = (vars @ env.gma) }
+let tc_ctx_vars env = Succeed (List.map fst env.gma)
 
 (* Lookup and identifier in the context *)
-let rec tc_lookup ident gma =
-  match gma with
-  | [] -> Fail (Printf.sprintf "Unknown identifier: %s" ident)
-  | (id,typ) :: gs ->
-     if (id = ident) then
-       Succeed typ
-     else tc_lookup ident gs
+let rec tc_lookup ident env =
+  try Succeed (List.assoc ident env.gma)
+  with Not_found -> Fail (sprintf "Unknown identifier: %s" ident)
     
 (* Find the k-th target of the given term an type *)    
 let rec tc_tgt_of a t k =
