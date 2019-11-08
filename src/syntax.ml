@@ -7,7 +7,6 @@ open Printf
 module SS = Set.Make(String)
           
 (* Raw, user-level expressions *)
-          
 type ty_expr =
   | ObjE
   | ArrE of tm_expr * tm_expr
@@ -22,13 +21,11 @@ type ty_expr =
    | CompE of (string * ty_expr) list * ty_expr
      
 (* Commands *)
-            
 type cmd =
   | Def of string * (string * ty_expr) list * ty_expr
   | Let of string * (string * ty_expr) list * ty_expr * tm_expr
 
-(* Internal, locally nameless representation *)
-         
+(* Internal term representation *)
 type ty_term =
   | ObjT
   | ArrT of ty_term * tm_term * tm_term
@@ -73,7 +70,6 @@ and cell_free_vars t =
   | CompT (_, typ) -> ty_free_vars typ
 
 (* Simultaneous Substitution *)
-
 let rec subst_ty s t =
   match t with
   | ObjT -> ObjT
@@ -125,9 +121,40 @@ and print_cell_term t =
   | CompT (pd, typ) ->
      sprintf "comp %s : %s" (print_pd pd) (print_ty_term typ)
 
-
-(* Contexts and Environments *)
+(* Printing expressions *)    
+let rec print_ty_expr t =
+  match t with
+  | ObjE -> "*"
+  | ArrE (src, tgt) -> 
+     sprintf "%s -> %s" (print_tm_expr src) (print_tm_expr tgt)
     
+and print_tm_expr t =
+  let print_args args =
+    String.concat ", " (List.map print_tm_expr args) in 
+  match t with
+  | VarE id -> id
+  | DefAppE (id, args) ->
+     sprintf "%s(%s)" id (print_args args)
+  | CellAppE (cell, args) -> 
+     sprintf "[%s](%s)" (print_cell_expr cell) (print_args args)
+             
+and print_cell_expr t =
+  let print_decl = fun (id, typ) ->
+    sprintf "(%s : %s)" id (print_ty_expr typ) in 
+  let print_pd pd =
+    String.concat " " (List.map print_decl pd) in 
+  match t with
+  | CohE (pd, typ) ->
+     sprintf "coh %s : %s" (print_pd pd) (print_ty_expr typ)
+  | CompE (pd, typ) ->
+     sprintf "comp %s : %s" (print_pd pd) (print_ty_expr typ)
+    
+(* Contexts and Environments *)
 type ctx = (string * ty_term) list
 type env = (string * tm_term) list 
     
+let print_expr_ctx g =
+  let print_decl = fun (id, typ) ->
+    sprintf "(%s : %s)" id (print_ty_expr typ) in 
+  let decls = List.map print_decl g in
+  String.concat " " (List.rev decls)

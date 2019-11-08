@@ -75,8 +75,8 @@ let rec tc_pd_tgt k pd =
           else tc_ok ((fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd_tgt)
 
 (* 
-* Typechecking Rules
-*)
+ * Typechecking Rules
+ *)
     
 let rec tc_check_ty t =
   match t with
@@ -148,10 +148,12 @@ and tc_check_pd pd =
   | (id, ObjE) :: [] -> tc_ok ((id, ObjT) :: [], id, ObjT)
   | (_, _) :: [] -> tc_fail "Pasting diagram does not begin with an object"
   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
+     printf "Passing filler %s with target %s\n" fill_id tgt_id;
      tc_check_pd pd'                                          >>= fun (res_pd, pid, ptyp) ->
      tc_in_ctx res_pd (tc_check_ty tgt_typ)                   >>= fun tgt_typ_tm ->
-     tc_with_var tgt_id tgt_typ_tm (tc_check_ty fill_typ)     >>= fun fill_typ_tm ->
-     tc_ctx_vars                                              >>= fun cvars ->
+     tc_in_ctx ((tgt_id, tgt_typ_tm) :: res_pd)
+               (tc_check_ty fill_typ)                         >>= fun fill_typ_tm ->
+     let cvars = List.map fst res_pd in 
      let codim = (dim_of ptyp) - (dim_of tgt_typ_tm) in
      tc_tgt_of (VarT pid) ptyp codim                          >>= fun (src_tm_tm, src_typ_tm) -> 
      if (tgt_typ_tm <> src_typ_tm) then
@@ -178,12 +180,12 @@ and tc_check_pd pd =
 let rec check_cmds cmds =
   match cmds with
   | [] -> tc_ok ()
-  | (Def (id, _, _)) :: ds ->
+  | (Def (id, pd, _)) :: ds ->
      printf "Passing coherence: %s\n" id;
-     (* printf "Context: %s\n" (print_ctx ctx); *)
-     (* (match ctx_to_pd ctx with *)
-     (*  | Succeed (_, _, _) -> printf "Got a pasting diagram!\n" *)
-     (*  | Fail msg -> printf "Error: %s\n" msg); *)
+     printf "Context: %s\n" (print_expr_ctx pd);
+     (match tc_check_pd pd [] with
+      | Succeed (_, _, _) -> printf "Got a pasting diagram!\n"
+      | Fail msg -> printf "Error: %s\n" msg);
      check_cmds ds >>= fun _ -> tc_ok ()
   | (Let (id, _, _, _)) :: ds ->
      printf "Defining symbol: %s\n" id;
