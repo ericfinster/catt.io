@@ -36,8 +36,8 @@ type ty_term =
    | CellAppT of cell_term * tm_term list
 
  and cell_term =
-   | CohT of ty_term list * ty_term
-   | CompT of ty_term list * ty_term   
+   | CohT of (string * ty_term) list * ty_term
+   | CompT of (string * ty_term) list * ty_term   
 
 (* Find the dimension of a type *)
 let rec dim_of typ =
@@ -117,8 +117,8 @@ and print_tm_term t =
      sprintf "[%s](%s)" (print_cell_term cell) (print_args args)
              
 and print_cell_term t =
-  let print_decl typ =
-    sprintf "(%s)" (print_ty_term typ) in 
+  let print_decl (id, typ) =
+    sprintf "(%s : %s)" id (print_ty_term typ) in 
   let print_pd pd =
     String.concat " " (List.map print_decl pd) in 
   match t with

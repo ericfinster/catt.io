@@ -20,3 +20,6 @@ let eric = comp (x : *)
                         (h : x -> y) (c : g -> h)
                 (z : *) (k : y -> z)
                         (l : y -> z) (d : k -> l) : x -> y
+
+let local (x : *) (f : x -> x) : x -> x =
+    [comp ....](f)

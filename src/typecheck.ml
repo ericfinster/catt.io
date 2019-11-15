@@ -28,12 +28,13 @@ let tc_ok a _ = Succeed a
 let tc_fail msg _ = Fail msg
 let tc_in_ctx g m env = m { env with gma = g }
 let tc_ctx env = Succeed env.gma
-let tc_with_var id ty m env = m { env with gma = ((id, ty) :: env.gma) }
-let tc_with_vars vars m env = m { env with gma = (vars @ env.gma) }
+let tc_with_cell id cell m env = m { env with rho = (id, cell) :: env.rho }
+let tc_with_var id ty m env = m { env with gma = (id, ty) :: env.gma }
+let tc_with_vars vars m env = m { env with gma = vars @ env.gma }
 let tc_ctx_vars env = Succeed (List.map fst env.gma)
 
 (* Lookup and identifier in the context *)
-let rec tc_lookup ident env =
+let tc_lookup_var ident env =
   try Succeed (List.assoc ident env.gma)
   with Not_found -> Fail (sprintf "Unknown identifier: %s" ident)
     
@@ -107,7 +108,7 @@ and tc_check_tm x ty =
 and tc_infer_tm tm =
   match tm with
   | VarE id -> 
-     tc_lookup id >>= fun typ ->
+     tc_lookup_var id >>= fun typ ->
      tc_ok (VarT id, typ)
   | DefAppE (id, args) -> tc_fail "unimplemented"
   | CellAppE (cell, args) -> tc_fail "unimplemented"
@@ -122,7 +123,7 @@ and tc_check_cell cell =
      let typ_vars = ty_free_vars typ' in
      if (not (SS.subset pd_vars typ_vars)) then
        tc_fail "Coherence is not algebraic"
-     else tc_ok (pd', typ')
+     else tc_ok (CohT (pd', typ'))
   | CompE (pd, ObjE) -> tc_fail "Composition cannot target an object"
   | CompE (pd, ArrE (src, tgt)) ->
      tc_check_pd pd >>= fun (pd', _, _) ->
@@ -145,7 +146,7 @@ and tc_check_cell cell =
             tc_fail "Source is not algebraic"
           else if (not (SS.subset pd_tgt_vars tgt_vars)) then
             tc_fail "Target is not algebraic"
-          else tc_ok (pd', ArrT (src_typ, src_tm, tgt_tm))
+          else tc_ok (CompT (pd', ArrT (src_typ, src_tm, tgt_tm)))
                                       
 (* Okay, here we need to generate a "standard form" for the variables
  * in a pasting diagram.  This is because we will need to compare them
@@ -193,10 +194,11 @@ let rec check_cmds cmds =
   | (CellDef (id, cell)) :: ds ->
      printf "-----------------\n";
      printf "Checking cell: %s\n" id;
-     tc_check_cell cell >>= fun (pd, typ) ->
+     tc_check_cell cell >>= fun cell_tm ->
      printf "Ok!\n";
-     check_cmds ds
+     tc_with_cell id cell_tm (check_cmds ds)
   | (TermDef (id, _, _, _)) :: ds ->
      printf "Skipping defined symbol: %s\n" id;
      check_cmds ds 
+
 
