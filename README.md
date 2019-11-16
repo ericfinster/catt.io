@@ -11,7 +11,7 @@ These can be installed from opam.
 # Build
 
 The system is currently configured to build with
-[http://bucklescript.github.io](Bucklescript).  The easiest
+[Bucklescript](http://bucklescript.github.io).  The easiest
 setup is to install Bucklescript globally with
 
 ```
@@ -28,4 +28,8 @@ should make everything.
 
 # To Run
 
+The typechecker can be run with node.js.  For example:
+
+```
 node src/catt.bs.js examples/demo.catt
+```
