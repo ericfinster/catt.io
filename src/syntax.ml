@@ -48,7 +48,17 @@ let rec dim_of typ =
 (* Dimension of a pasting diagram *)          
 let dim_of_pd pd =
   List.fold_right max (List.map (fun (_, typ) -> dim_of typ) pd) 0
-  
+
+let cell_pd cell =
+  match cell with
+  | CohT (pd, _) -> pd
+  | CompT (pd, _) -> pd
+
+let cell_typ cell =
+  match cell with
+  | CohT (_, typ) -> typ
+  | CompT (_, typ) -> typ
+                    
 (* Free variables *)
 let rec ty_free_vars t =
   match t with
@@ -158,7 +168,13 @@ and print_cell_expr t =
 (* Contexts and Environments *)
 type ctx = (string * ty_term) list
 type env = (string * tm_term) list 
-    
+
+let rec id_sub gma =
+  match gma with
+  | [] -> []
+  | (id, _)::gma' ->
+     (id, VarT id)::(id_sub gma')
+         
 let print_expr_ctx g =
   let print_decl = fun (id, typ) ->
     sprintf "(%s : %s)" id (print_ty_expr typ) in 

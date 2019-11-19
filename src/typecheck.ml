@@ -37,7 +37,11 @@ let tc_ctx_vars env = Succeed (List.map fst env.gma)
 let tc_lookup_var ident env =
   try Succeed (List.assoc ident env.gma)
   with Not_found -> Fail (sprintf "Unknown identifier: %s" ident)
-    
+
+let tc_lookup_cell ident env =
+  try Succeed (List.assoc ident env.rho)
+  with Not_found -> Fail (sprintf "Unknown cell identifier: %s" ident)
+                  
 (* Find the k-th target of the given term an type *)    
 let rec tc_tgt_of a t k =
   if (k < 0) then
@@ -96,13 +100,13 @@ let rec tc_check_ty t =
      else
        tc_ok (ArrT (src_ty, src_tm, tgt_tm))
 
-and tc_check_tm x ty =
-  tc_infer_tm x >>= fun (x_tm, x_ty) ->
-  if (x_ty = ty) then tc_ok () else
-    let msg = "Mismatch ..." in 
-    (* let msg = sprintf "The term %s was expected to have type %s,  *)
-    (*                    but was inferred to have type %s" *)
-    (*                   (print_tm x) (print_ty t) (print_ty xt) in  *)
+and tc_check_tm tm ty =
+  tc_infer_tm tm >>= fun (tm', ty') ->
+  if (ty' = ty) then tc_ok tm' else
+    let msg = sprintf "The term %s was expected to have type %s,
+                       but was inferred to have type %s"
+                      (print_tm_term tm') (print_ty_term ty)
+                      (print_ty_term ty') in
     tc_fail msg
 
 and tc_infer_tm tm =
@@ -110,9 +114,31 @@ and tc_infer_tm tm =
   | VarE id -> 
      tc_lookup_var id >>= fun typ ->
      tc_ok (VarT id, typ)
-  | DefAppE (id, args) -> tc_fail "unimplemented"
-  | CellAppE (cell, args) -> tc_fail "unimplemented"
-
+  | DefAppE (id, args) ->
+     tc_lookup_cell id >>= fun cell_tm -> 
+     printf "Found cell named: %s" id;
+     let pd = cell_pd cell_tm in 
+     tc_check_args args (id_sub pd) pd (cell_typ cell_tm) >>= fun (arg_tms, typ) ->
+     tc_ok (DefAppT (id, arg_tms), typ)
+  | CellAppE (cell, args) ->
+     tc_check_cell cell >>= fun cell_tm ->
+     let pd = cell_pd cell_tm in 
+     tc_check_args args (id_sub pd) pd (cell_typ cell_tm) >>= fun (arg_tms, typ) ->
+     tc_ok (CellAppT (cell_tm, arg_tms), typ)
+     
+and tc_check_args args sub tele typ =
+  match (args, tele) with
+  | (_::_, []) -> tc_fail "Too many arguments!"
+  | ([], _::_) -> tc_fail "Not enough arguments!"
+  | ([], []) ->
+     let typ' = subst_ty sub typ in
+     tc_ok (List.map snd sub, typ')
+  | (arg_exp::args', (id,arg_typ)::tele') ->
+     let arg_typ' = subst_ty sub arg_typ in
+     tc_check_tm arg_exp arg_typ' >>= fun arg_tm ->
+     let sub' = (id, arg_tm) :: (List.remove_assoc id sub) in 
+     tc_check_args args' sub' tele' typ
+  
 and tc_check_cell cell =
   match cell with
   | CohE (pd, typ) -> 
@@ -124,7 +150,7 @@ and tc_check_cell cell =
      if (not (SS.subset pd_vars typ_vars)) then
        tc_fail "Coherence is not algebraic"
      else tc_ok (CohT (pd', typ'))
-  | CompE (pd, ObjE) -> tc_fail "Composition cannot target an object"
+  | CompE (_, ObjE) -> tc_fail "Composition cannot target an object"
   | CompE (pd, ArrE (src, tgt)) ->
      tc_check_pd pd >>= fun (pd', _, _) ->
      printf "Valid pasting diagram: %s\n" (print_term_ctx pd');
