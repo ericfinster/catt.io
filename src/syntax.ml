@@ -118,7 +118,7 @@ let rec print_ty_term t =
     
 and print_tm_term t =
   let print_args args =
-    String.concat ", " (List.map print_tm_term args) in 
+    String.concat ", " (List.map print_tm_term (List.rev args)) in 
   match t with
   | VarT id -> id
   | DefAppT (id, args) ->
@@ -130,7 +130,7 @@ and print_cell_term t =
   let print_decl (id, typ) =
     sprintf "(%s : %s)" id (print_ty_term typ) in 
   let print_pd pd =
-    String.concat " " (List.map print_decl pd) in 
+    String.concat " " (List.map print_decl (List.rev pd)) in 
   match t with
   | CohT (pd, typ) ->
      sprintf "coh %s : %s" (print_pd pd) (print_ty_term typ)
@@ -146,7 +146,7 @@ let rec print_ty_expr t =
     
 and print_tm_expr t =
   let print_args args =
-    String.concat ", " (List.map print_tm_expr args) in 
+    String.concat ", " (List.map print_tm_expr (List.rev args)) in 
   match t with
   | VarE id -> id
   | DefAppE (id, args) ->
@@ -158,7 +158,7 @@ and print_cell_expr t =
   let print_decl = fun (id, typ) ->
     sprintf "(%s : %s)" id (print_ty_expr typ) in 
   let print_pd pd =
-    String.concat " " (List.map print_decl pd) in 
+    String.concat " " (List.map print_decl (List.rev pd)) in 
   match t with
   | CohE (pd, typ) ->
      sprintf "coh %s : %s" (print_pd pd) (print_ty_expr typ)

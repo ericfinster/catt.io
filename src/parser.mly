@@ -40,9 +40,9 @@ ty_expr:
 
 tm_expr:
   | LBRACKET cell = cell_expr RBRACKET LPAR args = separated_nonempty_list(COMMA, tm_expr) RPAR
-    { CellAppE (cell, args) }
+    { CellAppE (cell, List.rev args) }
   | id = IDENT LPAR args = separated_nonempty_list(COMMA, tm_expr) RPAR
-    { DefAppE (id, args) } 
+    { DefAppE (id, List.rev args) } 
   | id = IDENT
     { VarE id }
     

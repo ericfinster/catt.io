@@ -13,6 +13,12 @@ let v = comp (x : *)
                      (g : x -> y) (a : f -> g)
                      (h : x -> y) (b : g -> h) : f -> h
 
+let h2 = comp (x : *)
+              (y : *) (f : x -> y)
+                      (g : x -> y) (a : f -> g)
+              (z : *) (h : y -> z)
+                      (k : y -> z) (b : h -> k) : h(x,y,f,z,h) -> h(x,y,g,z,k)
+
 # let eric = comp (x : *)
 #                 (y : *) (f : x -> y)
 #                         (g : x -> y) (a : f -> g)

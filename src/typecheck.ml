@@ -116,29 +116,29 @@ and tc_infer_tm tm =
      tc_ok (VarT id, typ)
   | DefAppE (id, args) ->
      tc_lookup_cell id >>= fun cell_tm -> 
-     printf "Found cell named: %s" id;
-     let pd = cell_pd cell_tm in 
-     tc_check_args args (id_sub pd) pd (cell_typ cell_tm) >>= fun (arg_tms, typ) ->
-     tc_ok (DefAppT (id, arg_tms), typ)
+     printf "Cell %s has definition %s\n" id (print_cell_term cell_tm);
+     let pd = cell_pd cell_tm in
+     tc_check_args args pd >>= fun sub ->
+     let typ = subst_ty sub (cell_typ cell_tm) in 
+     tc_ok (DefAppT (id, List.map snd sub), typ)
   | CellAppE (cell, args) ->
      tc_check_cell cell >>= fun cell_tm ->
      let pd = cell_pd cell_tm in 
-     tc_check_args args (id_sub pd) pd (cell_typ cell_tm) >>= fun (arg_tms, typ) ->
-     tc_ok (CellAppT (cell_tm, arg_tms), typ)
-     
-and tc_check_args args sub tele typ =
-  match (args, tele) with
+     tc_check_args args pd >>= fun sub ->
+     let typ = subst_ty sub (cell_typ cell_tm) in 
+     tc_ok (CellAppT (cell_tm, List.map snd sub), typ)
+
+and tc_check_args args tele =
+  match (args, tele) with 
   | (_::_, []) -> tc_fail "Too many arguments!"
   | ([], _::_) -> tc_fail "Not enough arguments!"
-  | ([], []) ->
-     let typ' = subst_ty sub typ in
-     tc_ok (List.map snd sub, typ')
+  | ([], []) -> tc_ok []
   | (arg_exp::args', (id,arg_typ)::tele') ->
+     tc_check_args args' tele' >>= fun sub ->
      let arg_typ' = subst_ty sub arg_typ in
      tc_check_tm arg_exp arg_typ' >>= fun arg_tm ->
-     let sub' = (id, arg_tm) :: (List.remove_assoc id sub) in 
-     tc_check_args args' sub' tele' typ
-  
+     tc_ok ((id, arg_tm) :: sub)
+     
 and tc_check_cell cell =
   match cell with
   | CohE (pd, typ) -> 
