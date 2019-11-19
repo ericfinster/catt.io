@@ -5,6 +5,7 @@
 open Printf
 open Common
 open Syntax
+open Normalization
 
 module SS = Set.Make(String)
 
@@ -266,7 +267,7 @@ let rec check_cmds cmds =
        printf "Match!\n"
      else printf "Fail!\n";
      check_cmds ds
-     
-
-     
-
+  | (LocMax tele :: ds) ->
+     let locmax = locally_maximal tele in
+     List.iter (printf "%s ") locmax;
+     check_cmds ds

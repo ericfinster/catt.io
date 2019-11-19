@@ -10,6 +10,7 @@ rule token = parse
   | "eqnf"       { EQNF }
   | "coh"        { COH }
   | "comp"       { COMP }
+  | "locmax"     { LOCMAX }
   | "->"         { ARROW }
   | "*"          { OBJ }
   | "("          { LPAR }
