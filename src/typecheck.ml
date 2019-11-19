@@ -253,5 +253,20 @@ let rec check_cmds cmds =
      tc_in_ctx g (tc_check_tm tm typ_tm) >>= fun tm_tm ->
      printf "Valid definition: %s\n" (print_tm_term tm_tm);
      tc_with_def id g typ_tm tm_tm (check_cmds ds)
+  | (EqNf (tele, tm_a, tm_b) :: ds) ->
+     printf "-----------------\n";
+     printf "Comparing normal forms\n";
+     tc_check_tele tele >>= fun g ->
+     printf "Valid telescope: %s\n" (print_term_ctx g);
+     tc_in_ctx g (tc_infer_tm tm_a) >>= fun (tm_a_tm, tm_a_ty) ->
+     printf "Term %s has type %s\n" (print_tm_term tm_a_tm) (print_ty_term tm_a_ty);
+     tc_in_ctx g (tc_infer_tm tm_b) >>= fun (tm_b_tm, tm_b_ty) ->
+     printf "Term %s has type %s\n" (print_tm_term tm_b_tm) (print_ty_term tm_b_ty);
+     if (tm_a_tm = tm_b_tm) then
+       printf "Match!\n"
+     else printf "Fail!\n";
+     check_cmds ds
+     
 
+     
 

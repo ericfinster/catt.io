@@ -6,7 +6,8 @@ let space = ' ' | '\t' | '\r'
 
 rule token = parse
 
-  | "let"        { LET } 
+  | "let"        { LET }
+  | "eqnf"       { EQNF }
   | "coh"        { COH }
   | "comp"       { COMP }
   | "->"         { ARROW }
@@ -18,6 +19,7 @@ rule token = parse
   | ":"          { COLON }
   | ","          { COMMA }
   | "="          { EQUAL }
+  | "|"          { VBAR }
 
   (* Identifiers *)
   | (['a'-'z''A'-'Z''0'-'9']['a'-'z''A'-'Z''0'-'9''_']* as str) { IDENT str }

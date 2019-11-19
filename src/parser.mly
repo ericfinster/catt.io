@@ -4,11 +4,11 @@
   
 %} 
 
-%token LET
+%token LET EQNF
 %token COH COMP
 %token OBJ ARROW 
 %token LPAR RPAR LBRACKET RBRACKET
-%token COMMA COLON EQUAL
+%token COMMA COLON EQUAL VBAR
 %token <string> IDENT 
 %token EOF
 
@@ -27,6 +27,8 @@ cmd:
     { CellDef (id, cell) }
   | LET id = IDENT ctx = var_decl+ COLON ty = ty_expr EQUAL tm = tm_expr
     { TermDef (id, List.rev ctx, ty, tm) }
+  | EQNF ctx = var_decl+ VBAR tm_a = tm_expr VBAR tm_b = tm_expr
+    { EqNf (List.rev ctx, tm_a, tm_b) }
 
 var_decl:
   | LPAR id = IDENT COLON ty = ty_expr RPAR
