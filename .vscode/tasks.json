@@ -1,0 +1,23 @@
+// .vscode/tasks.json
+{
+	"version": "2.0.0",
+	"tasks": [
+    {
+      "label": "build",
+      "command": "bsb",
+      "args": ["-make-world"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "parse",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/src/catt.bs.js",
+        "${file}"
+      ]
+    }
+  ]
+}
