@@ -1,0 +1,7 @@
+# Manually-generated pruning example
+
+let id = coh (x:*):x->x
+let h2 = comp (x:*)(y:*)(f:x->y)(z:*)(g:y->z):x->z
+let lambda = coh (x:*)(y:*)(f:x->y):h2(x,x,id(x),y,f)->f
+let unitor_trivial_context = coh (x:*) : h2(x,x,id(x),x,id(x))->id(x)
+let lambda_prune = coh (x:*):lambda(x,x,id(x))->unitor_trivial_context(x)
