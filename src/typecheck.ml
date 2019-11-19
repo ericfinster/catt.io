@@ -268,6 +268,9 @@ let rec check_cmds cmds =
      else printf "Fail!\n";
      check_cmds ds
   | (LocMax tele :: ds) ->
-     let locmax = locally_maximal tele in
-     List.iter (printf "%s ") locmax;
+     printf "-----------------\n";
+     printf "Locally maximal variables\n";
+     (*tc_check_tele tele >>=*)
+     List.iter (printf "%s ") (locally_maximal tele);
+     printf "\n";
      check_cmds ds
