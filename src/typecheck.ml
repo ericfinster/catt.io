@@ -8,9 +8,13 @@ open Syntax
 
 module SS = Set.Make(String)
 
+type tc_def =
+  | TCCellDef of cell_term
+  | TCTermDef of ctx * ty_term * tm_term
+
 type tc_env = {
     gma : (string * ty_term) list;
-    rho : (string * cell_term) list;
+    rho : (string * tc_def) list;
   }
 
 let empty_env = { gma = [] ; rho = [] }
@@ -28,7 +32,8 @@ let tc_ok a _ = Succeed a
 let tc_fail msg _ = Fail msg
 let tc_in_ctx g m env = m { env with gma = g }
 let tc_ctx env = Succeed env.gma
-let tc_with_cell id cell m env = m { env with rho = (id, cell) :: env.rho }
+let tc_with_cell id cell m env = m { env with rho = (id, TCCellDef cell) :: env.rho }
+let tc_with_def id g ty tm m env = m { env with rho = (id, TCTermDef (g,ty,tm)) :: env.rho }
 let tc_with_var id ty m env = m { env with gma = (id, ty) :: env.gma }
 let tc_with_vars vars m env = m { env with gma = vars @ env.gma }
 let tc_ctx_vars env = Succeed (List.map fst env.gma)
@@ -38,7 +43,7 @@ let tc_lookup_var ident env =
   try Succeed (List.assoc ident env.gma)
   with Not_found -> Fail (sprintf "Unknown identifier: %s" ident)
 
-let tc_lookup_cell ident env =
+let tc_lookup_def ident env =
   try Succeed (List.assoc ident env.rho)
   with Not_found -> Fail (sprintf "Unknown cell identifier: %s" ident)
                   
@@ -115,12 +120,19 @@ and tc_infer_tm tm =
      tc_lookup_var id >>= fun typ ->
      tc_ok (VarT id, typ)
   | DefAppE (id, args) ->
-     tc_lookup_cell id >>= fun cell_tm -> 
-     (* printf "Cell %s has definition %s\n" id (print_cell_term cell_tm); *)
-     let pd = cell_pd cell_tm in
-     tc_check_args args pd >>= fun sub ->
-     let typ = subst_ty sub (cell_typ cell_tm) in 
-     tc_ok (DefAppT (id, List.map snd sub), typ)
+     tc_lookup_def id >>= fun def ->
+     (match def with
+      | TCCellDef cell_tm -> 
+         (* printf "Cell %s has definition %s\n" id (print_cell_term cell_tm); *)
+         let pd = cell_pd cell_tm in
+         tc_check_args args pd >>= fun sub ->
+         let typ = subst_ty sub (cell_typ cell_tm) in 
+         tc_ok (DefAppT (id, List.map snd sub), typ)
+      | TCTermDef (tele, typ, _) -> 
+         tc_check_args args tele >>= fun sub ->
+         let typ' = subst_ty sub typ in
+         tc_ok (DefAppT (id, List.map snd sub), typ')
+     )
   | CellAppE (cell, args) ->
      tc_check_cell cell >>= fun cell_tm ->
      let pd = cell_pd cell_tm in 
@@ -128,6 +140,14 @@ and tc_infer_tm tm =
      let typ = subst_ty sub (cell_typ cell_tm) in 
      tc_ok (CellAppT (cell_tm, List.map snd sub), typ)
 
+and tc_check_tele tele =
+  match tele with
+  | [] -> tc_ok []
+  | (id,typ)::tele' ->
+     tc_check_tele tele' >>= fun g ->
+     tc_in_ctx g (tc_check_ty typ) >>= fun typ_tm ->
+     tc_ok ((id,typ_tm)::g)
+     
 and tc_check_args args tele =
   match (args, tele) with 
   | (_::_, []) -> tc_fail "Too many arguments!"
@@ -223,8 +243,15 @@ let rec check_cmds cmds =
      tc_check_cell cell >>= fun cell_tm ->
      printf "Ok!\n";
      tc_with_cell id cell_tm (check_cmds ds)
-  | (TermDef (id, _, _, _)) :: ds ->
-     printf "Skipping defined symbol: %s\n" id;
-     check_cmds ds 
+  | (TermDef (id, tele, typ, tm)) :: ds ->
+     printf "-----------------\n";
+     printf "Checking definition: %s\n" id;
+     tc_check_tele tele >>= fun g ->
+     printf "Valid telescope: %s\n" (print_term_ctx g);
+     tc_in_ctx g (tc_check_ty typ) >>= fun typ_tm ->
+     printf "Valid return type: %s\n" (print_ty_term typ_tm);
+     tc_in_ctx g (tc_check_tm tm typ_tm) >>= fun tm_tm ->
+     printf "Valid definition: %s\n" (print_tm_term tm_tm);
+     tc_with_def id g typ_tm tm_tm (check_cmds ds)
 
 
