@@ -17,13 +17,16 @@ type ty_expr =
    | CellAppE of cell_expr * tm_expr list
 
  and cell_expr =
-   | CohE of (string * ty_expr) list * ty_expr
-   | CompE of (string * ty_expr) list * ty_expr
+   | CohE of tele * ty_expr
+   | CompE of tele * ty_expr
 
+ and tele = (string * ty_expr) list
+          
 (* Commands *)
 type cmd =
   | CellDef of string * cell_expr
-  | TermDef of string * (string * ty_expr) list * ty_expr * tm_expr
+  | TermDef of string * tele * ty_expr * tm_expr
+  | EqNf of tele * tm_expr * tm_expr
             
 (* Internal term representation *)
 type ty_term =
@@ -36,9 +39,12 @@ type ty_term =
    | CellAppT of cell_term * tm_term list
 
  and cell_term =
-   | CohT of (string * ty_term) list * ty_term
-   | CompT of (string * ty_term) list * ty_term   
+   | CohT of ctx * ty_term
+   | CompT of ctx * ty_term   
 
+ and ctx = (string * ty_term) list
+ and env = (string * tm_term) list 
+            
 (* Find the dimension of a type *)
 let rec dim_of typ =
   match typ with
@@ -165,10 +171,6 @@ and print_cell_expr t =
   | CompE (pd, typ) ->
      sprintf "comp %s : %s" (print_pd pd) (print_ty_expr typ)
     
-(* Contexts and Environments *)
-type ctx = (string * ty_term) list
-type env = (string * tm_term) list 
-
 let rec id_sub gma =
   match gma with
   | [] -> []

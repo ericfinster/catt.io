@@ -50,3 +50,8 @@ let anonymous_unit (x : *) (f : x -> x) : x -> x
 
 let anonymous_double (x : *) (f : x -> x) : x -> x
  = [comp (x : *) (y : *) (f : x -> y) (z : *) (g : y -> z) : x -> z](x,x,f,x,f)
+
+eqnf (x : *) (f : x -> x)
+ | double(x,f)
+ | quadruple(x,f)
+
