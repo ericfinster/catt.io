@@ -44,3 +44,9 @@ let double (x : *) (f : x -> x) : x -> x
 
 let quadruple (x : *) (f : x -> x) : x -> x
  = double(x,double(x,f))
+
+let anonymous_unit (x : *) (f : x -> x) : x -> x
+ = h(x,x,f,x,[coh (x : *) : x -> x](x))
+
+let anonymous_double (x : *) (f : x -> x) : x -> x
+ = [comp (x : *) (y : *) (f : x -> y) (z : *) (g : y -> z) : x -> z](x,x,f,x,f)
