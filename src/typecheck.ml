@@ -116,7 +116,7 @@ and tc_infer_tm tm =
      tc_ok (VarT id, typ)
   | DefAppE (id, args) ->
      tc_lookup_cell id >>= fun cell_tm -> 
-     printf "Cell %s has definition %s\n" id (print_cell_term cell_tm);
+     (* printf "Cell %s has definition %s\n" id (print_cell_term cell_tm); *)
      let pd = cell_pd cell_tm in
      tc_check_args args pd >>= fun sub ->
      let typ = subst_ty sub (cell_typ cell_tm) in 
