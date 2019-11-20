@@ -29,9 +29,8 @@ let assoc = coh (x : *)
             : h(x,z,h(x,y,f,z,g),w,h) ->
               h(x,y,f,w,h(y,z,g,w,h))
 
-locmax coh (x : *)
-               (y : *) (f : x -> y) 
-                       (g : x -> y) (a : f -> g)
+locmax (x : *)
+           (y : *) (f : x -> y)  (g : x -> y) (a : f -> g)
                        (h : x -> y) (b : g -> h)
                (z : *) (i : y -> z)
                        (j : y -> z) (c : i -> j)
