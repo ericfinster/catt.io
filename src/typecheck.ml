@@ -270,7 +270,7 @@ let rec check_cmds cmds =
   | (LocMax tele :: ds) ->
      printf "-----------------\n";
      printf "Locally maximal variables\n";
-     (*tc_check_tele tele >>=*)
-     List.iter (printf "%s ") (locally_maximal tele);
+     tc_check_pd tele >>= fun (pd, _, _) ->
+     List.iter (printf "%s ") (locally_maximal pd);
      printf "\n";
      check_cmds ds
