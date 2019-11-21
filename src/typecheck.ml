@@ -47,8 +47,8 @@ let tc_lookup_var ident env =
 let tc_lookup_def ident env =
   try Succeed (List.assoc ident env.rho)
   with Not_found -> Fail (sprintf "Unknown cell identifier: %s" ident)
-                  
-(* Find the k-th target of the given term an type *)    
+
+(* Find the k-th target of the given term an type *)
 let rec tc_tgt_of a t k =
   if (k < 0) then
     tc_fail "Negative codimension"
@@ -90,11 +90,11 @@ let rec tc_pd_kth_tgt k pd =
 
 let tc_pd_src pd = tc_pd_kth_src ((dim_of_pd pd) - 1) pd
 let tc_pd_tgt pd = tc_pd_kth_tgt ((dim_of_pd pd) - 1) pd
-                 
-(* 
+
+(*
  * Typechecking Rules
  *)
-    
+
 let rec tc_check_ty t =
   match t with
   | ObjE -> tc_ok ObjT
@@ -148,7 +148,7 @@ and tc_check_tele tele =
      tc_check_tele tele' >>= fun g ->
      tc_in_ctx g (tc_check_ty typ) >>= fun typ_tm ->
      tc_ok ((id,typ_tm)::g)
-     
+
 and tc_check_args args tele =
   match (args, tele) with 
   | (_::_, []) -> tc_fail "Too many arguments!"
