@@ -37,7 +37,7 @@ let ichg = coh (x : *)
                        (j : y -> z) (c : i -> j)
                        (k : y -> z) (d : j -> k)
            : h2(x,y,f,h,v2(x,y,f,g,a,h,b),z,i,k,v2(y,z,i,j,c,k,d)) ->
-             v2(x,z,h(x,y,f,z,i),h(x,y,g,z,j),h2(x,y,f,g,a,z,i,j,c),h(x,y,h,z,k),h2(x,y,g,h,b,z,j,k,d))
+           v2(x,z,h(x,y,f,z,i),h(x,y,g,z,j),h2(x,y,f,g,a,z,i,j,c),h(x,y,h,z,k),h2(x,y,g,h,b,z,j,k,d))
 
 let double (x : *) (f : x -> x) : x -> x
  = h(x,x,f,x,f)
