@@ -91,6 +91,20 @@ let rec tc_pd_kth_tgt k pd =
 let tc_pd_src pd = tc_pd_kth_src ((dim_of_pd pd) - 1) pd
 let tc_pd_tgt pd = tc_pd_kth_tgt ((dim_of_pd pd) - 1) pd
 
+let rec tc_unfold tm =
+  match tm with
+  | VarT id -> tc_ok (VarT id)
+  | DefAppT (id, args) ->
+     tc_lookup_def id >>= fun def -> 
+     (match def with
+      | TCCellDef cell_tm ->
+         tc_ok (CellAppT (cell_tm, args))
+      | TCTermDef (tele, _, term) ->
+         let sub = List.combine (List.map fst tele) args in
+         tc_unfold (subst_tm sub term)
+     )
+  | CellAppT (cell, args) -> tc_ok (CellAppT (cell, args))
+                           
 (*
  * Typechecking Rules
  *)
