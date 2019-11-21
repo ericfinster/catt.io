@@ -2,7 +2,9 @@
  * Term normalization
  *)
 
+open Common
 open Syntax
+open Wrangling
 
 (* Remove the first cell of a pasting context,
    necessarily locally maximal, and remove a
@@ -22,8 +24,7 @@ let rec remove_first_cell ( pd : ctx ) : ctx =
 let rec locally_maximal ( pd : ctx ) : string list =
   match pd with
   | [] -> []
-  | (head_id, _) :: _ ->
-    head_id :: (locally_maximal (remove_first_cell pd))
+  | (head_id, _) :: _ -> head_id :: (locally_maximal (remove_first_cell pd))
 
 (* Given the argument list for a cell, extract
    the argument corresponding to a given variable *)
@@ -35,22 +36,40 @@ let rec select_argument (c: ctx) args var =
     else
       select_argument tail1 tail2 var
 
-(* Analyze a term to see if it is an identity
-   coherence at the cell level *)
-let identity_coherence (tm : tm_term) : bool =
+
+(* Input: a term promisd to be an endomorphism coherence at the cell level
+   Output: a term of dimension one higher, whose source is the input term,
+           and whose target is the canonical parallel identity coherence *)
+let coh_endo_to_id (tm : tm_term) : tm_term err =
   match tm with
-  | CellAppT (cell, _) -> (
-    match cell with
-    | CohT (_, ty) -> (
-      match ty with
-      | ArrT (_, src, tgt) ->
-        (src = tgt)
-      | _ -> false
+  | CellAppT(CohT(p, ArrT(in_ty, in_src, in_tgt)), args) -> (
+    if (not (tm_eq in_src in_tgt)) then
+      Fail "Cell is not an endorphism coherence at the cell level"
+    else
+    (*
+     * Here we construct the coherence
+     *   [coh P: (coh P:tm->tm)[id] -> id_{tm}][s]
+     * which should have type
+     *   (coh P: tm -> tm)[s] --> (id_{tm})[s]
+     *)
+      Succeed(
+        CellAppT(
+          CohT(p,
+            ArrT(
+              ArrT(in_ty, in_src, in_src),
+              CellAppT(
+                CohT(p, ArrT(in_ty, in_src, in_tgt)),
+                ctx_var_list p
+              ),
+              tm_get_id in_ty in_src
+            )
+          ),
+          args
+        )
+      )
     )
-    | _ -> false
-  )
-  | _ -> false
-  
+  | _ -> err
+
 
 (* Check if the given variable, promised to be locally
    maximal, can be pruned *)
@@ -72,8 +91,6 @@ let verify_prunable ( cell : cell_term ) ( v : string ) : bool =
 
    It's something like this at the argument level:
 
-    [coh P: (coh P:tm->tm)[id] -> id_{tm}][s]
-    : (coh P: tm -> tm)[s] --> (id_{tm})[s]
     
    Need to apply this to the particular argument,
    then prune. *)
@@ -81,8 +98,11 @@ let verify_prunable ( cell : cell_term ) ( v : string ) : bool =
 (* Try to prune an argument from the cell,
    returning the pruned term, or else the
    original term *)
+   (*
 let prune ( tm : tm_term ) : tm_term =
   match tm with
   | VarT _ -> printf "Term is a variable, nothing to do\n"; tm
   | DefAppT _ -> printf "Term is a definition application, nothing to do\n"; tm
   | CellAppT (cell, args) ->
+
+  *) 
