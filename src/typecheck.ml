@@ -5,6 +5,7 @@
 open Printf
 open Common
 open Syntax
+open Normalization
 
 module SS = Set.Make(String)
 
@@ -265,4 +266,11 @@ let rec check_cmds cmds =
      if (tm_a_tm = tm_b_tm) then
        printf "Match!\n"
      else printf "Fail!\n";
+     check_cmds ds
+  | (LocMax tele :: ds) ->
+     printf "-----------------\n";
+     printf "Locally maximal variables\n";
+     tc_check_pd tele >>= fun (pd, _, _) ->
+     List.iter (printf "%s ") (locally_maximal pd);
+     printf "\n";
      check_cmds ds

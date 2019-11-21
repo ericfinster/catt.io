@@ -21,7 +21,6 @@
 lib/bs
 *.mlast
 *.mliast
-.vscode
 .merlin
 .bsb.lock
 node_modules/

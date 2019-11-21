@@ -1,0 +1,8 @@
+# locally maximal cell is x
+locmax (x:*)
+
+# locally maximal cell is f
+locmax (x:*)(y:*)(f:x->y)
+
+# locally maximal cells are zeta, nu, mu, l
+locmax (w:*)(x:*)(l:w->x)(y:*)(f:x->y)(g:x->y)(mu:f->g)(z:*)(h:y->z)(j:y->z)(nu:h->j)(k:y->z)(zeta:j->k)

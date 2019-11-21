@@ -20,6 +20,7 @@ type ty_expr =
    | CohE of tele * ty_expr
    | CompE of tele * ty_expr
 
+ (* JV: why "tele"? *)
  and tele = (string * ty_expr) list
           
 (* Commands *)
@@ -27,6 +28,7 @@ type cmd =
   | CellDef of string * cell_expr
   | TermDef of string * tele * ty_expr * tm_expr
   | EqNf of tele * tm_expr * tm_expr
+  | LocMax of tele
             
 (* Internal term representation *)
 type ty_term =
