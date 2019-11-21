@@ -27,6 +27,3 @@ let () =
   | f :: _ -> Printf.printf "Processing input file: %s\n" f ;
               check_file f
   | _ -> ()
-
-
-

@@ -1,0 +1,33 @@
+{
+  "files.exclude": {
+    "**/*.exe": true,
+    "**/*.obj": true,
+    "**/*.out": true,
+    "**/*.compile": true,
+    "**/*.native": true,
+    "**/*.byte": true,
+    "**/*.cmo": true,
+    "**/*.annot": true,
+    "**/*.cmi": true,
+    "**/*.cmx": true,
+    "**/*.cmt": true,
+    "**/*.cmti": true,
+    "**/*.cma": true,
+    "**/*.a": true,
+    "**/*.cmxa": true,
+    "**/*~": true,
+    "**/*.cmj": true,
+    "**/*.bak": true,
+    "lib/bs": true,
+    "**/*.mlast": true,
+    "**/*.mliast": true,
+    "**/.merlin": true,
+    "**/.bsb.lock": true,
+    "**/node_modules/": true,
+    "**/*.bs.js": true,
+    "src/lexer.ml": true,
+    "src/parser.ml": true,
+    "src/parser.mli": true,
+    "**/notes.org": true
+  }
+}
