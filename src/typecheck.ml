@@ -195,7 +195,6 @@ and tc_infer_tm tm =
      tc_lookup_def id >>= fun def ->
      (match def with
       | TCCellDef cell_tm -> 
-         (* printf "Cell %s has definition %s\n" id (print_cell_term cell_tm); *)
          let pd = cell_pd cell_tm in
          tc_check_args args pd >>= fun sub ->
          let typ = subst_ty sub (cell_typ cell_tm) in 
@@ -235,7 +234,6 @@ and tc_check_cell cell =
   match cell with
   | CohT (pd, typ) -> 
      tc_check_pd pd >>= fun (pd', _, _) ->
-     printf "Valid pasting diagram: %s\n" (print_term_ctx pd');
      tc_with_vars pd' (tc_check_ty typ) >>= fun typ' ->
      let pd_vars = SS.of_list (List.map fst pd') in
      let typ_vars = ty_free_vars typ' in
@@ -245,16 +243,12 @@ and tc_check_cell cell =
   | CompT (_, ObjT) -> tc_fail "Composition cannot target an object"
   | CompT (pd, ArrT (_, src, tgt)) ->
      tc_check_pd pd >>= fun (pd', _, _) ->
-     printf "Valid pasting diagram: %s\n" (print_term_ctx pd');
      tc_pd_src pd' >>= fun pd_src ->
-     printf "Source diagram: %s\n" (print_term_ctx pd_src);
      tc_pd_tgt pd' >>= fun pd_tgt ->
-     printf "Target diagram: %s\n" (print_term_ctx pd_tgt);
      tc_with_vars pd_src (tc_infer_tm src) >>= fun (src_tm, src_typ) ->
-     printf "Source term is: %s\n" (print_tm_term src_tm); 
      tc_with_vars pd_tgt (tc_infer_tm tgt) >>= fun (tgt_tm, tgt_typ) ->
-     printf "Target term is: %s\n" (print_tm_term tgt_tm); 
-     if (src_typ <> tgt_typ) then
+     tc_eq_nf_ty src_typ tgt_typ >>= fun nf_match -> 
+     if (not nf_match) then
        tc_fail "Source and target do not have the same type"
      else let pd_src_vars = SS.of_list (List.map fst pd_src) in
           let pd_tgt_vars = SS.of_list (List.map fst pd_tgt) in
@@ -265,13 +259,7 @@ and tc_check_cell cell =
           else if (not (SS.subset pd_tgt_vars tgt_vars)) then
             tc_fail "Target is not algebraic"
           else tc_ok (CompT (pd', ArrT (src_typ, src_tm, tgt_tm)))
-                                      
-(* Okay, here we need to generate a "standard form" for the variables
- * in a pasting diagram.  This is because we will need to compare them
- * during typing, and this has to be up to alpha equivalence.  I guess
- * indices would normally be the solution to this problem, but it turns
- * out that this makes calculating sources and targets *really* painful.
- *)                    
+
 and tc_check_pd pd =
   match pd with
   | [] -> tc_fail "Empty context is not a pasting diagram"

@@ -153,7 +153,8 @@ and tc_check_cell_expr cell =
      printf "Source term is: %s\n" (print_tm_term src_tm); 
      tc_with_vars pd_tgt (tc_infer_tm_expr tgt) >>= fun (tgt_tm, tgt_typ) ->
      printf "Target term is: %s\n" (print_tm_term tgt_tm); 
-     if (src_typ <> tgt_typ) then
+     tc_eq_nf_ty src_typ tgt_typ >>= fun nf_match -> 
+     if (not nf_match) then
        tc_fail "Source and target do not have the same type"
      else let pd_src_vars = SS.of_list (List.map fst pd_src) in
           let pd_tgt_vars = SS.of_list (List.map fst pd_tgt) in
@@ -164,13 +165,7 @@ and tc_check_cell_expr cell =
           else if (not (SS.subset pd_tgt_vars tgt_vars)) then
             tc_fail "Target is not algebraic"
           else tc_ok (CompT (pd', ArrT (src_typ, src_tm, tgt_tm)))
-                                      
-(* Okay, here we need to generate a "standard form" for the variables
- * in a pasting diagram.  This is because we will need to compare them
- * during typing, and this has to be up to alpha equivalence.  I guess
- * indices would normally be the solution to this problem, but it turns
- * out that this makes calculating sources and targets *really* painful.
- *)                    
+
 and tc_check_pd_expr pd =
   match pd with
   | [] -> tc_fail "Empty context is not a pasting diagram"

@@ -4,7 +4,7 @@
 
 (* open Common *)
 open Term
-(* open Wrangling *)
+open Typecheck
 
 (* Remove the first cell of a pasting context,
    necessarily locally maximal, and remove a
@@ -40,36 +40,24 @@ let rec locally_maximal ( pd : ctx ) : string list =
 (* Input: a term promisd to be an endomorphism coherence at the cell level
    Output: a term of dimension one higher, whose source is the input term,
            and whose target is the canonical parallel identity coherence *)
-(* let coh_endo_to_id (tm : tm_term) : tm_term err = *)
-(*   match tm with *)
-(*   | CellAppT(CohT(p, ArrT(in_ty, in_src, in_tgt)), args) -> ( *)
-(*     if (not (tm_eq in_src in_tgt)) then *)
-(*       Fail "Cell is not an endorphism coherence at the cell level" *)
-(*     else *)
-(*     (\* *)
-(*      * Here we construct the coherence *)
-(*      *   [coh P: (coh P:tm->tm)[id] -> id_{tm}][s] *)
-(*      * which should have type *)
-(*      *   (coh P: tm -> tm)[s] --> (id_{tm})[s] *)
-(*      *\) *)
-(*       Succeed( *)
-(*         CellAppT( *)
-(*           CohT(p, *)
-(*             ArrT( *)
-(*               ArrT(in_ty, in_src, in_src), *)
-(*               CellAppT( *)
-(*                 CohT(p, ArrT(in_ty, in_src, in_tgt)), *)
-(*                 ctx_var_list p *)
-(*               ), *)
-(*               tm_get_id in_ty in_src *)
-(*             ) *)
-(*           ), *)
-(*           args *)
-(*         ) *)
-(*       ) *)
-(*     ) *)
-(*   | _ -> err *)
-
+let tc_coh_endo_to_id (tm : tm_term) : tm_term tcm =
+  match tm with
+  | CellAppT(CohT(pd, ArrT(in_ty, in_src, in_tgt)), args) ->
+     tc_eq_nf_tm in_src in_tgt >>= fun nf_match ->
+     if (not nf_match) then 
+       tc_fail "Source and target of coherence do not match"
+     else (*
+           * Here we construct the coherence
+           *   [coh P: (coh P:tm->tm)[id] -> id_{tm}][s]
+           * which should have type
+           *   (coh P: tm -> tm)[s] --> (id_{tm})[s]
+           *)
+       tc_tm_get_id in_src >>= fun id_tm ->
+       let typ = ArrT(in_ty, in_src, in_tgt) in 
+       let old_coh = CohT (pd, typ) in
+       let coh_between = CohT (pd, ArrT (typ, CellAppT (old_coh, id_sub pd), id_tm)) in 
+       tc_ok (CellAppT (coh_between, args))
+  | _ -> tc_fail "Not an endo-coherence"
 
 (* Check if the given variable, promised to be locally
    maximal, can be pruned *)
