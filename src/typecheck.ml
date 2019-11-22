@@ -94,31 +94,17 @@ let rec tc_pd_kth_tgt k pd =
 let tc_pd_src pd = tc_pd_kth_src ((dim_of_pd pd) - 1) pd
 let tc_pd_tgt pd = tc_pd_kth_tgt ((dim_of_pd pd) - 1) pd
 
-(* Source and target functions on terms *)
-let tc_tm_src tm =
-  tc_infer_tm tm >>= fun (_, typ) ->
-  match typ with
-  | ObjT -> tc_fail (sprintf "Term %s is an object and has no source" (print_tm_term tm))
-  | ArrT (_, src_tm, _) -> tc_ok src_tm
-
-let tc_tm_tgt tm =
-  tc_infer_tm tm >>= fun (_, typ) ->
-  match typ with
-  | ObjT -> tc_fail (sprintf "Term %s is an object and has no target" (print_tm_term tm))
-  | ArrT (_, tgt_tm, _) -> tc_ok tgt_tm
-
-let rec tc_tm_kth_src k tm =
-  if (k <= 0) then tc_ok tm
-  else tc_tm_kth_src (k-1) tm >>= fun t ->
-       tc_tm_src t
-                         
-let rec tc_tm_kth_tgt k tm =
-  if (k <= 0) then tc_ok tm
-  else tc_tm_kth_tgt (k-1) tm >>= fun t ->
-       tc_tm_tgt t
-
 (* Basic normalization (unfold definitions, uniquify pd's *)
-let rec tc_simple_tm_nf tm =
+let rec tc_simple_ty_nf ty =
+  match ty with
+  | ObjT -> tc_ok ObjT
+  | ArrT (ty', src, tgt) ->
+     tc_simple_ty_nf ty' >>= fun ty_nf ->
+     tc_simple_tm_nf src >>= fun src_nf ->
+     tc_simple_tm_nf tgt >>= fun tgt_nf ->
+     tc_ok (ArrT (ty_nf, src_nf, tgt_nf))
+     
+and tc_simple_tm_nf tm =
   match tm with
   | VarT id -> tc_ok (VarT id)
   | DefAppT (id, args) ->
@@ -130,16 +116,52 @@ let rec tc_simple_tm_nf tm =
          tc_ok (CellAppT (cell_nf, args_nf))
       | TCTermDef (tele, _, term) ->
          tc_traverse (tc_simple_tm_nf) args >>= fun args_nf ->
+         tc_simple_tm_nf term >>= fun term_nf -> 
          let sub = List.combine (List.map fst tele) args_nf in
-         tc_simple_tm_nf (subst_tm sub term)
+         tc_ok (subst_tm sub term_nf)
      )
   | CellAppT (cell, args) ->
      tc_traverse (tc_simple_tm_nf) args >>= fun args_nf -> 
      tc_simple_cell_nf cell >>= fun cell_nf ->
      tc_ok (CellAppT (cell_nf, args_nf))
 
-let tc_simple_cell_nf cell = tc_fail "not done"
-                           
+and tc_simple_cell_nf cell =
+  match cell with
+  | CohT (pd, typ) ->
+     tc_uniquify_pd pd >>= fun (pd_nf, s, _) ->
+     tc_simple_ty_nf (subst_ty s typ) >>= fun ty_nf ->
+     tc_ok (CohT (pd_nf, ty_nf))
+  | CompT (pd, typ) ->
+     tc_uniquify_pd pd >>= fun (pd_nf, s, _) ->
+     tc_simple_ty_nf (subst_ty s typ) >>= fun ty_nf ->
+     tc_ok (CohT (pd_nf, ty_nf))
+                     
+and tc_uniquify_pd pd =
+  match pd with
+  | (id, ObjT) :: [] ->
+     let obj_id = "x0" in 
+     tc_ok ((obj_id, ObjT)::[], (id, VarT obj_id)::[], 1)
+  | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
+     tc_uniquify_pd pd' >>= fun (upd, sub, k) ->
+     let tgt_id' = sprintf "x%d" k in 
+     let fill_id' = sprintf "x%d" (k+1) in
+     let tgt_typ' = subst_ty sub tgt_typ in
+     let fill_typ' = subst_ty ((tgt_id,VarT tgt_id')::sub) fill_typ in 
+     tc_ok ((fill_id', fill_typ')::(tgt_id', tgt_typ')::upd,
+            (fill_id, VarT fill_id')::(tgt_id, VarT tgt_id')::sub,k+2)
+  | _ -> tc_fail "Internal error: invalid pasting diagram"
+
+(* Compare types and terms up to simple normalization *)
+let tc_eq_nf_ty ty_a ty_b =
+  tc_simple_ty_nf ty_a >>= fun ty_a_nf ->
+  tc_simple_ty_nf ty_b >>= fun ty_b_nf ->
+  tc_ok (ty_a_nf = ty_b_nf)
+
+let tc_eq_nf_tm tm_a tm_b =
+  tc_simple_tm_nf tm_a >>= fun tm_a_nf ->
+  tc_simple_tm_nf tm_b >>= fun tm_b_nf ->
+  tc_ok (tm_a_nf = tm_b_nf)
+    
 (*
  * Typechecking Internal Terms
  *)
@@ -153,10 +175,11 @@ let rec tc_check_ty t =
      tc_check_tm tgt typ' >>= fun tgt_tm -> 
      tc_ok (ArrT (typ', src_tm, tgt_tm))
 
-(* URGENT!!! This routine should first normalize the types! *)     
 and tc_check_tm tm ty =
   tc_infer_tm tm >>= fun (tm', ty') ->
-  if (ty' = ty) then tc_ok tm' else
+  tc_simple_ty_nf ty >>= fun ty_a ->
+  tc_simple_ty_nf ty' >>= fun ty_b -> 
+  if (ty_a = ty_b) then tc_ok tm' else
     let msg = sprintf "The term %s was expected to have type %s,
                        but was inferred to have type %s"
                       (print_tm_term tm') (print_ty_term ty)
@@ -278,14 +301,45 @@ and tc_check_pd pd =
      else if (List.mem tgt_id cvars) then 
        tc_fail (sprintf "Target identifier %s already exists" tgt_id)
      else tc_ok ((fill_id, fill_typ_tm) :: (tgt_id, tgt_typ_tm) :: res_pd, fill_id, fill_typ_tm)
-     
+
+(* Return the unbiased composite of a pasting diagram *)     
 let rec tc_ucomp pd =
   match pd with
-  | (id, ObjT) :: [] -> (VarT id, ObjT)
+  | (id, ObjT) :: [] -> tc_ok (VarT id, ObjT)
   | _ -> tc_pd_src pd >>= fun pd_src ->
          tc_pd_tgt pd >>= fun pd_tgt ->
          tc_ucomp pd_src >>= fun (uc_src, uc_typ) ->
          tc_ucomp pd_tgt >>= fun (uc_tgt, _) ->
-         tc_ok (CompT (pd, ArrT (uc_typ, uc_src, uc_tgt)))
-         
+         let next_ty = ArrT (uc_typ, uc_src, uc_tgt) in 
+         tc_ok (CellAppT (CompT (pd, next_ty), id_sub pd), next_ty)
 
+(* Return the identity coherence applied to a given term *)         
+let tc_tm_get_id tm =
+  tc_infer_tm tm >>= fun (_, ty) ->
+  let args = tm_to_disc_sub tm ty in
+  let id_c = id_coh (dim_of ty) in
+  tc_ok (CellAppT (id_c, args))
+
+(* Source and target functions on terms *)
+let tc_tm_src tm =
+  tc_infer_tm tm >>= fun (_, typ) ->
+  match typ with
+  | ObjT -> tc_fail (sprintf "Term %s is an object and has no source" (print_tm_term tm))
+  | ArrT (_, src_tm, _) -> tc_ok src_tm
+
+let tc_tm_tgt tm =
+  tc_infer_tm tm >>= fun (_, typ) ->
+  match typ with
+  | ObjT -> tc_fail (sprintf "Term %s is an object and has no target" (print_tm_term tm))
+  | ArrT (_, tgt_tm, _) -> tc_ok tgt_tm
+
+let rec tc_tm_kth_src k tm =
+  if (k <= 0) then tc_ok tm
+  else tc_tm_kth_src (k-1) tm >>= fun t ->
+       tc_tm_src t
+                         
+let rec tc_tm_kth_tgt k tm =
+  if (k <= 0) then tc_ok tm
+  else tc_tm_kth_tgt (k-1) tm >>= fun t ->
+       tc_tm_tgt t
+  

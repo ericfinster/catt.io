@@ -67,14 +67,18 @@ let rec tc_check_ty_expr t =
   | ArrE (src, tgt) ->
      tc_infer_tm_expr src >>= fun (src_tm, src_ty) ->
      tc_infer_tm_expr tgt >>= fun (tgt_tm, tgt_ty) ->
-     if (src_ty <> tgt_ty) then
-       tc_fail "Ill-formed arrow type"
-     else
+     tc_eq_nf_ty src_ty tgt_ty >>= fun nf_match -> 
+     if (nf_match) then 
        tc_ok (ArrT (src_ty, src_tm, tgt_tm))
+     else let msg = sprintf "%s =/= %s when checking that an arrow 
+                             type is well-formed."
+                            (print_tm_term src_tm) (print_tm_term tgt_tm) in 
+          tc_fail msg
 
 and tc_check_tm_expr tm ty =
   tc_infer_tm_expr tm >>= fun (tm', ty') ->
-  if (ty' = ty) then tc_ok tm' else
+  tc_eq_nf_ty ty ty' >>= fun nf_match -> 
+  if (nf_match) then tc_ok tm' else
     let msg = sprintf "The term %s was expected to have type %s,
                        but was inferred to have type %s"
                       (print_tm_term tm') (print_ty_term ty)

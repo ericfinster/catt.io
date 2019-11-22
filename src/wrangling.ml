@@ -16,10 +16,12 @@ open Term
 (* let tm_ctx_ok ( tm : tm_term ) ( c : ctx ) : bool err = Fail "Not implemented" *)
 
 (* Check if two terms are equal *)
-let tm_eq tm1 tm2 = false (* Not implemented *)
+(* EF - Done: use tc_eq_nf_tm to compare up to simple normal forms *)
+(* let tm_eq tm1 tm2 = false *)
 
 (* Get the identity for a given term of a given type *)
-let tm_get_id ( ty : ty_term) ( tm : tm_term ) : tm_term err = Fail "Not implemented"
+(* EF - Done: tc_tm_get_id in typecheck.ml *)                  
+(* let tm_get_id ( ty : ty_term) ( tm : tm_term ) : tm_term err = Fail "Not implemented" *)
 
 (* Get the context D_n *)
 (* EF - Done: see disc_pd in term.ml *)                                                             
@@ -35,7 +37,8 @@ let ctx_var_list ( c : ctx ) : tm_term list =
 
 (* Analyze a term to see if it is an endomorphism
    coherence at the cell level *)
-let tm_endo_coh (tm : tm_term) : bool =
-  match tm with
-  | CellAppT(CohT(_, ArrT(_, src, tgt)), _) -> (tm_eq src tgt)
-  | _ -> false
+(* EF - Needs rewriting with above implementations *)
+(* let tm_endo_coh (tm : tm_term) : bool = *)
+(*   match tm with *)
+(*   | CellAppT(CohT(_, ArrT(_, src, tgt)), _) -> (tm_eq src tgt) *)
+(*   | _ -> false *)

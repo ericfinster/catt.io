@@ -73,6 +73,15 @@ let id_coh k =
   let dsc_id = sprintf "ds%d" k in 
   CohT (disc_pd k, ArrT (sph, VarT dsc_id, VarT dsc_id))
 
+(* From a term and its type, return an appropriate
+ * substitution to a disc *)  
+let rec tm_to_disc_sub tm ty =
+  match ty with
+  | ObjT -> [tm]
+  | ArrT (typ', src, tgt) ->
+     let s = tm_to_disc_sub src typ' in
+     tm :: tgt :: s
+  
 (* Free variables *)
 let rec ty_free_vars t =
   match t with
