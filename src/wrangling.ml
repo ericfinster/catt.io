@@ -2,7 +2,7 @@
  * Routines for term wrangling
  *)
 
-open Common
+(* open Common *)
 open Term
 
 (* Given a term over a context, obtain its source or target *)

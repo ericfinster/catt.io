@@ -331,3 +331,18 @@ let rec tc_tm_kth_tgt k tm =
   else tc_tm_kth_tgt (k-1) tm >>= fun t ->
        tc_tm_tgt t
   
+(* 
+ * Pruning
+ *)
+
+(* let tc_prune_comp pd typ args  *)
+  
+(* let tc_prune tm = *)
+(*   match tm with *)
+(*   | VarT id -> tc_ok (VarT id) *)
+(*   | DefAppT (id, args) -> *)
+(*      tc_fail "Not pruning definition ..." *)
+(*   | CellAppT (CohT (pd, typ), args) -> *)
+(*      tc_fail "Not pruning coherence cell ..." *)
+(*   | CellAppT (CompT (pd, typ), args) -> *)
+     
