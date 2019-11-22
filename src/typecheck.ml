@@ -36,6 +36,12 @@ let tc_with_var id ty m env = m { env with gma = (id, ty) :: env.gma }
 let tc_with_vars vars m env = m { env with gma = vars @ env.gma }
 let tc_ctx_vars env = Succeed (List.map fst env.gma)
 
+let rec tc_traverse f = function
+  | [] -> tc_ok []
+  | (x::xs) -> tc_traverse f xs >>= fun rs ->
+               f x >>= fun r ->
+               tc_ok (r::rs)
+                    
 (* Lookup and identifier in the context *)
 let tc_lookup_var ident env =
   try Succeed (List.assoc ident env.gma)
@@ -88,19 +94,51 @@ let rec tc_pd_kth_tgt k pd =
 let tc_pd_src pd = tc_pd_kth_src ((dim_of_pd pd) - 1) pd
 let tc_pd_tgt pd = tc_pd_kth_tgt ((dim_of_pd pd) - 1) pd
 
-let rec tc_unfold tm =
+(* Source and target functions on terms *)
+let tc_tm_src tm =
+  tc_infer_tm tm >>= fun (_, typ) ->
+  match typ with
+  | ObjT -> tc_fail (sprintf "Term %s is an object and has no source" (print_tm_term tm))
+  | ArrT (_, src_tm, _) -> tc_ok src_tm
+
+let tc_tm_tgt tm =
+  tc_infer_tm tm >>= fun (_, typ) ->
+  match typ with
+  | ObjT -> tc_fail (sprintf "Term %s is an object and has no target" (print_tm_term tm))
+  | ArrT (_, tgt_tm, _) -> tc_ok tgt_tm
+
+let rec tc_tm_kth_src k tm =
+  if (k <= 0) then tc_ok tm
+  else tc_tm_kth_src (k-1) tm >>= fun t ->
+       tc_tm_src t
+                         
+let rec tc_tm_kth_tgt k tm =
+  if (k <= 0) then tc_ok tm
+  else tc_tm_kth_tgt (k-1) tm >>= fun t ->
+       tc_tm_tgt t
+
+(* Basic normalization (unfold definitions, uniquify pd's *)
+let rec tc_simple_tm_nf tm =
   match tm with
   | VarT id -> tc_ok (VarT id)
   | DefAppT (id, args) ->
      tc_lookup_def id >>= fun def -> 
      (match def with
       | TCCellDef cell_tm ->
-         tc_ok (CellAppT (cell_tm, args))
+         tc_traverse (tc_simple_tm_nf) args >>= fun args_nf -> 
+         tc_simple_cell_nf cell_tm >>= fun cell_nf ->
+         tc_ok (CellAppT (cell_nf, args_nf))
       | TCTermDef (tele, _, term) ->
-         let sub = List.combine (List.map fst tele) args in
-         tc_unfold (subst_tm sub term)
+         tc_traverse (tc_simple_tm_nf) args >>= fun args_nf ->
+         let sub = List.combine (List.map fst tele) args_nf in
+         tc_simple_tm_nf (subst_tm sub term)
      )
-  | CellAppT (cell, args) -> tc_ok (CellAppT (cell, args))
+  | CellAppT (cell, args) ->
+     tc_traverse (tc_simple_tm_nf) args >>= fun args_nf -> 
+     tc_simple_cell_nf cell >>= fun cell_nf ->
+     tc_ok (CellAppT (cell_nf, args_nf))
+
+let tc_simple_cell_nf cell = tc_fail "not done"
                            
 (*
  * Typechecking Internal Terms
@@ -240,4 +278,14 @@ and tc_check_pd pd =
      else if (List.mem tgt_id cvars) then 
        tc_fail (sprintf "Target identifier %s already exists" tgt_id)
      else tc_ok ((fill_id, fill_typ_tm) :: (tgt_id, tgt_typ_tm) :: res_pd, fill_id, fill_typ_tm)
-                           
+     
+let rec tc_ucomp pd =
+  match pd with
+  | (id, ObjT) :: [] -> (VarT id, ObjT)
+  | _ -> tc_pd_src pd >>= fun pd_src ->
+         tc_pd_tgt pd >>= fun pd_tgt ->
+         tc_ucomp pd_src >>= fun (uc_src, uc_typ) ->
+         tc_ucomp pd_tgt >>= fun (uc_tgt, _) ->
+         tc_ok (CompT (pd, ArrT (uc_typ, uc_src, uc_tgt)))
+         
+
