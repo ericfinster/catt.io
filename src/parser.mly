@@ -1,6 +1,6 @@
 %{
 
-  open Syntax
+  open Expr
   
 %} 
 
@@ -13,7 +13,7 @@
 %token EOF
 
 %start prog
-%type <Syntax.cmd list> prog
+%type <Expr.cmd list> prog
 %%
 
 prog:

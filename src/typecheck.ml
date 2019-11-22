@@ -2,12 +2,9 @@
  * typecheck.ml - catt typechecker
  *)
 
-open Printf
 open Common
-open Syntax
-open Normalization
-
-module SS = Set.Make(String)
+open Printf
+open Term
 
 type tc_def =
   | TCCellDef of cell_term
@@ -106,20 +103,19 @@ let rec tc_unfold tm =
   | CellAppT (cell, args) -> tc_ok (CellAppT (cell, args))
                            
 (*
- * Typechecking Rules
+ * Typechecking Internal Terms
  *)
 
 let rec tc_check_ty t =
   match t with
-  | ObjE -> tc_ok ObjT
-  | ArrE (src, tgt) ->
-     tc_infer_tm src >>= fun (src_tm, src_ty) ->
-     tc_infer_tm tgt >>= fun (tgt_tm, tgt_ty) ->
-     if (src_ty <> tgt_ty) then
-       tc_fail "Ill-formed arrow type"
-     else
-       tc_ok (ArrT (src_ty, src_tm, tgt_tm))
+  | ObjT -> tc_ok ObjT
+  | ArrT (typ, src, tgt) ->
+     tc_check_ty typ >>= fun typ' -> 
+     tc_check_tm src typ' >>= fun src_tm ->
+     tc_check_tm tgt typ' >>= fun tgt_tm -> 
+     tc_ok (ArrT (typ', src_tm, tgt_tm))
 
+(* URGENT!!! This routine should first normalize the types! *)     
 and tc_check_tm tm ty =
   tc_infer_tm tm >>= fun (tm', ty') ->
   if (ty' = ty) then tc_ok tm' else
@@ -131,10 +127,10 @@ and tc_check_tm tm ty =
 
 and tc_infer_tm tm =
   match tm with
-  | VarE id -> 
+  | VarT id -> 
      tc_lookup_var id >>= fun typ ->
      tc_ok (VarT id, typ)
-  | DefAppE (id, args) ->
+  | DefAppT (id, args) ->
      tc_lookup_def id >>= fun def ->
      (match def with
       | TCCellDef cell_tm -> 
@@ -148,35 +144,35 @@ and tc_infer_tm tm =
          let typ' = subst_ty sub typ in
          tc_ok (DefAppT (id, List.map snd sub), typ')
      )
-  | CellAppE (cell, args) ->
+  | CellAppT (cell, args) ->
      tc_check_cell cell >>= fun cell_tm ->
      let pd = cell_pd cell_tm in 
      tc_check_args args pd >>= fun sub ->
      let typ = subst_ty sub (cell_typ cell_tm) in 
      tc_ok (CellAppT (cell_tm, List.map snd sub), typ)
 
-and tc_check_tele tele =
-  match tele with
+and tc_check_ctx ctx =
+  match ctx with
   | [] -> tc_ok []
-  | (id,typ)::tele' ->
-     tc_check_tele tele' >>= fun g ->
+  | (id,typ)::ctx' ->
+     tc_check_ctx ctx' >>= fun g ->
      tc_in_ctx g (tc_check_ty typ) >>= fun typ_tm ->
      tc_ok ((id,typ_tm)::g)
 
-and tc_check_args args tele =
-  match (args, tele) with 
+and tc_check_args args ctx =
+  match (args, ctx) with 
   | (_::_, []) -> tc_fail "Too many arguments!"
   | ([], _::_) -> tc_fail "Not enough arguments!"
   | ([], []) -> tc_ok []
-  | (arg_exp::args', (id,arg_typ)::tele') ->
-     tc_check_args args' tele' >>= fun sub ->
+  | (arg_tm::args', (id,arg_typ)::ctx') ->
+     tc_check_args args' ctx' >>= fun sub ->
      let arg_typ' = subst_ty sub arg_typ in
-     tc_check_tm arg_exp arg_typ' >>= fun arg_tm ->
-     tc_ok ((id, arg_tm) :: sub)
+     tc_check_tm arg_tm arg_typ' >>= fun arg_tm' ->
+     tc_ok ((id, arg_tm') :: sub)
      
 and tc_check_cell cell =
   match cell with
-  | CohE (pd, typ) -> 
+  | CohT (pd, typ) -> 
      tc_check_pd pd >>= fun (pd', _, _) ->
      printf "Valid pasting diagram: %s\n" (print_term_ctx pd');
      tc_with_vars pd' (tc_check_ty typ) >>= fun typ' ->
@@ -185,8 +181,8 @@ and tc_check_cell cell =
      if (not (SS.subset pd_vars typ_vars)) then
        tc_fail "Coherence is not algebraic"
      else tc_ok (CohT (pd', typ'))
-  | CompE (_, ObjE) -> tc_fail "Composition cannot target an object"
-  | CompE (pd, ArrE (src, tgt)) ->
+  | CompT (_, ObjT) -> tc_fail "Composition cannot target an object"
+  | CompT (pd, ArrT (_, src, tgt)) ->
      tc_check_pd pd >>= fun (pd', _, _) ->
      printf "Valid pasting diagram: %s\n" (print_term_ctx pd');
      tc_pd_src pd' >>= fun pd_src ->
@@ -218,7 +214,7 @@ and tc_check_cell cell =
 and tc_check_pd pd =
   match pd with
   | [] -> tc_fail "Empty context is not a pasting diagram"
-  | (id, ObjE) :: [] -> tc_ok ((id, ObjT) :: [], id, ObjT)
+  | (id, ObjT) :: [] -> tc_ok ((id, ObjT) :: [], id, ObjT)
   | (_, _) :: [] -> tc_fail "Pasting diagram does not begin with an object"
   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
      tc_check_pd pd'                                          >>= fun (res_pd, pid, ptyp) ->
@@ -244,47 +240,4 @@ and tc_check_pd pd =
      else if (List.mem tgt_id cvars) then 
        tc_fail (sprintf "Target identifier %s already exists" tgt_id)
      else tc_ok ((fill_id, fill_typ_tm) :: (tgt_id, tgt_typ_tm) :: res_pd, fill_id, fill_typ_tm)
-        
-(*
- *  Top-level command execution
- *)
-                   
-let rec check_cmds cmds =
-  match cmds with
-  | [] -> tc_ok ()
-  | (CellDef (id, cell)) :: ds ->
-     printf "-----------------\n";
-     printf "Checking cell: %s\n" id;
-     tc_check_cell cell >>= fun cell_tm ->
-     printf "Ok!\n";
-     tc_with_cell id cell_tm (check_cmds ds)
-  | (TermDef (id, tele, typ, tm)) :: ds ->
-     printf "-----------------\n";
-     printf "Checking definition: %s\n" id;
-     tc_check_tele tele >>= fun g ->
-     printf "Valid telescope: %s\n" (print_term_ctx g);
-     tc_in_ctx g (tc_check_ty typ) >>= fun typ_tm ->
-     printf "Valid return type: %s\n" (print_ty_term typ_tm);
-     tc_in_ctx g (tc_check_tm tm typ_tm) >>= fun tm_tm ->
-     printf "Valid definition: %s\n" (print_tm_term tm_tm);
-     tc_with_def id g typ_tm tm_tm (check_cmds ds)
-  | (EqNf (tele, tm_a, tm_b) :: ds) ->
-     printf "-----------------\n";
-     printf "Comparing normal forms\n";
-     tc_check_tele tele >>= fun g ->
-     printf "Valid telescope: %s\n" (print_term_ctx g);
-     tc_in_ctx g (tc_infer_tm tm_a) >>= fun (tm_a_tm, tm_a_ty) ->
-     printf "Term %s has type %s\n" (print_tm_term tm_a_tm) (print_ty_term tm_a_ty);
-     tc_in_ctx g (tc_infer_tm tm_b) >>= fun (tm_b_tm, tm_b_ty) ->
-     printf "Term %s has type %s\n" (print_tm_term tm_b_tm) (print_ty_term tm_b_ty);
-     if (tm_a_tm = tm_b_tm) then
-       printf "Match!\n"
-     else printf "Fail!\n";
-     check_cmds ds
-  | (LocMax tele :: ds) ->
-     printf "-----------------\n";
-     printf "Locally maximal variables\n";
-     tc_check_pd tele >>= fun (pd, _, _) ->
-     List.iter (printf "%s ") (locally_maximal pd);
-     printf "\n";
-     check_cmds ds
+                           

@@ -3,7 +3,7 @@
  *)
 
 open Common
-open Syntax
+open Term
 open Wrangling
 
 (* Remove the first cell of a pasting context,

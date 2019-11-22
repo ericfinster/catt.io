@@ -1,35 +1,11 @@
 (*
- * syntax.ml - syntactic definitions
+ * term.ml - internal term representation
  *)
 
 open Printf
 
 module SS = Set.Make(String)
-          
-(* Raw, user-level expressions *)
-type ty_expr =
-  | ObjE
-  | ArrE of tm_expr * tm_expr
-
- and tm_expr =
-   | VarE of string
-   | DefAppE of string * tm_expr list
-   | CellAppE of cell_expr * tm_expr list
-
- and cell_expr =
-   | CohE of tele * ty_expr
-   | CompE of tele * ty_expr
-
- (* JV: why "tele"? *)
- and tele = (string * ty_expr) list
-          
-(* Commands *)
-type cmd =
-  | CellDef of string * cell_expr
-  | TermDef of string * tele * ty_expr * tm_expr
-  | EqNf of tele * tm_expr * tm_expr
-  | LocMax of tele
-            
+                    
 (* Internal term representation *)
 type ty_term =
   | ObjT
@@ -145,33 +121,6 @@ and print_cell_term t =
   | CompT (pd, typ) ->
      sprintf "comp %s : %s" (print_pd pd) (print_ty_term typ)
 
-(* Printing expressions *)    
-let rec print_ty_expr t =
-  match t with
-  | ObjE -> "*"
-  | ArrE (src, tgt) -> 
-     sprintf "%s -> %s" (print_tm_expr src) (print_tm_expr tgt)
-    
-and print_tm_expr t =
-  let print_args args =
-    String.concat ", " (List.map print_tm_expr (List.rev args)) in 
-  match t with
-  | VarE id -> id
-  | DefAppE (id, args) ->
-     sprintf "%s(%s)" id (print_args args)
-  | CellAppE (cell, args) -> 
-     sprintf "[%s](%s)" (print_cell_expr cell) (print_args args)
-             
-and print_cell_expr t =
-  let print_decl = fun (id, typ) ->
-    sprintf "(%s : %s)" id (print_ty_expr typ) in 
-  let print_pd pd =
-    String.concat " " (List.map print_decl (List.rev pd)) in 
-  match t with
-  | CohE (pd, typ) ->
-     sprintf "coh %s : %s" (print_pd pd) (print_ty_expr typ)
-  | CompE (pd, typ) ->
-     sprintf "comp %s : %s" (print_pd pd) (print_ty_expr typ)
     
 let rec id_sub gma =
   match gma with
@@ -179,12 +128,6 @@ let rec id_sub gma =
   | (id, _)::gma' ->
      (id, VarT id)::(id_sub gma')
          
-let print_expr_ctx g =
-  let print_decl = fun (id, typ) ->
-    sprintf "(%s : %s)" id (print_ty_expr typ) in 
-  let decls = List.map print_decl g in
-  String.concat " " (List.rev decls)
-
 let print_term_ctx g =
   let print_decl = fun (id, typ) ->
     sprintf "(%s : %s)" id (print_ty_term typ) in 

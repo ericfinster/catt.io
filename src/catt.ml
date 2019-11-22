@@ -2,8 +2,9 @@
  * catt.ml - top level catt module
  *)
 
+open Expr
 open Typecheck
-
+   
 let usage = "catt [options] [file]"
 
 let parse s =
