@@ -71,7 +71,7 @@ let disc_pd k = fst (disc_pd_with_typ k)
 let id_coh k =
   let (dsc, sph) = disc_pd_with_typ k in
   let dsc_id = sprintf "ds%d" k in 
-  CohT (disc_pd k, ArrT (sph, VarT dsc_id, VarT dsc_id))
+  CohT (dsc, ArrT (sph, VarT dsc_id, VarT dsc_id))
 
 (* From a term and its type, return an appropriate
  * substitution to a disc *)  
@@ -128,7 +128,32 @@ and subst_cell s t =
   match t with
   | CohT (pd, typ) -> CohT (pd, subst_ty s typ)
   | CompT (pd, typ) -> CompT (pd, subst_ty s typ)
-    
+
+(* Rename a variable in a type or term.
+ * Warning! This routine could capture variables. 
+ * Use with care. *)
+let rec rename_ty sid tid t =
+  match t with
+  | ObjT -> ObjT
+  | ArrT (typ, src, tgt) ->
+     let typ' = rename_ty sid tid typ in
+     let src' = rename_tm sid tid src in
+     let tgt' = rename_tm sid tid tgt in
+     ArrT (typ', src', tgt')
+
+and rename_tm sid tid t =
+  match t with
+  | VarT id -> if (id = sid) then VarT tid else VarT id
+  | DefAppT (id, args) ->
+     DefAppT (id, List.map (rename_tm sid tid) args)
+  | CellAppT (cell, args) ->
+     CellAppT (rename_cell sid tid cell, List.map (rename_tm sid tid) args)
+
+and rename_cell sid tid t =
+  match t with
+  | CohT (pd, typ) -> CohT (pd, rename_ty sid tid typ)
+  | CompT (pd, typ) -> CompT (pd, rename_ty sid tid typ)
+                     
 (* Printing of types and terms *)                     
 let rec print_ty_term t =
   match t with

@@ -15,11 +15,19 @@ let ( >>== ) m f =
   | Fail s -> Fail s
   | Succeed a -> f a
 
+(* A try-catch routine for err *)               
+let err_try m case_ok case_fail =
+  match m with
+  | Fail s -> case_fail s
+  | Succeed a -> case_ok a 
+  
 (* Simple list zipper routines for manipulating pd's *)
 type 'a zipper = 'a * ('a list) * ('a list)
 
 let zipper_head (a, _, _) = a
-                            
+let zipper_left_list (_,ls,_) = ls
+let zipper_right_list (_,_,rs) = rs
+                          
 let zipper_open = function
   | [] -> Fail "Cannot open empty list"
   | l::ls -> Succeed (l,[],ls)

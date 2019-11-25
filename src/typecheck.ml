@@ -5,7 +5,8 @@
 open Common
 open Printf
 open Term
-
+open Pd   
+   
 type tc_def =
   | TCCellDef of cell_term
   | TCTermDef of ctx * ty_term * tm_term
@@ -35,7 +36,13 @@ let tc_with_def id g ty tm m env = m { env with rho = (id, TCTermDef (g,ty,tm)) 
 let tc_with_var id ty m env = m { env with gma = (id, ty) :: env.gma }
 let tc_with_vars vars m env = m { env with gma = vars @ env.gma }
 let tc_ctx_vars env = Succeed (List.map fst env.gma)
-
+let tc_lift m_err _ = m_err
+                    
+let tc_try m f_ok f_fail env =
+  match m with
+  | Fail msg -> f_fail msg env
+  | Succeed a -> f_ok a env
+                    
 let rec tc_traverse f = function
   | [] -> tc_ok []
   | (x::xs) -> tc_traverse f xs >>= fun rs ->
@@ -335,14 +342,37 @@ let rec tc_tm_kth_tgt k tm =
  * Pruning
  *)
 
-(* let tc_prune_comp pd typ args  *)
+let tc_pd_zip_is_prunable z =
+  match pd_zip_head_tm z with
+  | VarT _ -> tc_ok false
+  | DefAppT (_, _) -> tc_ok false  (* Could expand here ... *)
+  | CellAppT (CohT (_, ArrT (_, src, tgt)), _) ->
+     tc_eq_nf_tm src tgt >>= fun nf_match ->
+     if (nf_match) then
+       tc_ok true
+     else tc_ok false
+  | CellAppT (_, _) -> tc_ok false
+
+let rec tc_pd_zip_prune_to_end z =
+  tc_try (pd_zip_next_loc_max z)
+         (fun z' -> tc_pd_zip_is_prunable z' >>= fun is_p ->
+                    if (not is_p) then
+                      tc_pd_zip_prune_to_end z'
+                    else
+                      tc_lift (pd_zip_drop z') >>= fun zd ->
+                      tc_pd_zip_prune_to_end zd)
+         (fun _ -> tc_ok z)
   
-(* let tc_prune tm = *)
-(*   match tm with *)
-(*   | VarT id -> tc_ok (VarT id) *)
-(*   | DefAppT (id, args) -> *)
-(*      tc_fail "Not pruning definition ..." *)
-(*   | CellAppT (CohT (pd, typ), args) -> *)
-(*      tc_fail "Not pruning coherence cell ..." *)
-(*   | CellAppT (CompT (pd, typ), args) -> *)
+let tc_prune tm =
+  match tm with
+  | CellAppT (CompT (pd, typ), args) ->
+     let pd_w_args = List.combine pd args in
+     tc_lift (zipper_open pd_w_args) >>= fun z ->
+     tc_pd_zip_prune_to_end z >>= fun zp ->
+     let pruned_pd_w_args = zipper_close zp in
+     let (pd', args') = List.split pruned_pd_w_args in
+     tc_ok (CellAppT (CompT (pd', typ), args'))
+  | _ -> tc_ok tm
+
+
      

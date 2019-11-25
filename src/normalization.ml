@@ -2,7 +2,6 @@
  * Term normalization
  *)
 
-(* open Common *)
 open Term
 open Typecheck
 
@@ -94,3 +93,4 @@ let prune ( tm : tm_term ) : tm_term =
   | CellAppT (cell, args) ->
 
   *) 
+
