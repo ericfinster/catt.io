@@ -350,9 +350,6 @@ let tc_pd_zip_is_prunable z =
      tc_eq_nf_tm src tgt 
   | CellAppT (_, _) -> tc_ok false
 
-(* So here, we should carry the return type and 
- * apply the accumulated substitution to it each
- * time we encounter a cell which must be pruned.  *)                     
 let rec tc_pd_zip_prune_to_end z typ =
   tc_try (pd_zip_next_loc_max z)
          (fun z' -> printf "Inspecting locally maximal argument %s ... " (pd_zip_head_id z');
@@ -367,9 +364,6 @@ let rec tc_pd_zip_prune_to_end z typ =
                        tc_pd_zip_prune_to_end zd typ'))
          (fun _ -> printf "Finished pruning\n";
                    tc_ok (z, typ))
-
-(* BUG! Have to also rename variables in the return type
-        of the cell we are pruning .... *)
   
 let tc_prune tm =
   match tm with
