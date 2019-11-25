@@ -202,6 +202,7 @@ type cmd =
   | CellDef of string * cell_expr
   | TermDef of string * tele * ty_expr * tm_expr
   | EqNf of tele * tm_expr * tm_expr
+  | Prune of tele * tm_expr
   | LocMax of tele
      
 (*
@@ -239,6 +240,18 @@ let rec check_cmds cmds =
      if (tm_a_tm = tm_b_tm) then
        printf "Match!\n"
      else printf "Fail!\n";
+     check_cmds ds
+  | (Prune (tele, tm) :: ds) ->
+     printf "-----------------\n";
+     printf "Pruning\n";
+     tc_check_tele tele >>= fun g ->
+     printf "Valid telescope: %s\n" (print_term_ctx g);
+     tc_in_ctx g (tc_infer_tm_expr tm) >>= fun (tm_tm, tm_ty) ->
+     printf "Term %s has type %s\n" (print_tm_term tm_tm) (print_ty_term tm_ty);
+     tc_simple_tm_nf tm_tm >>= fun tm_nf ->
+     printf "Normal form: %s\n" (print_tm_term tm_nf);
+     tc_prune tm_nf >>= fun tm_pruned ->
+     printf "Pruned term: %s\n" (print_tm_term tm_pruned);
      check_cmds ds
   | (LocMax tele :: ds) ->
      printf "-----------------\n";

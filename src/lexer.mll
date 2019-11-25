@@ -11,6 +11,7 @@ rule token = parse
   | "coh"        { COH }
   | "comp"       { COMP }
   | "locmax"     { LOCMAX }
+  | "prune"      { PRUNE }
   | "->"         { ARROW }
   | "*"          { OBJ }
   | "("          { LPAR }

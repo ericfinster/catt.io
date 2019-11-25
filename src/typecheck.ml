@@ -141,7 +141,7 @@ and tc_simple_cell_nf cell =
   | CompT (pd, typ) ->
      tc_uniquify_pd pd >>= fun (pd_nf, s, _) ->
      tc_simple_ty_nf (subst_ty s typ) >>= fun ty_nf ->
-     tc_ok (CohT (pd_nf, ty_nf))
+     tc_ok (CompT (pd_nf, ty_nf))
                      
 and tc_uniquify_pd pd =
   match pd with
@@ -306,7 +306,7 @@ let rec tc_ucomp pd =
          tc_ucomp pd_src >>= fun (uc_src, uc_typ) ->
          tc_ucomp pd_tgt >>= fun (uc_tgt, _) ->
          let next_ty = ArrT (uc_typ, uc_src, uc_tgt) in 
-         tc_ok (CellAppT (CompT (pd, next_ty), id_sub pd), next_ty)
+         tc_ok (CellAppT (CompT (pd, next_ty), id_args pd), next_ty)
 
 (* Return the identity coherence applied to a given term *)         
 let tc_tm_get_id tm =
@@ -347,31 +347,40 @@ let tc_pd_zip_is_prunable z =
   | VarT _ -> tc_ok false
   | DefAppT (_, _) -> tc_ok false  (* Could expand here ... *)
   | CellAppT (CohT (_, ArrT (_, src, tgt)), _) ->
-     tc_eq_nf_tm src tgt >>= fun nf_match ->
-     if (nf_match) then
-       tc_ok true
-     else tc_ok false
+     tc_eq_nf_tm src tgt 
   | CellAppT (_, _) -> tc_ok false
 
-let rec tc_pd_zip_prune_to_end z =
+(* So here, we should carry the return type and 
+ * apply the accumulated substitution to it each
+ * time we encounter a cell which must be pruned.  *)                     
+let rec tc_pd_zip_prune_to_end z typ =
   tc_try (pd_zip_next_loc_max z)
-         (fun z' -> tc_pd_zip_is_prunable z' >>= fun is_p ->
+         (fun z' -> printf "Inspecting locally maximal argument %s ... " (pd_zip_head_id z');
+                    tc_pd_zip_is_prunable z' >>= fun is_p ->
                     if (not is_p) then
-                      tc_pd_zip_prune_to_end z'
+                      (printf "Not prunable!\n";
+                       tc_pd_zip_prune_to_end z' typ)
                     else
-                      tc_lift (pd_zip_drop z') >>= fun zd ->
-                      tc_pd_zip_prune_to_end zd)
-         (fun _ -> tc_ok z)
+                      (printf "Pruning!\n";
+                       tc_lift (pd_zip_drop z') >>= fun (zd, s) ->
+                       let typ' = subst_ty s typ in 
+                       tc_pd_zip_prune_to_end zd typ'))
+         (fun _ -> printf "Finished pruning\n";
+                   tc_ok (z, typ))
+
+(* BUG! Have to also rename variables in the return type
+        of the cell we are pruning .... *)
   
 let tc_prune tm =
   match tm with
   | CellAppT (CompT (pd, typ), args) ->
      let pd_w_args = List.combine pd args in
-     tc_lift (zipper_open pd_w_args) >>= fun z ->
-     tc_pd_zip_prune_to_end z >>= fun zp ->
+     tc_lift (zipper_open pd_w_args >>== fun z' ->
+              zipper_rightmost z') >>= fun z -> 
+     tc_pd_zip_prune_to_end z typ >>= fun (zp, typ') ->
      let pruned_pd_w_args = zipper_close zp in
      let (pd', args') = List.split pruned_pd_w_args in
-     tc_ok (CellAppT (CompT (pd', typ), args'))
+     tc_ok (CellAppT (CompT (pd', typ'), args'))
   | _ -> tc_ok tm
 
 

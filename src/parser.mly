@@ -4,7 +4,7 @@
   
 %} 
 
-%token LET EQNF LOCMAX
+%token LET EQNF LOCMAX PRUNE
 %token COH COMP
 %token OBJ ARROW 
 %token LPAR RPAR LBRACKET RBRACKET
@@ -29,6 +29,8 @@ cmd:
     { TermDef (id, List.rev ctx, ty, tm) }
   | EQNF ctx = var_decl+ VBAR tm_a = tm_expr VBAR tm_b = tm_expr
     { EqNf (List.rev ctx, tm_a, tm_b) }
+  | PRUNE ctx = var_decl+ VBAR tm = tm_expr
+    { Prune (List.rev ctx, tm) }
   | LOCMAX ctx = var_decl+
     { LocMax (List.rev ctx) }
 

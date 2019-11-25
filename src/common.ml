@@ -63,4 +63,9 @@ let zipper_has_left = function
 let zipper_has_right = function
   | (_, _, []) -> false
   | _ -> true 
-                   
+
+let rec zipper_rightmost z =
+  if (zipper_has_right z) then
+    zipper_move_right z >>== fun zr ->
+    zipper_rightmost zr
+  else Succeed z 

@@ -24,9 +24,12 @@ type ty_term =
  and env = (string * tm_term) list 
 
 (* The identity substitution of a context *)    
-let id_sub gma =
+let id_args gma =
   List.map (fun (id, _) -> VarT id) gma
-         
+
+let id_sub gma =
+  List.map (fun (id, _) -> (id, VarT id)) gma
+  
 (* Find the dimension of a type *)
 let rec dim_of typ =
   match typ with
@@ -51,7 +54,7 @@ let cell_typ cell =
 let cell_id cell =
   let pd = cell_pd cell in
   let ty = cell_typ cell in
-  let tm = CellAppT (cell, id_sub pd) in 
+  let tm = CellAppT (cell, id_args pd) in 
   CohT (pd, ArrT (ty, tm, tm))
 
 (* Return the disc pasting diagram of a given dimension *)
@@ -191,3 +194,8 @@ let print_term_ctx g =
   let decls = List.map print_decl g in
   String.concat " " (List.rev decls)
   
+let print_sub s =
+  let print_sub_entry = fun (id, tm) ->
+    sprintf "%s -> %s" id (print_tm_term tm) in
+  let entries = List.map print_sub_entry s in
+  String.concat "; " (List.rev entries)

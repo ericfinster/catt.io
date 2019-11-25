@@ -63,3 +63,8 @@ eqnf (x : *) (f : x -> x)
  | double(x,f)
  | quadruple(x,f)
 
+prune (x : *) (y : *) (f : x -> y)
+ | h(x,y,f,y,id(y))
+
+prune (x : *) (y : *) (f : x -> y) 
+ | h(x,x,id(x),y,f)

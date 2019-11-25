@@ -54,7 +54,7 @@ let tc_coh_endo_to_id (tm : tm_term) : tm_term tcm =
        tc_tm_get_id in_src >>= fun id_tm ->
        let typ = ArrT(in_ty, in_src, in_tgt) in 
        let old_coh = CohT (pd, typ) in
-       let coh_between = CohT (pd, ArrT (typ, CellAppT (old_coh, id_sub pd), id_tm)) in 
+       let coh_between = CohT (pd, ArrT (typ, CellAppT (old_coh, id_args pd), id_tm)) in 
        tc_ok (CellAppT (coh_between, args))
   | _ -> tc_fail "Not an endo-coherence"
 
