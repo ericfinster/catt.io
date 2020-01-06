@@ -224,3 +224,16 @@ let is_endomorphism_coh cell =
      else Fail "Not an endomorphism"
   | _ -> Fail "Not an endo-coherence"
 
+(* Is the given cell a unary composite? Assumes the 
+ * term is in normal form and returns the top dimensional
+ * identifier and its type.
+ *)
+let is_unary_comp cell =
+  match cell with
+  | CompT (pd, typ) ->
+     is_disc_pd pd >>== fun (dsc_id, dsc_typ) ->
+     if (typ = dsc_typ) then
+       Succeed (dsc_id, dsc_typ)
+     else Fail "Wrong return type"
+  | _ -> Fail "Not a unary comp"
+

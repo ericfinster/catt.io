@@ -385,5 +385,36 @@ let tc_prune tm =
      tc_ok (CellAppT (CompT (pd', typ'), args'))
   | _ -> tc_ok tm
 
+(* 
+ * Rectification
+ *)
 
-     
+(* In general, the question arises as to whether rectification
+ * should be recursive.  If not, how can we guarantee that all
+ * of the term under consideration is "rectified"?  The current
+ * implementation does not recurse in either case, which seems
+ * odd .... 
+ *)
+       
+let tc_rectify tm =
+  match tm with
+  | CellAppT (cell, args) ->
+     tc_try (is_unary_comp cell)
+            (* Is it really the head, or the last element? *)
+            (* Notice we have to recurse, as the argument may not 
+             * itself be rectified ... *)
+            (fun _ -> tc_ok (List.hd args))  
+            (fun _ -> tc_try (is_endomorphism_coh cell)
+                             (fun (tm, ty) ->
+                               (* We want to return the identity coherence on 
+                                * this term. *)
+                               (* A potential problem here is that the term itself
+                                * may not be rectified.  Should we do this first? *)
+                               let id_args = tm_to_disc_sub tm ty in
+                               let id_coh = id_coh (dim_of ty) in 
+                               tc_ok (CellAppT (id_coh, id_args))
+                             )
+                             (fun _ -> tc_ok tm))
+  | _ -> tc_ok tm 
+
+
