@@ -426,10 +426,10 @@ and tc_full_normalize_tm tm =
   | CellAppT (CompT (pd, typ), args) ->
      tc_traverse (tc_full_normalize_tm) args >>= fun args_nf -> 
      tc_prune_cell pd typ args_nf >>= fun (pd', typ', args') ->
-     tc_ok (CellAppT (CompT (pd', typ'), args'))
+     tc_rectify (CellAppT (CompT (pd', typ'), args'))
   | CellAppT (CohT (pd, typ), args) ->
      tc_traverse (tc_full_normalize_tm) args >>= fun args_nf -> 
      tc_prune_cell pd typ args_nf >>= fun (pd', typ', args') ->
-     tc_ok (CellAppT (CohT (pd', typ'), args'))
+     tc_rectify (CellAppT (CohT (pd', typ'), args'))
 
 
