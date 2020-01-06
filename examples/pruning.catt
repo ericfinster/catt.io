@@ -1,0 +1,46 @@
+#
+#  pruning.catt - testing pruning algo
+#
+
+let id = coh (x : *) : x -> x
+
+let id2 = coh (x : *)
+              (y : *) (f : x -> y)
+        : f -> f
+        
+let h = comp (x : *)
+             (y : *) (f : x -> y)
+             (z : *) (g : y -> z)
+        : x -> z
+
+let h2 = comp (x : *)
+              (y : *) (f : x -> y)
+                      (g : x -> y) (a : f -> g)
+              (z : *) (h : y -> z)
+                      (k : y -> z) (b : h -> k)
+         : h(x,y,f,z,h) -> h(x,y,g,z,k)
+
+let v2 = comp (x : *)
+              (y : *) (f : x -> y)
+                      (g : x -> y) (a : f -> g)
+                      (h : x -> y) (b : g -> h)
+         : f -> h
+
+let h2coh = coh (x : *)
+                (y : *) (f : x -> y)
+                        (g : x -> y) (a : f -> g)
+                (z : *) (h : y -> z)
+                        (k : y -> z) (b : h -> k)
+          : h2(x,y,f,g,a,z,h,k,b) -> h2(x,y,f,g,a,z,h,k,b)
+
+let p1 (x : *)
+       (y : *) (f : x -> y)
+               (g : x -> y) (a : f -> g)
+       (z : *) (i : y -> z) : h(x,y,f,z,i) -> h(x,y,g,z,i)
+       = h2(x,y,f,g,v2(x,y,f,f,id2(x,y,f),g,a),z,i,i,id2(y,z,i))
+
+prune (x : *)
+      (y : *) (f : x -> y)
+              (g : x -> y) (a : f -> g)
+      (z : *) (i : y -> z)
+ | p1(x,y,f,g,a,z,i)

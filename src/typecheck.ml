@@ -122,16 +122,20 @@ and tc_simple_tm_nf tm =
          tc_simple_cell_nf cell_tm >>= fun cell_nf ->
          tc_ok (CellAppT (cell_nf, args_nf))
       | TCTermDef (tele, _, term) ->
-         tc_traverse (tc_simple_tm_nf) args >>= fun args_nf ->
-         tc_simple_tm_nf term >>= fun term_nf -> 
-         let sub = List.combine (List.map fst tele) args_nf in
-         tc_ok (subst_tm sub term_nf)
+         (* The order here may be inefficient, but is currently necessary,
+          * as normalization will rename all the pasting diagram variables
+          * so that the names in "tele" no longer correspond correctly.
+          * By first performing the substitution, we avoid this problem. 
+          *)
+         let sub = List.combine (List.map fst tele) args in
+         let sub_tm = subst_tm sub term in
+         tc_simple_tm_nf sub_tm
      )
   | CellAppT (cell, args) ->
      tc_traverse (tc_simple_tm_nf) args >>= fun args_nf -> 
      tc_simple_cell_nf cell >>= fun cell_nf ->
      tc_ok (CellAppT (cell_nf, args_nf))
-
+     
 and tc_simple_cell_nf cell =
   match cell with
   | CohT (pd, typ) ->
@@ -369,8 +373,8 @@ let tc_prune tm =
   match tm with
   | CellAppT (CompT (pd, typ), args) ->
      let pd_w_args = List.combine pd args in
-     tc_lift (zipper_open pd_w_args >>== fun z' ->
-              zipper_rightmost z') >>= fun z -> 
+     tc_lift (zipper_open pd_w_args >>== 
+              zipper_rightmost) >>= fun z -> 
      tc_pd_zip_prune_to_end z typ >>= fun (zp, typ') ->
      let pruned_pd_w_args = zipper_close zp in
      let (pd', args') = List.split pruned_pd_w_args in

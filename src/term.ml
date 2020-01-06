@@ -109,54 +109,6 @@ and cell_free_vars t =
   | CohT (_, typ) -> ty_free_vars typ
   | CompT (_, typ) -> ty_free_vars typ
 
-(* Simultaneous Substitution *)
-let rec subst_ty s t =
-  match t with
-  | ObjT -> ObjT
-  | ArrT (typ, src, tgt) ->
-     let typ' = subst_ty s typ in
-     let src' = subst_tm s src in
-     let tgt' = subst_tm s tgt in
-     ArrT (typ', src', tgt')
-
-and subst_tm s t =
-  match t with
-  | VarT id -> List.assoc id s
-  | DefAppT (id, args) ->
-     DefAppT (id, List.map (subst_tm s) args)
-  | CellAppT (cell, args) ->
-     CellAppT (subst_cell s cell, List.map (subst_tm s) args)
-
-and subst_cell s t =
-  match t with
-  | CohT (pd, typ) -> CohT (pd, subst_ty s typ)
-  | CompT (pd, typ) -> CompT (pd, subst_ty s typ)
-
-(* Rename a variable in a type or term.
- * Warning! This routine could capture variables. 
- * Use with care. *)
-let rec rename_ty sid tid t =
-  match t with
-  | ObjT -> ObjT
-  | ArrT (typ, src, tgt) ->
-     let typ' = rename_ty sid tid typ in
-     let src' = rename_tm sid tid src in
-     let tgt' = rename_tm sid tid tgt in
-     ArrT (typ', src', tgt')
-
-and rename_tm sid tid t =
-  match t with
-  | VarT id -> if (id = sid) then VarT tid else VarT id
-  | DefAppT (id, args) ->
-     DefAppT (id, List.map (rename_tm sid tid) args)
-  | CellAppT (cell, args) ->
-     CellAppT (rename_cell sid tid cell, List.map (rename_tm sid tid) args)
-
-and rename_cell sid tid t =
-  match t with
-  | CohT (pd, typ) -> CohT (pd, rename_ty sid tid typ)
-  | CompT (pd, typ) -> CompT (pd, rename_ty sid tid typ)
-                     
 (* Printing of types and terms *)                     
 let rec print_ty_term t =
   match t with
@@ -199,3 +151,55 @@ let print_sub s =
     sprintf "%s -> %s" id (print_tm_term tm) in
   let entries = List.map print_sub_entry s in
   String.concat "; " (List.rev entries)
+                    
+(* Simultaneous Substitution *)
+let rec subst_ty s t =
+  match t with
+  | ObjT -> ObjT
+  | ArrT (typ, src, tgt) ->
+     let typ' = subst_ty s typ in
+     let src' = subst_tm s src in
+     let tgt' = subst_tm s tgt in
+     ArrT (typ', src', tgt')
+
+and subst_tm s t =
+  match t with
+  | VarT id -> (try List.assoc id s
+                with Not_found ->
+                     printf "Lookup failed for %s in substitution %s\n" id (print_sub s);
+                     raise Not_found)
+  | DefAppT (id, args) ->
+     DefAppT (id, List.map (subst_tm s) args)
+  | CellAppT (cell, args) ->
+     CellAppT (subst_cell s cell, List.map (subst_tm s) args)
+
+and subst_cell s t =
+  match t with
+  | CohT (pd, typ) -> CohT (pd, subst_ty s typ)
+  | CompT (pd, typ) -> CompT (pd, subst_ty s typ)
+
+(* Rename a variable in a type or term.
+ * Warning! This routine could capture variables. 
+ * Use with care. *)
+(* let rec rename_ty sid tid t = *)
+(*   match t with *)
+(*   | ObjT -> ObjT *)
+(*   | ArrT (typ, src, tgt) -> *)
+(*      let typ' = rename_ty sid tid typ in *)
+(*      let src' = rename_tm sid tid src in *)
+(*      let tgt' = rename_tm sid tid tgt in *)
+(*      ArrT (typ', src', tgt') *)
+
+(* and rename_tm sid tid t = *)
+(*   match t with *)
+(*   | VarT id -> if (id = sid) then VarT tid else VarT id *)
+(*   | DefAppT (id, args) -> *)
+(*      DefAppT (id, List.map (rename_tm sid tid) args) *)
+(*   | CellAppT (cell, args) -> *)
+(*      CellAppT (rename_cell sid tid cell, List.map (rename_tm sid tid) args) *)
+
+(* and rename_cell sid tid t = *)
+(*   match t with *)
+(*   | CohT (pd, typ) -> CohT (pd, rename_ty sid tid typ) *)
+(*   | CompT (pd, typ) -> CompT (pd, rename_ty sid tid typ) *)
+                     
