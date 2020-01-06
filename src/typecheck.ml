@@ -346,54 +346,45 @@ let rec tc_tm_kth_tgt k tm =
  * Pruning
  *)
 
-let tc_pd_zip_is_prunable z =
-  match pd_zip_head_tm z with
-  | VarT _ -> tc_ok false
-  | DefAppT (_, _) -> tc_ok false  (* Could expand here ... *)
-  | CellAppT (CohT (_, ArrT (_, src, tgt)), _) ->
-     tc_eq_nf_tm src tgt 
-  | CellAppT (_, _) -> tc_ok false
-
 let rec tc_pd_zip_prune_to_end z typ =
   tc_try (pd_zip_next_loc_max z)
          (fun z' -> printf "Inspecting locally maximal argument %s ... " (pd_zip_head_id z');
-                    tc_pd_zip_is_prunable z' >>= fun is_p ->
-                    if (not is_p) then
-                      (printf "Not prunable!\n";
-                       tc_pd_zip_prune_to_end z' typ)
-                    else
-                      (printf "Pruning!\n";
-                       tc_lift (pd_zip_drop z') >>= fun (zd, s) ->
-                       let typ' = subst_ty s typ in 
-                       tc_pd_zip_prune_to_end zd typ'))
+                    match pd_zip_head_tm z' with
+                    | CellAppT (cell, _) ->
+                       tc_try (is_identity_coh cell)
+                              (fun _ -> printf "Pruning identity coherence.\n";
+                                        tc_lift (pd_zip_drop z') >>= fun (zd, s) ->
+                                        let typ' = subst_ty s typ in 
+                                        tc_pd_zip_prune_to_end zd typ')
+                              (fun _ -> printf "Not an identity coherence.\n";
+                                        tc_pd_zip_prune_to_end z' typ)
+                    | _ -> printf "Not a cell application.\n";
+                           tc_pd_zip_prune_to_end z' typ)
          (fun _ -> printf "Finished pruning\n";
                    tc_ok (z, typ))
 
-(* Okay, so this simply prunes the top level ... 
- * In principle, we could recurse above and so on, 
- * which is what we are going to want to do in what follows .... *)
-  
+let tc_prune_cell pd typ args =
+  let pd_w_args = List.combine pd args in
+  tc_lift (zipper_open pd_w_args >>== 
+             zipper_rightmost) >>= fun z -> 
+  tc_pd_zip_prune_to_end z typ >>= fun (zp, typ') ->
+  let pruned_pd_w_args = zipper_close zp in
+  let (pd', args') = List.split pruned_pd_w_args in
+  tc_ok (pd', typ', args')
+
+(* We prune coherences.  Is this legit? *)  
 let tc_prune tm =
   match tm with
   | CellAppT (CompT (pd, typ), args) ->
-     let pd_w_args = List.combine pd args in
-     tc_lift (zipper_open pd_w_args >>== 
-              zipper_rightmost) >>= fun z -> 
-     tc_pd_zip_prune_to_end z typ >>= fun (zp, typ') ->
-     let pruned_pd_w_args = zipper_close zp in
-     let (pd', args') = List.split pruned_pd_w_args in
+     tc_prune_cell pd typ args >>= fun (pd', typ', args') ->
      tc_ok (CellAppT (CompT (pd', typ'), args'))
+  | CellAppT (CohT (pd, typ), args) ->
+     tc_prune_cell pd typ args >>= fun (pd', typ', args') ->
+     tc_ok (CellAppT (CohT (pd', typ'), args'))
   | _ -> tc_ok tm
 
 (* 
  * Rectification
- *)
-
-(* In general, the question arises as to whether rectification
- * should be recursive.  If not, how can we guarantee that all
- * of the term under consideration is "rectified"?  The current
- * implementation does not recurse in either case, which seems
- * odd .... 
  *)
        
 let tc_rectify tm =
@@ -408,13 +399,37 @@ let tc_rectify tm =
                              (fun (tm, ty) ->
                                (* We want to return the identity coherence on 
                                 * this term. *)
-                               (* A potential problem here is that the term itself
-                                * may not be rectified.  Should we do this first? *)
                                let id_args = tm_to_disc_sub tm ty in
                                let id_coh = id_coh (dim_of ty) in 
                                tc_ok (CellAppT (id_coh, id_args))
                              )
                              (fun _ -> tc_ok tm))
   | _ -> tc_ok tm 
+
+(*
+ * Full Normalization (assumes cell is already simply normalized ...)
+ *)
+
+let rec tc_full_normalize_ty ty =
+  match ty with
+  | ObjT -> tc_ok ObjT
+  | ArrT (ty', src, tgt) ->
+     tc_full_normalize_ty ty' >>= fun ty_nf ->
+     tc_full_normalize_tm src >>= fun src_nf ->
+     tc_full_normalize_tm tgt >>= fun tgt_nf ->
+     tc_ok (ArrT (ty_nf, src_nf, tgt_nf))
+       
+and tc_full_normalize_tm tm =
+  match tm with
+  | VarT id -> tc_ok (VarT id)
+  | DefAppT (_, _) -> tc_fail "unimplemented"
+  | CellAppT (CompT (pd, typ), args) ->
+     tc_traverse (tc_full_normalize_tm) args >>= fun args_nf -> 
+     tc_prune_cell pd typ args_nf >>= fun (pd', typ', args') ->
+     tc_ok (CellAppT (CompT (pd', typ'), args'))
+  | CellAppT (CohT (pd, typ), args) ->
+     tc_traverse (tc_full_normalize_tm) args >>= fun args_nf -> 
+     tc_prune_cell pd typ args_nf >>= fun (pd', typ', args') ->
+     tc_ok (CellAppT (CohT (pd', typ'), args'))
 
 

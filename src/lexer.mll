@@ -12,6 +12,8 @@ rule token = parse
   | "comp"       { COMP }
   | "locmax"     { LOCMAX }
   | "prune"      { PRUNE }
+  | "rectify"    { RECTIFY }
+  | "normalize"  { NORMALIZE }
   | "->"         { ARROW }
   | "*"          { OBJ }
   | "("          { LPAR }

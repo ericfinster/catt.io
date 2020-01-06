@@ -4,7 +4,8 @@
   
 %} 
 
-%token LET EQNF LOCMAX PRUNE
+%token LET EQNF LOCMAX
+%token PRUNE RECTIFY NORMALIZE
 %token COH COMP
 %token OBJ ARROW 
 %token LPAR RPAR LBRACKET RBRACKET
@@ -31,6 +32,10 @@ cmd:
     { EqNf (List.rev ctx, tm_a, tm_b) }
   | PRUNE ctx = var_decl+ VBAR tm = tm_expr
     { Prune (List.rev ctx, tm) }
+  | RECTIFY ctx = var_decl+ VBAR tm = tm_expr
+    { Rectify (List.rev ctx, tm) }
+  | NORMALIZE ctx = var_decl+ VBAR tm = tm_expr
+    { Normalize (List.rev ctx, tm) }
   | LOCMAX ctx = var_decl+
     { LocMax (List.rev ctx) }
 

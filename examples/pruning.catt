@@ -39,11 +39,32 @@ let p1 (x : *)
        (z : *) (i : y -> z) : h(x,y,f,z,i) -> h(x,y,g,z,i)
        = h2(x,y,f,g,v2(x,y,f,f,id2(x,y,f),g,a),z,i,i,id2(y,z,i))
 
-prune (x : *)
-      (y : *) (f : x -> y)
-              (g : x -> y) (a : f -> g)
-      (z : *) (i : y -> z)
+normalize (x : *)
+          (y : *) (f : x -> y)
+                  (g : x -> y) (a : f -> g)
+          (z : *) (i : y -> z)
  | p1(x,y,f,g,a,z,i)
 
+
+# [comp (x0 : *)
+#       (x1 : *) (x2 : x0 -> x1)
+#                (x3 : x0 -> x1) (x4 : x2 -> x3)
+#       (x5 : *) (x6 : x1 -> x5)
+#                (x7 : x1 -> x5) (x8 : x6 -> x7) : [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) : x0 -> x3](x0, x1, x2, x5, x6) ->
+#                                                  [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) : x0 -> x3](x0, x1, x3, x5, x7)]
+#   (x, y, f, g,
+#     [comp (x0 : *)
+#           (x1 : *) (x2 : x0 -> x1)
+#                    (x3 : x0 -> x1) (x4 : x2 -> x3)
+#                    (x5 : x0 -> x1) (x6 : x3 -> x5) : x2 -> x5]
+#       (x, y, f, f, [coh (x0 : *) (x1 : *) (x2 : x0 -> x1) : x2 -> x2](x, y, f), g, a),
+#      z, i, i, [coh (x0 : *) (x1 : *) (x2 : x0 -> x1) : x2 -> x2](y, z, i))
+
+# [comp (x0 : *)
+#       (x1 : *) (x2 : x0 -> x1)
+#                (x3 : x0 -> x1) (x4 : x2 -> x3)
+#       (x5 : *) (x6 : x1 -> x5) : [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) : x0 -> x3](x0, x1, x2, x5, x6) ->
+#                                  [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) : x0 -> x3](x0, x1, x3, x5, x6)]
+#                                  (x, y, f, g, [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x5 : x0 -> x1) (x6 : x2 -> x5) : x2 -> x5](x, y, f, g, a), z, i)
 
 
