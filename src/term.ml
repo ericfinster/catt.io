@@ -2,6 +2,7 @@
  * term.ml - internal term representation
  *)
 
+open Common
 open Printf
 
 module SS = Set.Make(String)
@@ -178,28 +179,48 @@ and subst_cell s t =
   | CohT (pd, typ) -> CohT (pd, subst_ty s typ)
   | CompT (pd, typ) -> CompT (pd, subst_ty s typ)
 
-(* Rename a variable in a type or term.
- * Warning! This routine could capture variables. 
- * Use with care. *)
-(* let rec rename_ty sid tid t = *)
-(*   match t with *)
-(*   | ObjT -> ObjT *)
-(*   | ArrT (typ, src, tgt) -> *)
-(*      let typ' = rename_ty sid tid typ in *)
-(*      let src' = rename_tm sid tid src in *)
-(*      let tgt' = rename_tm sid tid tgt in *)
-(*      ArrT (typ', src', tgt') *)
+(* A binary predicate which decides if a given 
+ * context is in fact a disc pasting diagram and
+ * returns the top dimensional variable as well 
+ * as its type.
+ *) 
+let rec is_disc_pd pd =
+  match pd with
+  | [] -> Fail "Empty context"
+  | (id, ObjT) :: [] -> Succeed (id, ObjT)
+  | (_, _) :: [] -> Fail "Not a pasting diagram"
+  | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
+     is_disc_pd pd' >>== fun (src_id, src_typ) ->
+     if (tgt_typ <> src_typ) then
+       Fail "Incorrect target type"
+     else if (fill_typ <> ArrT (src_typ, VarT src_id, VarT tgt_id)) then
+       Fail "Incorrect filler type"
+     else Succeed (fill_id, fill_typ)
 
-(* and rename_tm sid tid t = *)
-(*   match t with *)
-(*   | VarT id -> if (id = sid) then VarT tid else VarT id *)
-(*   | DefAppT (id, args) -> *)
-(*      DefAppT (id, List.map (rename_tm sid tid) args) *)
-(*   | CellAppT (cell, args) -> *)
-(*      CellAppT (rename_cell sid tid cell, List.map (rename_tm sid tid) args) *)
+(* Is the given cell an identity coherence? Assumes the 
+ * term is already in normal form.  Returns the identifier
+ * of the top dimensional variable and its type.
+ *)     
+let is_identity_coh cell =
+  match cell with
+  | CohT (pd, ArrT (_, src, tgt)) ->
+     is_disc_pd pd >>== fun (dsc_id, dsc_typ) ->
+     if (src <> VarT dsc_id) then
+       Fail "Wrong source"
+     else if (tgt <> VarT dsc_id) then
+       Fail "Wrong target"
+     else Succeed (dsc_id, dsc_typ)
+  | _ -> Fail "Not an identity"
 
-(* and rename_cell sid tid t = *)
-(*   match t with *)
-(*   | CohT (pd, typ) -> CohT (pd, rename_ty sid tid typ) *)
-(*   | CompT (pd, typ) -> CompT (pd, rename_ty sid tid typ) *)
-                     
+(* Is the given cell an endomorphism coherence. Assumes
+ * already in normal form.  Returns the source/target
+ * term as well as its type.
+ *)
+let is_endomorphism_coh cell =
+  match cell with
+  | CohT (pd, ArrT (typ, src, tgt)) ->
+     if (src = tgt) then
+       Succeed (src, typ)
+     else Fail "Not an endomorphism"
+  | _ -> Fail "Not an endo-coherence"
+

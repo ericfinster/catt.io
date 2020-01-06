@@ -44,3 +44,6 @@ prune (x : *)
               (g : x -> y) (a : f -> g)
       (z : *) (i : y -> z)
  | p1(x,y,f,g,a,z,i)
+
+
+

@@ -368,6 +368,10 @@ let rec tc_pd_zip_prune_to_end z typ =
                        tc_pd_zip_prune_to_end zd typ'))
          (fun _ -> printf "Finished pruning\n";
                    tc_ok (z, typ))
+
+(* Okay, so this simply prunes the top level ... 
+ * In principle, we could recurse above and so on, 
+ * which is what we are going to want to do in what follows .... *)
   
 let tc_prune tm =
   match tm with
