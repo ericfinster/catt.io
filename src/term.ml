@@ -60,10 +60,10 @@ let cell_id cell =
 
 (* Return the disc pasting diagram of a given dimension *)
 let rec disc_pd_with_typ k =
-  if (k <= 0) then (("ds0", ObjT) :: [], ObjT)
-  else let tgt_id = sprintf "dt%d" (k-1) in
-       let src_id = sprintf "ds%d" (k-1) in 
-       let dsc_id = sprintf "ds%d" k in
+  if (k <= 0) then (("x0", ObjT) :: [], ObjT)
+  else let tgt_id = sprintf "x%d" (2 * (k-1) + 1) in
+       let src_id = sprintf "x%d" (2 * (k-1)) in 
+       let dsc_id = sprintf "x%d" (2 * k) in
        let (dpd, last_ty) = disc_pd_with_typ (k-1) in
        let next_ty = ArrT (last_ty, VarT src_id, VarT tgt_id) in
        ((dsc_id, next_ty) :: (tgt_id, last_ty) :: dpd, next_ty)
@@ -74,7 +74,7 @@ let disc_pd k = fst (disc_pd_with_typ k)
  * dimension k *)              
 let id_coh k =
   let (dsc, sph) = disc_pd_with_typ k in
-  let dsc_id = sprintf "ds%d" k in 
+  let dsc_id = sprintf "x%d" (2 * k) in 
   CohT (dsc, ArrT (sph, VarT dsc_id, VarT dsc_id))
 
 (* From a term and its type, return an appropriate

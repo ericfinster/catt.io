@@ -4,6 +4,12 @@
 
 import prelude
 
+# This example shows that, at least if we are pruning coherences,
+# then disc coherences need special attention....
+
+prune (x : *)
+ | id1(x,x,id(x))
+ 
 normalize (x : *)
           (y : *) (f : x -> y)
                   (g : x -> y) (a : f -> g)

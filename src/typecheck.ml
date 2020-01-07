@@ -355,6 +355,7 @@ let rec tc_pd_zip_prune_to_end z typ =
                     | CellAppT (cell, _) ->
                        tc_try (is_identity_coh cell)
                               (fun _ -> printf "Pruning identity coherence.\n";
+                                        printf "Term was: %s\n" (print_tm_term (pd_zip_head_tm z'));
                                         tc_lift (pd_zip_drop z') >>= fun (zd, s) ->
                                         let typ' = subst_ty s typ in 
                                         tc_pd_zip_prune_to_end zd typ')
@@ -390,13 +391,17 @@ let tc_prune tm =
  *)
        
 let tc_rectify tm =
+  printf "Rectifying term: %s\n" (print_tm_term tm);
   match tm with
   | CellAppT (cell, args) ->
      tc_try (is_unary_comp cell)
             (* Is it really the head, or the last element? *)
             (* Notice we have to recurse, as the argument may not 
              * itself be rectified ... *)
-            (fun _ -> tc_ok (List.hd args))  
+            (fun _ -> printf "Got a unary composite!\n";
+                      let arg = List.hd args in
+                      printf "Head term is: %s\n" (print_tm_term arg);
+                      tc_ok arg)  
             (fun _ -> tc_try (is_endomorphism_coh cell)
                              (fun (tm, ty) ->
                                (* We want to return the identity coherence on 
@@ -426,10 +431,12 @@ and tc_full_normalize_tm tm =
   | VarT id -> tc_ok (VarT id)
   | DefAppT (_, _) -> tc_fail "unimplemented"
   | CellAppT (CompT (pd, typ), args) ->
+     printf "Pruning composition cell: %s\n" (print_cell_term (CompT (pd, typ)));
      tc_traverse (tc_full_normalize_tm) args >>= fun args_nf -> 
      tc_prune_cell pd typ args_nf >>= fun (pd', typ', args') ->
      tc_rectify (CellAppT (CompT (pd', typ'), args'))
   | CellAppT (CohT (pd, typ), args) ->
+     printf "Pruning coherence cell: %s\n" (print_cell_term (CohT (pd, typ)));
      tc_traverse (tc_full_normalize_tm) args >>= fun args_nf -> 
      tc_prune_cell pd typ args_nf >>= fun (pd', typ', args') ->
      tc_rectify (CellAppT (CohT (pd', typ'), args'))
