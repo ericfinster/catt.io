@@ -1,0 +1,61 @@
+#
+#  prelude.catt - some basic coherences
+#
+
+let id = coh (x : *) : x -> x
+let id1 = coh (x : *) (y : *) (f : x -> y) : f -> f
+let id2 = coh (x : *)
+              (y : *) (f : x -> y)
+                      (g : x -> y) (a : f -> g)
+          : a -> a
+
+let cmp = comp (x : *)
+               (y : *) (f : x -> y)
+               (z : *) (g : y -> z)
+          : x -> z
+
+let cmp3 = comp (x : *)
+                (y : *) (f : x -> y)
+                (z : *) (g : y -> z)
+                (w : *) (h : z -> w)
+           : x -> w
+           
+let v2 = comp (x : *)
+              (y : *) (f : x -> y)
+                      (g : x -> y) (a : f -> g)
+                      (h : x -> y) (b : g -> h)
+         : f -> h
+
+let h2 = comp (x : *)
+              (y : *) (f : x -> y)
+                      (g : x -> y) (a : f -> g)
+              (z : *) (h : y -> z)
+                      (k : y -> z) (b : h -> k)
+         : cmp(x,y,f,z,h) -> cmp(x,y,g,z,k)
+
+let h3 = comp (x : *)
+              (y : *) (f : x -> y)
+                      (g : x -> y) (a : f -> g)
+              (z : *) (h : y -> z)
+                      (k : y -> z) (b : h -> k)
+              (w : *) (i : z -> w)
+                      (j : z -> w) (c : i -> j)
+         : cmp3(x,y,f,z,h,w,i) -> cmp3(x,y,g,z,k,w,j)
+
+let assoc = coh (x : *)
+                (y : *) (f : x -> y)
+                (z : *) (g : y -> z)
+                (w : *) (h : z -> w)
+            : cmp(x,z,cmp(x,y,f,z,g),w,h) ->
+              cmp(x,y,f,w,cmp(y,z,g,w,h))
+
+let ichg = coh (x : *)
+               (y : *) (f : x -> y) 
+                       (g : x -> y) (a : f -> g)
+                       (h : x -> y) (b : g -> h)
+               (z : *) (i : y -> z)
+                       (j : y -> z) (c : i -> j)
+                       (k : y -> z) (d : j -> k)
+           : h2(x,y,f,h,v2(x,y,f,g,a,h,b),z,i,k,v2(y,z,i,j,c,k,d)) ->
+           v2(x,z,cmp(x,y,f,z,i),cmp(x,y,g,z,j),h2(x,y,f,g,a,z,i,j,c),cmp(x,y,h,z,k),h2(x,y,g,h,b,z,j,k,d))
+

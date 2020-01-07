@@ -1,0 +1,15 @@
+#
+#  prune1.catt - pruning example
+#
+
+import prelude
+
+let dbl_id = coh (x : *) : id(x) -> id(x)
+let trpl_id = coh (x : *) : dbl_id(x) -> dbl_id(x)
+
+# This example shows that the current normalization algorithm
+# does not necessarily lead to fully rectified normal forms...
+
+normalize (x : *)
+  | trpl_id(x)
+

@@ -1,0 +1,13 @@
+#
+#  prune2.catt - pruning example
+#
+
+import prelude
+
+normalize (x : *)
+          (y : *) (f : x -> y)
+                  (g : x -> y) (a : f -> g)
+          (z : *) (h : y -> z)
+                  (k : y -> z) (b : h -> k)
+ | h3(x,y,f,g,a,y,id(y),id(y),id1(y,y,id(y)),z,h,k,b)
+          
