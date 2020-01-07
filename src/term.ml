@@ -172,7 +172,9 @@ and subst_tm s t =
   | DefAppT (id, args) ->
      DefAppT (id, List.map (subst_tm s) args)
   | CellAppT (cell, args) ->
-     CellAppT (subst_cell s cell, List.map (subst_tm s) args)
+     (* Does one every have free variables inside a cell declaration? *)
+     CellAppT (cell, List.map (subst_tm s) args)
+     (* CellAppT (subst_cell s cell, List.map (subst_tm s) args) *)
 
 and subst_cell s t =
   match t with
@@ -220,7 +222,7 @@ let is_endomorphism_coh cell =
   match cell with
   | CohT (pd, ArrT (typ, src, tgt)) ->
      if (src = tgt) then
-       Succeed (src, typ)
+       Succeed (pd, src, typ)
      else Fail "Not an endomorphism"
   | _ -> Fail "Not an endo-coherence"
 

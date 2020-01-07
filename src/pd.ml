@@ -44,7 +44,8 @@ let rec pd_zip_extend_sub z s =
   
   
 (* Drop a locally maximal cell and its target, together
- * with their arguments. *)
+ * with their arguments. Return a substitution which 
+ * inserts an identity in the appropriate place. *)
 let pd_zip_drop z =
   pd_zip_is_loc_max z >>== fun is_lmax ->
   if (not is_lmax) then
@@ -52,14 +53,19 @@ let pd_zip_drop z =
   else
     match pd_zip_head_ty z with
     | ObjT -> Fail "Cannot drop and object"
-    | ArrT (_, VarT src_id, VarT tgt_id) ->
+    | ArrT (bdry_typ, VarT src_id, VarT tgt_id) ->
        zipper_drop_right z >>== fun zr ->
        zipper_drop_right zr >>== fun zrr ->
-       let r_id = pd_zip_head_id zrr in 
-       let s = (tgt_id,VarT src_id)::(r_id,VarT r_id)::(id_sub (fst (List.split (zipper_right_list zrr)))) in
+       let fill_id = pd_zip_head_id z in
+       let id_tm = CellAppT (id_coh (dim_of bdry_typ), tm_to_disc_sub (VarT src_id) bdry_typ) in 
+       let s = (fill_id, id_tm)::
+                 (tgt_id,VarT src_id)::
+                   (src_id,VarT src_id)::
+                     (id_sub (fst (List.split (zipper_right_list zrr)))) in
        pd_zip_extend_sub zrr s >>== fun (z', s') ->
-       zipper_scan_right (fun ((id,_),_) -> id = r_id) z' >>== fun zr ->
+       zipper_scan_right (fun ((id,_),_) -> id = src_id) z' >>== fun zr ->
        Succeed (zr, s')
     | ArrT (_, _, _) -> Fail "Malformed pasting diagram"
+
 
   
