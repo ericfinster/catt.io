@@ -4,9 +4,10 @@
   
 %} 
 
-%token LET EQNF LOCMAX
+%token IMPORT
 %token PRUNE RECTIFY NORMALIZE
-%token COH COMP
+%token EQNF LOCMAX
+%token LET COH COMP
 %token OBJ ARROW 
 %token LPAR RPAR LBRACKET RBRACKET
 %token COMMA COLON EQUAL VBAR
@@ -14,15 +15,19 @@
 %token EOF
 
 %start prog
-%type <Expr.cmd list> prog
+%type <string list * Expr.cmd list> prog
 %%
 
 prog:
   | EOF
-    { [] }
-  | cmds = nonempty_list(cmd) EOF
-    { cmds }
+    { ([],[]) }
+  | imprts = import* cmds = nonempty_list(cmd) EOF
+    { (imprts, cmds) }
 
+import:
+  | IMPORT id = IDENT
+    { id }
+    
 cmd:
   | LET id = IDENT EQUAL cell = cell_expr
     { CellDef (id, cell) }

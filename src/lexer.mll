@@ -14,6 +14,7 @@ rule token = parse
   | "prune"      { PRUNE }
   | "rectify"    { RECTIFY }
   | "normalize"  { NORMALIZE }
+  | "import"     { IMPORT } 
   | "->"         { ARROW }
   | "*"          { OBJ }
   | "("          { LPAR }

@@ -31,6 +31,8 @@ let tc_ok a _ = Succeed a
 let tc_fail msg _ = Fail msg
 let tc_in_ctx g m env = m { env with gma = g }
 let tc_ctx env = Succeed env.gma
+let tc_get_env env = Succeed env
+let tc_with_env env m _ = m env
 let tc_with_cell id cell m env = m { env with rho = (id, TCCellDef cell) :: env.rho }
 let tc_with_def id g ty tm m env = m { env with rho = (id, TCTermDef (g,ty,tm)) :: env.rho }
 let tc_with_var id ty m env = m { env with gma = (id, ty) :: env.gma }

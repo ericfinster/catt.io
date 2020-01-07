@@ -213,7 +213,7 @@ type cmd =
                    
 let rec check_cmds cmds =
   match cmds with
-  | [] -> tc_ok ()
+  | [] -> tc_get_env 
   | (CellDef (id, cell)) :: ds ->
      printf "-----------------\n";
      printf "Checking cell: %s\n" id;
