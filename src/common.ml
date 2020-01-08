@@ -31,7 +31,7 @@ let zipper_right_list (_,_,rs) = rs
 let zipper_open = function
   | [] -> Fail "Cannot open empty list"
   | l::ls -> Succeed (l,[],ls)
-               
+  
 let zipper_close = function
   | (a, ls, rs) -> (rev ls) @ (a::rs)
                
@@ -69,3 +69,8 @@ let rec zipper_rightmost z =
     zipper_move_right z >>== fun zr ->
     zipper_rightmost zr
   else Succeed z 
+
+let zipper_open_right l =
+  zipper_open l >>==
+    zipper_rightmost
+  

@@ -278,6 +278,10 @@ let rec check_cmds cmds =
      printf "Simple normal form: %s\n" (print_tm_term tm_nf);
      tc_full_normalize_tm tm_nf >>= fun tm_normalized ->
      printf "Normalized term: %s\n" (print_tm_term tm_normalized);
+     tc_lift (pad_pd 1 3) >>= fun ppd -> 
+     printf "Padding example: %s\n" (print_term_ctx ppd);
+     tc_ucomp ppd >>= fun (uc, _) ->
+     printf "Unbiased composite is: %s\n" (print_tm_term uc);
      check_cmds ds
   | (LocMax tele :: ds) ->
      printf "-----------------\n";

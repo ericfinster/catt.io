@@ -4,14 +4,50 @@
 
 import prelude
 
-prune (x : *)
- | id1(x,x,id(x))
- 
 normalize (x : *)
-          (y : *) (f : x -> y)
-                  (g : x -> y) (a : f -> g)
-          (z : *) (h : y -> z)
-                  (k : y -> z) (b : h -> k)
- | h3(x,y,f,g,a,y,id(y),id(y),id1(y,y,id(y)),z,h,k,b)
+ | id1(x,x,id(x))
 
-# This now seems to work ....
+# The following normalizes to h2
+
+# normalize (x : *)
+#           (y : *) (f : x -> y)
+#                   (g : x -> y) (a : f -> g)
+#           (z : *) (h : y -> z)
+#                   (k : y -> z) (b : h -> k)
+#  | h3(x,y,f,g,a,y,id(y),id(y),id1(y,y,id(y)),z,h,k,b)
+
+# [comp (x0 : *)
+#       (x1 : *) (x2 : x0 -> x1)
+#                (x3 : x0 -> x1) (x4 : x2 -> x3)
+#       (x9 : *) (x10 : x1 -> x9)
+#                (x11 : x1 -> x9) (x12 : x10 -> x11)
+#   : [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x5 : *) (x6 : x1 -> x5) : x0 -> x5](x0, x1, x2, x9, x10) ->
+#     [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x5 : *) (x6 : x1 -> x5) : x0 -> x5](x0, x1, x3, x9, x11)](x, y, f, g, a, z, h, k, b)
+
+# In the next example, we use a non-identity endomorphism coherence.
+# This normalizes to h2 as expected.
+
+# let cmpid = coh (x : *)
+#                 (y : *) (f : x -> y)
+#                 (z : *) (g : y -> z)
+#              : cmp(x,y,f,z,g) -> cmp(x,y,f,z,g)
+             
+# normalize (x : *)
+#           (y : *) (f : x -> y)
+#                   (g : x -> y) (a : f -> g)
+#           (z : *) (h : y -> z)
+#                   (k : y -> z) (b : h -> k)
+#  | v2(x,z,cmp(x,y,f,z,h),cmp(x,y,g,z,k),h2(x,y,f,g,a,z,h,k,b),cmp(x,y,g,z,k),cmpid(x,y,g,z,k))
+
+# Normal form:
+# [comp (x0 : *)
+#       (x1 : *) (x2 : x0 -> x1)
+#                (x3 : x0 -> x1) (x4 : x2 -> x3)
+#       (x5 : *) (x6 : x1 -> x5)
+#                (x7 : x1 -> x5) (x8 : x6 -> x7)
+#   : [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) : x0 -> x3](x0, x1, x2, x5, x6) ->
+#     [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) : x0 -> x3](x0, x1, x3, x5, x7)](x, y, f, g, a, z, h, k, b)
+
+
+
+

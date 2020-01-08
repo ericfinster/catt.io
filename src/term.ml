@@ -70,6 +70,48 @@ let rec disc_pd_with_typ k =
        
 let disc_pd k = fst (disc_pd_with_typ k)
 
+(* Source and target functions *)              
+let rec nth_src tm ty n =
+  if (n <= 0) then Succeed (tm, ty)
+  else match ty with
+       | ObjT -> Fail "Object has no source"
+       | ArrT (typ,src,_) -> nth_src src typ (n-1) 
+
+let rec nth_tgt tm ty n =
+  if (n <= 0) then Succeed (tm, ty)
+  else match ty with
+       | ObjT -> Fail "Object has no source"
+       | ArrT (typ,_,tgt) -> nth_tgt tgt typ (n-1)
+
+(* Append a disc of dimension n to this pasting 
+ * diagram starting in codimension k. Use idx as 
+ * a count for variable names.  
+ *)
+let rec append_disc k n pd idx =
+  match pd with
+  | [] -> Fail "Empty pasting diagram"
+  | (f_id, f_typ)::_ ->
+     nth_tgt (VarT f_id) f_typ k >>== fun (src_tm, typ)->
+     let d = dim_of typ in
+     if (n < d) then
+       Fail "Disc dimension too low"
+     else if (n = d) then 
+       Succeed pd
+     else
+       let tgt_id = sprintf "x%d" idx in
+       let dsc_id = sprintf "x%d" (idx+1) in 
+       let pd' = (dsc_id, ArrT (typ,src_tm,VarT tgt_id))::(tgt_id, typ)::pd in
+       append_disc 0 n pd' (idx+2)
+
+(* Build a pasting diagram consisting of a single
+ * n-cell and two k-cells glued to its source and
+ * target k-1 boundary. (k >= 1)
+ *)
+let pad_pd k n =
+  let k_dsc = disc_pd k in
+  append_disc 1 n k_dsc (2*k + 1) >>== fun pd ->
+  append_disc (n-k+1) k pd (List.length pd)
+  
 (* Return the canonical identity coherence in 
  * dimension k *)              
 let id_coh k =

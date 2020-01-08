@@ -348,29 +348,28 @@ let rec tc_tm_kth_tgt k tm =
  * Pruning
  *)
 
-let rec tc_pd_zip_prune_to_end z typ =
-  tc_try (pd_zip_next_loc_max z)
-         (fun z' -> printf "Inspecting locally maximal argument %s ... " (pd_zip_head_id z');
-                    match pd_zip_head_tm z' with
+let rec tc_app_zip_prune_to_end z typ =
+  tc_try (app_zip_next_loc_max z)
+         (fun z' -> printf "Inspecting locally maximal argument %s ... " (app_zip_head_id z');
+                    match app_zip_head_tm z' with
                     | CellAppT (cell, _) ->
                        tc_try (is_identity_coh cell)
                               (fun _ -> printf "Pruning identity coherence.\n";
-                                        printf "Term was: %s\n" (print_tm_term (pd_zip_head_tm z'));
-                                        tc_lift (pd_zip_drop z') >>= fun (zd, s) ->
+                                        printf "Term was: %s\n" (print_tm_term (app_zip_head_tm z'));
+                                        tc_lift (app_zip_drop z') >>= fun (zd, s) ->
                                         let typ' = subst_ty s typ in 
-                                        tc_pd_zip_prune_to_end zd typ')
+                                        tc_app_zip_prune_to_end zd typ')
                               (fun _ -> printf "Not an identity coherence.\n";
-                                        tc_pd_zip_prune_to_end z' typ)
+                                        tc_app_zip_prune_to_end z' typ)
                     | _ -> printf "Not a cell application.\n";
-                           tc_pd_zip_prune_to_end z' typ)
+                           tc_app_zip_prune_to_end z' typ)
          (fun _ -> printf "Finished pruning\n";
                    tc_ok (z, typ))
 
 let rec tc_prune_cell pd typ args =
   let pd_w_args = List.combine pd args in
-  tc_lift (zipper_open pd_w_args >>== 
-             zipper_rightmost) >>= fun z -> 
-  tc_pd_zip_prune_to_end z typ >>= fun (zp, typ') ->
+  tc_lift (zipper_open_right pd_w_args) >>= fun z -> 
+  tc_app_zip_prune_to_end z typ >>= fun (zp, typ') ->
   let pruned_pd_w_args = zipper_close zp in
   let (pd', args') = List.split pruned_pd_w_args in
   (* If a non-trivial pruning occurred, we may have introduced
@@ -458,4 +457,43 @@ and tc_full_normalize_tm tm =
      tc_full_normalize_ty typ' >>= fun typ_nf ->
      tc_rectify (CellAppT (CohT (pd', typ_nf), args'))
 
+(*
+ * Normalizers and promotions
+ *)
 
+(* We suppose that u and v are parallel and that *)
+(*    f "extends" u' -> v' *)
+let rec tc_promote pd btyp u v ftyp f =
+  let k = dim_of btyp in
+  let n = dim_of ftyp in
+  let codim = n - k in 
+  if (k = 0) then
+    tc_ok f
+  else
+    tc_lift (pad_pd k n) >>= fun ppd -> 
+    tc_ucomp ppd >>= fun (pcoh, _) ->
+    (* Great, so now we have the coherence we were looking for.  What's
+     * the next step?  We just need to calculate its arguments.  For this,
+     * it should suffice to use glue together the appropriate truncations
+     * of the disc substitutions obtained from the types of u, v, and f.
+     *)
+    let fsub = tm_to_disc_sub f ftyp in
+    let usub = tm_to_disc_sub u btyp in
+    let vsub = tm_to_disc_sub v btyp in 
+    let args = vsub @ fsub @ usub in
+    match pcoh with
+    | CellAppT (cell, _) -> tc_ok (CellAppT (cell, args))
+    | _ -> tc_fail "internal error"
+
+(* let pad_comp k n = *)
+(*   let k_dsc = disc_pd k in *)
+(*   append_disc 1 n k_dsc (2*k + 1) >>== fun pd -> *)
+(*   append_disc (n-k+1) k pd (List.length pd) *)
+(* and tc_relative_normalizer pd tm typ = *)
+    
+(* and tc_normalizer pd tm typ = *)
+(*   tc_full_normalize_term t >>= fun tm' -> *)
+(*   tc_ok (pd, ArrT (typ *)
+(*   CohT (pd, *)
+                                                
+  
