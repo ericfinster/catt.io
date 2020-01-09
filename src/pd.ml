@@ -4,7 +4,8 @@
 
 open Common
 open Term
-  
+open Printf
+   
 type pd_and_args = (string * ty_term) * tm_term
 type app_zip = pd_and_args zipper 
 
@@ -116,10 +117,16 @@ let rec pd_zip_consume_args z k args_rem args_done =
 
 (* Last step is the initial argument *)  
 let pd_zip_expand_args pd lm_args =
+  (* let print_pair = fun (tm, ty) -> *)
+  (*   sprintf "(%s : %s)" (print_tm_term tm) (print_ty_term  ty) in *)
+  (* printf "Expanding locally maximal arguments: \n%s\n" (String.concat "\n" (List.map print_pair lm_args)); *)
   zipper_open_right pd >>== fun z ->
-  match lm_args with
+  let lm_args_rev = List.rev lm_args in
+  match lm_args_rev with
   | [] -> Fail "No arguments"
   | (tm,ty)::_ ->
      nth_src tm ty (dim_of ty) >>== fun (init_arg,_) -> 
-     pd_zip_consume_args z 0 lm_args (init_arg::[])
+     pd_zip_consume_args z 0 lm_args_rev (init_arg::[]) >>== fun result ->
+     (* printf "Results: \n%s\n" (String.concat "\n" (List.map print_tm_term result)); *)
+     Succeed result
   
