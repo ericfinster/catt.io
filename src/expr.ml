@@ -3,7 +3,6 @@
  *)
 
 open Term
-open Pd   
 open Typecheck
 open Normalization
 open Printf
@@ -280,13 +279,21 @@ let rec check_cmds cmds =
      tc_in_ctx g (tc_infer_tm_expr tm) >>= fun (tm_tm, tm_ty) ->
      printf "Term %s has type %s\n" (print_tm_term tm_tm) (print_ty_term tm_ty);
      tc_simple_tm_nf tm_tm >>= fun tm_nf ->
+     tc_simple_ty_nf tm_ty >>= fun ty_nf -> 
      printf "Simple normal form: %s\n" (print_tm_term tm_nf);
      tc_full_normalize_tm tm_nf >>= fun tm_normalized ->
      printf "Normalized term: %s\n" (print_tm_term tm_normalized);
-     tc_lift (pad_pd 1 3) >>= fun ppd -> 
-     printf "Padding example: %s\n" (print_term_ctx ppd);
-     tc_ucomp ppd >>= fun (uc, _) ->
-     printf "Unbiased composite is: %s\n" (print_tm_term uc);
+     tc_in_ctx g (tc_infer_tm tm_normalized) >>= fun (_, ty_normalized) ->
+     printf "Normalized term has type: %s\n" (print_ty_term ty_normalized);
+     tc_normalizer g tm_nf ty_nf >>= fun (normalizer, _) ->
+     printf "Normalizer is: %s\n" (print_tm_term normalizer);
+     tc_in_ctx g (tc_infer_tm normalizer) >>= fun (_, nm_typ) ->
+     printf "Normalizer has type: %s\n" (print_ty_term nm_typ);
+     (* Have to simple normalize first? Don't think so .... *)
+     tc_full_normalize_tm normalizer >>= fun nm_normalized ->
+     printf "Normalizer normalizes to: %s\n" (print_tm_term nm_normalized);
+     tc_normalizer g normalizer nm_typ >>= fun (nm_nm, _) ->
+     printf "Normalizer normalizer: %s\n" (print_tm_term nm_nm);
      check_cmds ds
   | (LocMax tele :: ds) ->
      printf "-----------------\n";

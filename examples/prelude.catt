@@ -26,6 +26,13 @@ let v2 = comp (x : *)
                       (h : x -> y) (b : g -> h)
          : f -> h
 
+let v3 = comp (x : *)
+              (y : *) (f : x -> y)
+                      (g : x -> y) (a : f -> g)
+                      (h : x -> y) (b : g -> h)
+                      (k : x -> y) (c : h -> k)
+          : f -> k
+          
 let h2 = comp (x : *)
               (y : *) (f : x -> y)
                       (g : x -> y) (a : f -> g)
@@ -58,4 +65,37 @@ let ichg = coh (x : *)
                        (k : y -> z) (d : j -> k)
            : h2(v2(a,b),v2(c,d)) ->
              v2(h2(a,c),h2(b,d))
+             
+let unit_mid = coh (x : *)
+                   (y : *) (f : x -> y)
+                   (z : *) (g : y -> z)
+                : cmp3(f,id(y),g) -> cmp(f,g)
 
+let unit_mid_inv = coh (x : *)
+                       (y : *) (f : x -> y)
+                       (z : *) (g : y -> z)
+                    : cmp(f,g) -> cmp3(f,id(y),g) 
+
+let nm_test = coh (x : *)
+                  (y : *) (f : x -> y)
+                          (g : x -> y) (a : f -> g)
+                  (z : *) (h : y -> z)
+                          (k : y -> z) (b : h -> k)
+           : h3(a,id1(id(y)),b) ->
+             v3(unit_mid(f,h),h2(a,b),unit_mid_inv(g,k))
+
+
+# let result = coh (x : *) (y : *) (f : x -> y) (g : x -> y) (a : f -> g) (z : *) (h : y -> z) (k : y -> z) (b : h -> k)
+#   : h3(a,id1(id(y)),b) ->
+#     [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : x0 -> x1) (x4 : x2 -> x3) (x5 : x0 -> x1) (x6 : x3 -> x5) (x7 : x0 -> x1) (x8 : x5 -> x7) : x2 -> x7]
+#       ([coh (x : *) (y : *) (f : x -> y) (z : *) (h : y -> z) :
+#          [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) (x5 : *) (x6 : x3 -> x5) : x0 -> x5](f, [coh (x0 : *) : x0 -> x0](y), h) ->
+#          [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x5 : *) (x6 : x1 -> x5) : x0 -> x5](f, h)](f, h),
+#        [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : x0 -> x1) (x4 : x2 -> x3) (x9 : *) (x10 : x1 -> x9) (x11 : x1 -> x9) (x12 : x10 -> x11) :
+#          [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x5 : *) (x6 : x1 -> x5) : x0 -> x5](x2, x10) ->
+#          [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x5 : *) (x6 : x1 -> x5) : x0 -> x5](x3, x11)](a, b),
+#        [coh (x : *) (y : *) (g : x -> y) (z : *) (k : y -> z) :
+#          [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x5 : *) (x6 : x1 -> x5) : x0 -> x5](g, k) ->
+#          [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) (x5 : *) (x6 : x3 -> x5) : x0 -> x5](g, [coh (x0 : *) : x0 -> x0](y), k)](g, k))
+
+let result = coh (x : *) (y : *) (f : x -> y) (g : x -> y) (a : f -> g) (z : *) (h : y -> z) (k : y -> z) (b : h -> k) : [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : x0 -> x1) (x4 : x2 -> x3) (x5 : *) (x6 : x1 -> x5) (x7 : x1 -> x5) (x8 : x6 -> x7) (x9 : *) (x10 : x5 -> x9) (x11 : x5 -> x9) (x12 : x10 -> x11) : [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) (x5 : *) (x6 : x3 -> x5) : x0 -> x5](x2, x6, x10) -> [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) (x5 : *) (x6 : x3 -> x5) : x0 -> x5](x3, x7, x11)](a, [coh (x0 : *) (x1 : *) (x2 : x0 -> x1) : x2 -> x2]([coh (x0 : *) : x0 -> x0](y)), b) -> [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : x0 -> x1) (x4 : x2 -> x3) (x5 : x0 -> x1) (x6 : x3 -> x5) (x7 : x0 -> x1) (x8 : x5 -> x7) : x2 -> x7]([coh (x : *) (y : *) (f : x -> y) (z : *) (h : y -> z) : [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) (x5 : *) (x6 : x3 -> x5) : x0 -> x5](f, [coh (x0 : *) : x0 -> x0](y), h) -> [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x5 : *) (x6 : x1 -> x5) : x0 -> x5](f, h)](f, h), [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : x0 -> x1) (x4 : x2 -> x3) (x9 : *) (x10 : x1 -> x9) (x11 : x1 -> x9) (x12 : x10 -> x11) : [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x5 : *) (x6 : x1 -> x5) : x0 -> x5](x2, x10) -> [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x5 : *) (x6 : x1 -> x5) : x0 -> x5](x3, x11)](a, b), [coh (x : *) (y : *) (g : x -> y) (z : *) (k : y -> z) : [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x5 : *) (x6 : x1 -> x5) : x0 -> x5](g, k) -> [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) (x5 : *) (x6 : x3 -> x5) : x0 -> x5](g, [coh (x0 : *) : x0 -> x0](y), k)](g, k))

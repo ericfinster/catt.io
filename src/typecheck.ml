@@ -5,7 +5,6 @@
 open Common
 open Printf
 open Term
-open Pd   
    
 type tc_def =
   | TCCellDef of cell_term
@@ -305,14 +304,14 @@ and tc_check_pd pd =
 
 (* Return the unbiased composite of a pasting diagram *)     
 let rec tc_ucomp pd =
-  match pd with
-  | (id, ObjT) :: [] -> tc_ok (VarT id, ObjT)
-  | _ -> tc_pd_src pd >>= fun pd_src ->
-         tc_pd_tgt pd >>= fun pd_tgt ->
-         tc_ucomp pd_src >>= fun (uc_src, uc_typ) ->
-         tc_ucomp pd_tgt >>= fun (uc_tgt, _) ->
-         let next_ty = ArrT (uc_typ, uc_src, uc_tgt) in 
-         tc_ok (CellAppT (CompT (pd, next_ty), id_args pd), next_ty)
+  tc_try (is_disc_pd pd)
+         (fun (id, ty) -> tc_ok (VarT id, ty))
+         (fun _ -> tc_pd_src pd >>= fun pd_src ->
+                   tc_pd_tgt pd >>= fun pd_tgt ->
+                   tc_ucomp pd_src >>= fun (uc_src, uc_typ) ->
+                   tc_ucomp pd_tgt >>= fun (uc_tgt, _) ->
+                   let next_ty = ArrT (uc_typ, uc_src, uc_tgt) in 
+                   tc_ok (CellAppT (CompT (pd, next_ty), id_args pd), next_ty))
 
 (* Return the identity coherence applied to a given term *)         
 let tc_tm_get_id tm =
@@ -350,20 +349,20 @@ let rec tc_tm_kth_tgt k tm =
 
 let rec tc_app_zip_prune_to_end z typ =
   tc_try (app_zip_next_loc_max z)
-         (fun z' -> printf "Inspecting locally maximal argument %s ... " (app_zip_head_id z');
+         (fun z' -> (* printf "Inspecting locally maximal argument %s ... " (app_zip_head_id z'); *)
                     match app_zip_head_tm z' with
                     | CellAppT (cell, _) ->
                        tc_try (is_identity_coh cell)
-                              (fun _ -> printf "Pruning identity coherence.\n";
-                                        printf "Term was: %s\n" (print_tm_term (app_zip_head_tm z'));
+                              (fun _ -> (* printf "Pruning identity coherence.\n";
+                                        printf "Term was: %s\n" (print_tm_term (app_zip_head_tm z')); *)
                                         tc_lift (app_zip_drop z') >>= fun (zd, s) ->
                                         let typ' = subst_ty s typ in 
                                         tc_app_zip_prune_to_end zd typ')
-                              (fun _ -> printf "Not an identity coherence.\n";
+                              (fun _ -> (* printf "Not an identity coherence.\n"; *)
                                         tc_app_zip_prune_to_end z' typ)
-                    | _ -> printf "Not a cell application.\n";
+                    | _ -> (* printf "Not a cell application.\n"; *)
                            tc_app_zip_prune_to_end z' typ)
-         (fun _ -> printf "Finished pruning\n";
+         (fun _ -> (* printf "Finished pruning\n"; *)
                    tc_ok (z, typ))
 
 let rec tc_prune_cell pd typ args =
@@ -396,19 +395,19 @@ let tc_prune tm =
  *)
        
 let tc_rectify tm =
-  printf "Rectifying term: %s\n" (print_tm_term tm);
+  (* printf "Rectifying term: %s\n" (print_tm_term tm); *)
   match tm with
   | CellAppT (cell, args) ->
      tc_try (is_unary_comp cell)
             (* Is it really the head, or the last element? *)
-            (fun _ -> printf "Got a unary composite!\n";
+            (fun _ -> (* printf "Got a unary composite!\n";  *)
                       let arg = List.hd args in
-                      printf "Head term is: %s\n" (print_tm_term arg);
+                      (* printf "Head term is: %s\n" (print_tm_term arg); *)
                       tc_ok arg)  
             (fun _ -> tc_try (is_endomorphism_coh cell)
                              (fun (pd, tm, ty) ->
-                               printf "Got an endo-coherence!\n";
-                               printf "Term: %s\n" (print_tm_term tm);
+                               (* printf "Got an endo-coherence!\n"; *)
+                               (* printf "Term: %s\n" (print_tm_term tm); *)
                                (* We want to return the identity coherence on
                                 * this term after substituting the arguments. *)
                                let sub = List.combine (List.map fst pd) args in
@@ -417,7 +416,7 @@ let tc_rectify tm =
                                let id_args = tm_to_disc_sub tm' ty' in
                                let id_coh = id_coh (dim_of ty') in
                                let result = CellAppT (id_coh, id_args) in
-                               printf "Result: %s\n" (print_tm_term result);
+                               (* printf "Result: %s\n" (print_tm_term result); *)
                                tc_ok result)
                              (fun _ -> tc_ok tm))
   | _ -> tc_ok tm 
@@ -438,10 +437,10 @@ let rec tc_full_normalize_ty ty =
 and tc_full_normalize_tm tm =
   match tm with
   | VarT id -> tc_ok (VarT id)
-  | DefAppT (_, _) -> tc_fail "unimplemented"
+  | DefAppT (_, _) -> tc_fail "can't normalize a def"
   | CellAppT (CompT (pd, typ), args) ->
-     printf "Pruning composition cell: %s\n" (print_cell_term (CompT (pd, typ)));
-     printf "Arguments are: %s\n" (print_sub (List.combine (List.map fst pd) args));
+     (* printf "Pruning composition cell: %s\n" (print_cell_term (CompT (pd, typ))); *)
+     (* printf "Arguments are: %s\n" (print_sub (List.combine (List.map fst pd) args)); *)
      tc_traverse (tc_full_normalize_tm) args >>= fun args_nf ->
      (* tc_full_normalize_ty typ >>= fun typ_nf -> *)
      (* printf "Fully-normalized type: %s\n" (print_ty_term typ_nf); *)
@@ -450,7 +449,7 @@ and tc_full_normalize_tm tm =
      (* printf "Fully-normalized type: %s\n" (print_ty_term typ_nf); *)
      tc_rectify (CellAppT (CompT (pd', typ_nf), args'))
   | CellAppT (CohT (pd, typ), args) ->
-     printf "Pruning coherence cell: %s\n" (print_cell_term (CohT (pd, typ)));
+     (* printf "Pruning coherence cell: %s\n" (print_cell_term (CohT (pd, typ))); *)
      tc_traverse (tc_full_normalize_tm) args >>= fun args_nf ->
      (* tc_full_normalize_ty typ >>= fun typ_nf -> *)
      tc_prune_cell pd typ args_nf >>= fun (pd', typ', args') ->
@@ -461,39 +460,67 @@ and tc_full_normalize_tm tm =
  * Normalizers and promotions
  *)
 
+let tc_invert_coh tm =
+  match tm with
+  | CellAppT(CohT(pd,ArrT(typ,src,tgt)),args) ->
+     tc_ok (CellAppT(CohT(pd,ArrT(typ,tgt,src)),args))
+  | _ -> tc_fail "Not a coherence"
+
 (* We suppose that u and v are parallel and that *)
 (*    f "extends" u' -> v' *)
 let rec tc_promote pd btyp u v ftyp f =
-  let k = dim_of btyp in
-  let n = dim_of ftyp in
-  let codim = n - k in 
-  if (k = 0) then
-    tc_ok f
-  else
-    tc_lift (pad_pd k n) >>= fun ppd -> 
+  printf "Attempting to promote: %s\n" (print_tm_term f);
+  printf "u = %s\n" (print_tm_term u);
+  printf "v = %s\n" (print_tm_term v);
+  match btyp with
+  | ObjT -> tc_ok (f,ftyp)
+  | ArrT (btyp', su, tu) ->
+    tc_promote pd btyp' su tu ftyp f >>= fun (fp, fp_typ) -> 
+    let k = dim_of btyp in
+    let n = dim_of ftyp in
+    let codim = n - k in
+    tc_lift (pad_pd (k+1) n) >>= fun ppd -> 
     tc_ucomp ppd >>= fun (pcoh, _) ->
-    (* Great, so now we have the coherence we were looking for.  What's
-     * the next step?  We just need to calculate its arguments.  For this,
-     * it should suffice to use glue together the appropriate truncations
-     * of the disc substitutions obtained from the types of u, v, and f.
-     *)
-    let fsub = tm_to_disc_sub f ftyp in
-    let usub = tm_to_disc_sub u btyp in
-    let vsub = tm_to_disc_sub v btyp in 
-    let args = vsub @ fsub @ usub in
+    (* Which pd to use here? *)
+    tc_pd_kth_src codim pd >>= fun u_pd ->
+    tc_pd_kth_tgt codim pd >>= fun v_pd -> 
+    tc_normalizer u_pd u btyp >>= fun (pu, pu_typ) ->
+    tc_normalizer v_pd v btyp >>= fun (pv, pv_typ) ->
+    tc_invert_coh pv >>= fun pv_inv ->
+    let lm_args = [(pv_inv,opposite pv_typ);(fp,fp_typ);(pu,pu_typ)] in
+    (* let lm_args = [(pv,pv_typ);(fp,fp_typ);(pu,pu_typ)] in  *)
+    tc_lift (pd_zip_expand_args ppd lm_args) >>= fun args ->
     match pcoh with
-    | CellAppT (cell, _) -> tc_ok (CellAppT (cell, args))
+    | CellAppT (cell, _) ->
+       let result = CellAppT (cell, args) in
+       let pd = cell_pd cell in
+       let sub = List.combine (List.map fst pd) args in 
+       let result_typ = subst_ty sub (cell_typ cell) in 
+       (* printf "Finished promotion with: %s\n" (print_tm_term result); *)
+       tc_ok (result, result_typ)
     | _ -> tc_fail "internal error"
 
-(* let pad_comp k n = *)
-(*   let k_dsc = disc_pd k in *)
-(*   append_disc 1 n k_dsc (2*k + 1) >>== fun pd -> *)
-(*   append_disc (n-k+1) k pd (List.length pd) *)
-(* and tc_relative_normalizer pd tm typ = *)
-    
-(* and tc_normalizer pd tm typ = *)
-(*   tc_full_normalize_term t >>= fun tm' -> *)
-(*   tc_ok (pd, ArrT (typ *)
-(*   CohT (pd, *)
-                                                
-  
+
+  (* | CellAppT (cell, args) -> *)
+  (*    tc_check_cell cell >>= fun cell_tm -> *)
+  (*    let pd = cell_pd cell_tm in  *)
+  (*    tc_check_args args pd >>= fun sub -> *)
+  (*    let typ = subst_ty sub (cell_typ cell_tm) in  *)
+  (*    tc_ok (CellAppT (cell_tm, List.map snd sub), typ) *)
+         
+(* In principle, we do not actually need to normalize the 
+ * term here, as the normalization should have been available
+ * above directly from the type of f....
+ *)
+and tc_normalizer pd tm typ =
+  tc_full_normalize_tm tm >>= fun tm' ->
+  match typ with
+  | ObjT -> let args = tm_to_disc_sub tm typ in
+            let id_c = id_coh (dim_of typ) in
+            tc_ok (CellAppT (id_c, args), ArrT (ObjT,tm,tm))
+  | ArrT (typ',s,t) ->
+     tc_promote pd typ' s t typ tm' >>= fun (promo, _) ->
+     let nmlzr = CellAppT (CohT (pd, ArrT(typ,tm,promo)),
+                           (List.map (fun (id, _) -> VarT id) pd)) in 
+     let nmlzr_typ = ArrT (typ,tm,promo) in 
+     tc_ok (nmlzr, nmlzr_typ)
