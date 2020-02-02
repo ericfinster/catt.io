@@ -41,7 +41,8 @@ let rec tc_check_all files =
 let () =
   let file_in = ref []
   in Arg.parse [] (fun s -> file_in := s::!file_in) usage;
-     let files = List.tl (List.rev (!file_in)) in
+     let files = List.rev (!file_in) in 
+     (* let files = List.tl (List.rev (!file_in)) in *)
      match tc_check_all files empty_env with
      | Succeed _ -> print_endline "-----------------\nFinished"
      | Fail msg -> Printf.printf "Typechecking error: %s\n" msg ; exit (-1)
