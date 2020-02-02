@@ -15,12 +15,22 @@ let parse s =
   | Failure msg -> print_endline msg; exit (-1)
   | Parsing.Parse_error -> print_endline "Parse error"; exit (-1)
 
+let parse_file f =
+  let sin =
+    let fi = open_in f in
+    let flen = in_channel_length fi in
+    let buf = Bytes.create flen in
+    really_input fi buf 0 flen;
+    close_in fi;
+    buf
+  in parse (Bytes.to_string sin)
+                           
 let rec tc_check_all files =
   match files with
   | [] -> tc_get_env
   | f::fs ->
-     let s = Node.Fs.readFileAsUtf8Sync f in
-     let (impts, cmds) = parse s in
+     (* let s = Node.Fs.readFileAsUtf8Sync f in *)
+     let (impts, cmds) = parse_file f in
      let imprt_nms = List.map (fun fn -> fn ^ ".catt") impts in 
      tc_check_all imprt_nms >>= fun env -> 
      Printf.printf "-----------------\n";

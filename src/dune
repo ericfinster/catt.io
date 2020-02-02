@@ -1,0 +1,11 @@
+;; Dune makefile for catt.io
+
+(menhir
+  (infer false)
+  (modules parser))
+
+(ocamllex
+  (modules lexer))
+  
+(executable
+  (name catt))
