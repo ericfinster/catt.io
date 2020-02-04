@@ -16,6 +16,10 @@
 
 %start prog
 %type <string list * Expr.cmd list> prog
+
+%start raw_cell
+%type <Expr.cell_expr> raw_cell
+
 %%
 
 prog:
@@ -24,6 +28,10 @@ prog:
   | imprts = import* cmds = nonempty_list(cmd) EOF
     { (imprts, cmds) }
 
+raw_cell:
+  | ce = cell_expr EOF
+    { ce }
+  
 import:
   | IMPORT id = IDENT
     { id }
