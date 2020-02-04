@@ -1,0 +1,12 @@
+
+(menhir
+  (infer false)
+  (modules parser))
+
+(ocamllex
+  (modules lexer))
+
+(library
+ (name catt)
+ (public_name catt)
+ (synopsis "Core routines and typechecker for catt.io"))

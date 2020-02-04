@@ -1,0 +1,6 @@
+; names = name of the files to compile into executables
+; public_names = name of the executables
+(executables
+ (names catt)
+ (public_names catt)
+ (libraries catt))

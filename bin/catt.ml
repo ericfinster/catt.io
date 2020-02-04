@@ -2,15 +2,15 @@
  * catt.ml - top level catt module
  *)
 
-open Expr
-open Typecheck
+open Catt.Expr
+open Catt.Typecheck
    
 let usage = "catt [options] [file]"
 
 let parse s =
   let lexbuf = Lexing.from_string s in
   try
-    Parser.prog Lexer.token lexbuf
+    Catt.Parser.prog Catt.Lexer.token lexbuf
   with
   | Failure msg -> print_endline msg; exit (-1)
   | Parsing.Parse_error -> print_endline "Parse error"; exit (-1)
