@@ -1,4 +1,9 @@
 
+# Introduction
+
+Catt.io is an experimental typechecker for weak higher dimensional
+categories.
+
 # Requirements
 
 Catt.io has two dependencies for building the parser and lexer:
@@ -10,26 +15,29 @@ These can be installed from opam.
 
 # Build
 
-The system is currently configured to build with
-[Bucklescript](http://bucklescript.github.io).  The easiest
-setup is to install Bucklescript globally with
+The project builds with dune.  A simple
 
 ```
-npm instll -g bs-platform
+dune build
 ```
 
-Once this is done, then in the repo directory
+should build the project.  A top level Makefile is also provided for
+convenience.
+
+# Toplevel
+
+If you have utop installed, you can launch an interactive session with
+the catt.io libraries loaded by running
 
 ```
-npm install
-bsb -make-world
+dune utop lib
 ```
-should make everything.
 
-# To Run
-
-The typechecker can be run with node.js.  For example:
+The catt.io library modules should then be available as Catt__*.  So,
+for example, in utop,
 
 ```
-node src/catt.bs.js examples/demo.catt
+open Catt__Expr;;
 ```
+
+will give access to the expression syntax and routines.
