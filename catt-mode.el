@@ -23,7 +23,7 @@
 
 (defvar catt-tab-width 4)
 
-(define-derived-mode catt-mode fundamental-mode
+(define-derived-mode catt-mode prog-mode
   "CATT" "Major mode for CATT files."
   :syntax-table catt-mode-syntax-table
   (set (make-local-variable 'comment-start) "#")
@@ -36,5 +36,3 @@
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.catt\\'" . catt-mode))
-
-
