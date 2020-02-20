@@ -21,5 +21,7 @@
 lib/bs
 *.mlast
 *.mliast
+shell.nix
+.envrc
 .merlin
 _build/
