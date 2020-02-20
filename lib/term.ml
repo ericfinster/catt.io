@@ -151,8 +151,7 @@ and tm_free_vars t =
   | DefAppT (_, args) ->
      List.fold_right SS.union (List.map tm_free_vars args) SS.empty
   | CellAppT (cell, args) -> 
-     let args_fvs = List.fold_right SS.union (List.map tm_free_vars args) SS.empty in
-     SS.union (cell_free_vars cell) args_fvs
+     List.fold_right SS.union (List.map tm_free_vars args) SS.empty 
 
 and cell_free_vars t =
   match t with

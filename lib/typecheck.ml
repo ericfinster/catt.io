@@ -73,7 +73,10 @@ let rec tc_tgt_of a t k =
 let rec tc_pd_kth_src k pd =
   match pd with
   | [] -> tc_fail "Empty pasting diagram"
-  | (id, ObjT) :: [] -> tc_ok ((id, ObjT) :: [])
+  | (id, ObjT) :: [] ->
+     if (k >= 0) then
+       tc_ok ((id, ObjT) :: [])
+     else tc_ok []
   | (_, _) :: [] -> tc_fail "Malformed pasting diagram"
   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
      if (dim_of tgt_typ >= k) then
@@ -86,7 +89,10 @@ let rec tc_pd_kth_src k pd =
 let rec tc_pd_kth_tgt k pd =
   match pd with
   | [] -> tc_fail "Empty pasting diagram"
-  | (id, ObjT) :: [] -> tc_ok ((id, ObjT) :: [])
+  | (id, ObjT) :: [] ->
+     if (k >= 0) then
+       tc_ok ((id, ObjT) :: [])
+     else tc_ok []
   | (_, _) :: [] -> tc_fail "Malformed pasting diagram"
   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
      let d = dim_of tgt_typ in
