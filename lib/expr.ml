@@ -6,7 +6,7 @@ open Term
 open Typecheck
 open Normalization
 open Printf
-   
+
 (* User Expressions *)
 type ty_expr =
   | ObjE
@@ -23,28 +23,28 @@ type ty_expr =
 
  and tele = (string * ty_expr) list
 
-(* Printing expressions *)    
+(* Printing expressions *)
 let rec print_ty_expr t =
   match t with
   | ObjE -> "*"
-  | ArrE (src, tgt) -> 
+  | ArrE (src, tgt) ->
      sprintf "%s -> %s" (print_tm_expr src) (print_tm_expr tgt)
-    
+
 and print_tm_expr t =
   let print_args args =
-    String.concat ", " (List.map print_tm_expr (List.rev args)) in 
+    String.concat ", " (List.map print_tm_expr (List.rev args)) in
   match t with
   | VarE id -> id
   | DefAppE (id, args) ->
      sprintf "%s(%s)" id (print_args args)
-  | CellAppE (cell, args) -> 
+  | CellAppE (cell, args) ->
      sprintf "[%s](%s)" (print_cell_expr cell) (print_args args)
-             
+
 and print_cell_expr t =
   let print_decl = fun (id, typ) ->
-    sprintf "(%s : %s)" id (print_ty_expr typ) in 
+    sprintf "(%s : %s)" id (print_ty_expr typ) in
   let print_pd pd =
-    String.concat " " (List.map print_decl (List.rev pd)) in 
+    String.concat " " (List.map print_decl (List.rev pd)) in
   match t with
   | CohE (pd, typ) ->
      sprintf "coh %s : %s" (print_pd pd) (print_ty_expr typ)
@@ -53,10 +53,10 @@ and print_cell_expr t =
 
 let print_expr_ctx g =
   let print_decl = fun (id, typ) ->
-    sprintf "(%s : %s)" id (print_ty_expr typ) in 
+    sprintf "(%s : %s)" id (print_ty_expr typ) in
   let decls = List.map print_decl g in
   String.concat " " (List.rev decls)
-    
+
 (*
  * Typechecking User Expressions
  *)
@@ -67,17 +67,17 @@ let rec tc_check_ty_expr t =
   | ArrE (src, tgt) ->
      tc_infer_tm_expr src >>= fun (src_tm, src_ty) ->
      tc_infer_tm_expr tgt >>= fun (tgt_tm, tgt_ty) ->
-     tc_eq_nf_ty src_ty tgt_ty >>= fun nf_match -> 
-     if (nf_match) then 
+     tc_eq_nf_ty src_ty tgt_ty >>= fun nf_match ->
+     if (nf_match) then
        tc_ok (ArrT (src_ty, src_tm, tgt_tm))
-     else let msg = sprintf "%s =/= %s when checking that an arrow 
+     else let msg = sprintf "%s =/= %s when checking that an arrow
                              type is well-formed."
-                            (print_tm_term src_tm) (print_tm_term tgt_tm) in 
+                            (print_tm_term src_tm) (print_tm_term tgt_tm) in
           tc_fail msg
 
 and tc_check_tm_expr tm ty =
   tc_infer_tm_expr tm >>= fun (tm', ty') ->
-  tc_eq_nf_ty ty ty' >>= fun nf_match -> 
+  tc_eq_nf_ty ty ty' >>= fun nf_match ->
   if (nf_match) then tc_ok tm' else
     let msg = sprintf "The term %s was expected to have type %s,
                        but was inferred to have type %s"
@@ -87,32 +87,32 @@ and tc_check_tm_expr tm ty =
 
 and tc_infer_tm_expr tm =
   match tm with
-  | VarE id -> 
+  | VarE id ->
      tc_lookup_var id >>= fun typ ->
      tc_ok (VarT id, typ)
   | DefAppE (id, args) ->
      tc_lookup_def id >>= fun def ->
      (match def with
-      | TCCellDef cell_tm -> 
+      | TCCellDef cell_tm ->
          (* printf "Cell %s has definition %s\n" id (print_cell_term cell_tm); *)
          let pd = cell_pd cell_tm in
          tc_traverse tc_infer_tm_expr args >>= fun lm_args ->
          tc_lift (pd_zip_expand_args pd lm_args) >>= fun args' ->
          tc_check_args args' pd >>= fun sub ->
-         let typ = subst_ty sub (cell_typ cell_tm) in 
+         let typ = subst_ty sub (cell_typ cell_tm) in
          tc_ok (DefAppT (id, List.map snd sub), typ)
-      | TCTermDef (tele, typ, _) -> 
+      | TCTermDef (tele, typ, _) ->
          tc_check_args_expr args tele >>= fun sub ->
          let typ' = subst_ty sub typ in
          tc_ok (DefAppT (id, List.map snd sub), typ')
      )
   | CellAppE (cell, args) ->
      tc_check_cell_expr cell >>= fun cell_tm ->
-     let pd = cell_pd cell_tm in 
-     tc_traverse tc_infer_tm_expr args >>= fun lm_args -> 
-     tc_lift (pd_zip_expand_args pd lm_args) >>= fun args' -> 
+     let pd = cell_pd cell_tm in
+     tc_traverse tc_infer_tm_expr args >>= fun lm_args ->
+     tc_lift (pd_zip_expand_args pd lm_args) >>= fun args' ->
      tc_check_args args' pd >>= fun sub ->
-     let typ = subst_ty sub (cell_typ cell_tm) in 
+     let typ = subst_ty sub (cell_typ cell_tm) in
      tc_ok (CellAppT (cell_tm, List.map snd sub), typ)
 
 and tc_check_tele tele =
@@ -124,7 +124,7 @@ and tc_check_tele tele =
      tc_ok ((id,typ_tm)::g)
 
 and tc_check_args_expr args tele =
-  match (args, tele) with 
+  match (args, tele) with
   | (_::_, []) -> tc_fail "Too many arguments!"
   | ([], _::_) -> tc_fail "Not enough arguments!"
   | ([], []) -> tc_ok []
@@ -133,10 +133,10 @@ and tc_check_args_expr args tele =
      let arg_typ' = subst_ty sub arg_typ in
      tc_check_tm_expr arg_exp arg_typ' >>= fun arg_tm ->
      tc_ok ((id, arg_tm) :: sub)
-     
+
 and tc_check_cell_expr cell =
   match cell with
-  | CohE (pd, typ) -> 
+  | CohE (pd, typ) ->
      tc_check_pd_expr pd >>= fun (pd', _, _) ->
      printf "Valid pasting diagram: %s\n" (print_term_ctx pd');
      tc_with_vars pd' (tc_check_ty_expr typ) >>= fun typ' ->
@@ -154,10 +154,10 @@ and tc_check_cell_expr cell =
      tc_pd_tgt pd' >>= fun pd_tgt ->
      printf "Target diagram: %s\n" (print_term_ctx pd_tgt);
      tc_with_vars pd_src (tc_infer_tm_expr src) >>= fun (src_tm, src_typ) ->
-     printf "Source term is: %s\n" (print_tm_term src_tm); 
+     printf "Source term is: %s\n" (print_tm_term src_tm);
      tc_with_vars pd_tgt (tc_infer_tm_expr tgt) >>= fun (tgt_tm, tgt_typ) ->
-     printf "Target term is: %s\n" (print_tm_term tgt_tm); 
-     tc_eq_nf_ty src_typ tgt_typ >>= fun nf_match -> 
+     printf "Target term is: %s\n" (print_tm_term tgt_tm);
+     tc_eq_nf_ty src_typ tgt_typ >>= fun nf_match ->
      if (not nf_match) then
        tc_fail "Source and target do not have the same type"
      else let pd_src_vars = SS.of_list (List.map fst pd_src) in
@@ -180,9 +180,9 @@ and tc_check_pd_expr pd =
      tc_in_ctx res_pd (tc_check_ty_expr tgt_typ)                   >>= fun tgt_typ_tm ->
      tc_in_ctx ((tgt_id, tgt_typ_tm) :: res_pd)
                (tc_check_ty_expr fill_typ)                         >>= fun fill_typ_tm ->
-     let cvars = List.map fst res_pd in 
+     let cvars = List.map fst res_pd in
      let codim = (dim_of ptyp) - (dim_of tgt_typ_tm) in
-     tc_tgt_of (VarT pid) ptyp codim                          >>= fun (src_tm_tm, src_typ_tm) -> 
+     tc_tgt_of (VarT pid) ptyp codim                          >>= fun (src_tm_tm, src_typ_tm) ->
      if (tgt_typ_tm <> src_typ_tm) then
        let msg = sprintf "Type error: %s =/= %s"
                          (print_ty_term tgt_typ_tm) (print_ty_term src_typ_tm) in
@@ -196,7 +196,7 @@ and tc_check_pd_expr pd =
        tc_fail (sprintf "Fill and target cell have the same identifier: %s" fill_id)
      else if (List.mem fill_id cvars) then
        tc_fail (sprintf "Filling identifier %s already exists" fill_id)
-     else if (List.mem tgt_id cvars) then 
+     else if (List.mem tgt_id cvars) then
        tc_fail (sprintf "Target identifier %s already exists" tgt_id)
      else tc_ok ((fill_id, fill_typ_tm) :: (tgt_id, tgt_typ_tm) :: res_pd, fill_id, fill_typ_tm)
 
@@ -210,14 +210,14 @@ type cmd =
   | Rectify of tele * tm_expr
   | Normalize of tele * tm_expr
   | LocMax of tele
-     
+
 (*
  *  Top-level command execution
  *)
-                   
+
 let rec check_cmds cmds =
   match cmds with
-  | [] -> tc_get_env 
+  | [] -> tc_get_env
   | (CellDef (id, cell)) :: ds ->
      printf "-----------------\n";
      printf "Checking cell: %s\n" id;
@@ -254,7 +254,7 @@ let rec check_cmds cmds =
      printf "Valid telescope: %s\n" (print_term_ctx g);
      tc_in_ctx g (tc_infer_tm_expr tm) >>= fun (tm_tm, tm_ty) ->
      printf "Term %s has type %s\n" (print_tm_term tm_tm) (print_ty_term tm_ty);
-     tc_simple_tm_nf tm_tm >>= fun tm_nf ->
+     tc_simple_tm_nf tm_tm 0 >>= fun (tm_nf, _) ->
      printf "Simple normal form: %s\n" (print_tm_term tm_nf);
      tc_prune tm_nf >>= fun tm_pruned ->
      printf "Pruned term: %s\n" (print_tm_term tm_pruned);
@@ -266,7 +266,7 @@ let rec check_cmds cmds =
      printf "Valid telescope: %s\n" (print_term_ctx g);
      tc_in_ctx g (tc_infer_tm_expr tm) >>= fun (tm_tm, tm_ty) ->
      printf "Term %s has type %s\n" (print_tm_term tm_tm) (print_ty_term tm_ty);
-     tc_simple_tm_nf tm_tm >>= fun tm_nf ->
+     tc_simple_tm_nf tm_tm 0 >>= fun (tm_nf, _) ->
      printf "Simple normal form: %s\n" (print_tm_term tm_nf);
      tc_rectify tm_nf >>= fun tm_rectified ->
      printf "Rectified term: %s\n" (print_tm_term tm_rectified);
@@ -278,8 +278,8 @@ let rec check_cmds cmds =
      printf "Valid telescope: %s\n" (print_term_ctx g);
      tc_in_ctx g (tc_infer_tm_expr tm) >>= fun (tm_tm, tm_ty) ->
      printf "Term %s has type %s\n" (print_tm_term tm_tm) (print_ty_term tm_ty);
-     tc_simple_tm_nf tm_tm >>= fun tm_nf ->
-     tc_simple_ty_nf tm_ty >>= fun ty_nf -> 
+     tc_simple_tm_nf tm_tm 0 >>= fun (tm_nf, _) ->
+     tc_simple_ty_nf tm_ty 0 >>= fun (ty_nf, _) ->
      printf "Simple normal form: %s\n" (print_tm_term tm_nf);
      tc_full_normalize_tm tm_nf >>= fun tm_normalized ->
      printf "Normalized term: %s\n" (print_tm_term tm_normalized);
@@ -302,5 +302,3 @@ let rec check_cmds cmds =
      List.iter (printf "%s ") (locally_maximal pd);
      printf "\n";
      check_cmds ds
-          
-
