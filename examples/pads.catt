@@ -1,0 +1,17 @@
+#
+#  pads.catt - examples of padding coherences
+#
+
+import prelude
+
+let pad12 = comp (x0 : *)
+                 (x1 : *) (x2 : x0 -> x1)
+                 (x3 : *) (x4 : x1 -> x3)
+                          (x5 : x1 -> x3) (x6 : x4 -> x5)
+                 (x7 : *) (x8 : x3 -> x7)
+             : cmp3(x0,x1,x2,x3,x4,x7,x8) ->
+               cmp3(x0,x1,x2,x3,x5,x7,x8)
+
+let pad13 = comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) (x5 : x1 -> x3) (x6 : x4 -> x5) (x7 : x4 -> x5) (x8 : x6 -> x7) (x9 : *) (x10 : x3 -> x9)
+             : [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) (x5 : x1 -> x3) (x6 : x4 -> x5) (x9 : *) (x10 : x3 -> x9) : [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) (x9 : *) (x10 : x3 -> x9) : x0 -> x9](x0, x1, x2, x3, x4, x9, x10) -> [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x5 : x1 -> x3) (x9 : *) (x10 : x3 -> x9) : x0 -> x9](x0, x1, x2, x3, x5, x9, x10)](x0, x1, x2, x3, x4, x5, x6, x9, x10) ->
+               [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) (x5 : x1 -> x3) (x7 : x4 -> x5) (x9 : *) (x10 : x3 -> x9) : [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x4 : x1 -> x3) (x9 : *) (x10 : x3 -> x9) : x0 -> x9](x0, x1, x2, x3, x4, x9, x10) -> [comp (x0 : *) (x1 : *) (x2 : x0 -> x1) (x3 : *) (x5 : x1 -> x3) (x9 : *) (x10 : x3 -> x9) : x0 -> x9](x0, x1, x2, x3, x5, x9, x10)](x0, x1, x2, x3, x4, x5, x7, x9, x10)
