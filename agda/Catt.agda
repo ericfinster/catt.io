@@ -231,17 +231,14 @@ module Catt where
       → Γ ∣ A ⊢
 
   data _⊢_ where
-    ⋆⊢ : ● ⊢ ⋆
+    Γ⊢⋆ : (Γ : Ctx) (Γ⊢ : Γ ⊢)
+      → Γ ⊢ ⋆
     hom⊢ : (Γ : Ctx) (A : Type)
       → (a : Term) (b : Term)
       → (Γ⊢ : Γ ⊢) (Γ⊢A : Γ ⊢ A)
       → (Γ⊢a∷A : Γ ⊢ a ∷ A)
       → (Γ⊢b∷A : Γ ⊢ b ∷ A)
       → Γ ⊢ hom A a b
-    wkTy : (Γ : Ctx) (A B : Type)
-      → (Γ⊢A : Γ ⊢ A)
-      → (Γ⊢B : Γ ⊢ B)
-      → Γ ∣ A ⊢ B ↑ty 
 
   data _⊢_∷_ where
 
@@ -259,16 +256,13 @@ module Catt where
       → Δ ⊢ coh Γ A σ ∷ (A [ σ ]ty)
 
   data _∷_⇒_ where
-    ●-id : ● ∷ ● ⇒ ● 
+    Γ! : (Γ : Ctx) (Γ⊢ : Γ ⊢)
+      → ● ∷ Γ ⇒ ● 
     ext⇒ : (Γ Δ : Ctx) (A : Type)
       → (Γ⊢ : Γ ⊢) (Δ⊢ : Δ ⊢) (Δ⊢A : Δ ⊢ A)
       → (σ : Sub) (σ∷Γ⇒Δ : σ ∷ Γ ⇒ Δ)
       → (a : Term) (Γ⊢a∷A[σ] : Γ ⊢ a ∷ (A [ σ ]ty))
       → (σ ∥ a) ∷ Γ ⇒ Δ ∣ A
-    wk⇒ : (Γ Δ : Ctx) (A : Type)
-      → (Γ⊢ : Γ ⊢) (Δ⊢ : Δ ⊢) (Γ⊢A : Γ ⊢ A)
-      → (σ : Sub) (σ∷Γ⇒Δ : σ ∷ Γ ⇒ Δ)
-      → σ ↑sub ∷ Γ ∣ A ⇒ Δ 
 
   --
   --  Auxillary definitions and examples
