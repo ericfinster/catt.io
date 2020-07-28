@@ -4,7 +4,10 @@
 
 open Catt.Expr
 open Catt.Typecheck
-   
+open Cheshire.Err
+       
+open TcmMonad
+
 let usage = "catt [options] [file]"
 
 let parse s =
@@ -44,7 +47,7 @@ let () =
      let files = List.rev (!file_in) in 
      (* let files = List.tl (List.rev (!file_in)) in *)
      match tc_check_all files empty_env with
-     | Succeed _ -> print_endline "-----------------\nFinished"
+     | Ok _ -> print_endline "-----------------\nFinished"
      | Fail msg -> Printf.printf "Typechecking error: %s\n" msg ; exit (-1)
        
      

@@ -6,7 +6,9 @@ open Term
 open Typecheck
 open Normalization
 open Printf
-   
+
+open TcmMonad
+    
 (* User Expressions *)
 type ty_expr =
   | ObjE

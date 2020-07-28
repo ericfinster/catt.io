@@ -5,7 +5,10 @@
 open Common
 open Printf
 open Term
-   
+
+open Cheshire.Monad
+open Cheshire.Err
+
 type tc_def =
   | TCCellDef of cell_term
   | TCTermDef of ctx * ty_term * tm_term
@@ -17,46 +20,78 @@ type tc_env = {
 
 let empty_env = { gma = [] ; rho = [] }
               
-(* The typechecking monad *)
+(* 
+ *  The typechecking monad 
+ *)
+                
 type 'a tcm = tc_env -> 'a err
 
-(* Bind for the typechecking monad *)
-let ( >>= ) m f env =
-  match m env with
-  | Fail s -> Fail s
-  | Succeed a -> f a env
-               
-let tc_ok a _ = Succeed a
+module TcmMonad : MonadError
+  with type 'a t := 'a tcm
+  with type e := string =
+  MakeMonadError(struct
+
+    type 'a t = 'a tcm
+        
+    let map f m env =
+      match m env with
+      | Ok a -> Ok (f a)
+      | Fail s -> Fail s
+
+    let pure a _ = Ok a
+        
+    let bind m f env =
+      match m env with
+      | Fail s -> Fail s
+      | Ok a -> f a env
+
+  end)(struct
+
+    type e = string
+
+    let throw s _ = Fail s
+    let catch m h env =
+      match m env with
+      | Ok a -> Ok a
+      | Fail s -> h s env
+        
+  end)
+
+open TcmMonad
+open TcmMonad.MonadSyntax
+       
+let tc_ok a _ = Ok a
 let tc_fail msg _ = Fail msg
 let tc_in_ctx g m env = m { env with gma = g }
-let tc_ctx env = Succeed env.gma
-let tc_get_env env = Succeed env
+let tc_ctx env = Ok env.gma
+let tc_get_env env = Ok env
 let tc_with_env env m _ = m env
 let tc_with_cell id cell m env = m { env with rho = (id, TCCellDef cell) :: env.rho }
 let tc_with_def id g ty tm m env = m { env with rho = (id, TCTermDef (g,ty,tm)) :: env.rho }
 let tc_with_var id ty m env = m { env with gma = (id, ty) :: env.gma }
 let tc_with_vars vars m env = m { env with gma = vars @ env.gma }
-let tc_ctx_vars env = Succeed (List.map fst env.gma)
+let tc_ctx_vars env = Ok (List.map fst env.gma)
 let tc_lift m_err _ = m_err
                     
 let tc_try m f_ok f_fail env =
   match m with
   | Fail msg -> f_fail msg env
-  | Succeed a -> f_ok a env
+  | Ok a -> f_ok a env
                     
 let rec tc_traverse f = function
   | [] -> tc_ok []
-  | (x::xs) -> tc_traverse f xs >>= fun rs ->
-               f x >>= fun r ->
-               tc_ok (r::rs)
+  | (x::xs) ->
+    let* rs = tc_traverse f xs in
+    let* r = f x in
+    tc_ok (r::rs)
                     
 (* Lookup and identifier in the context *)
 let tc_lookup_var ident env =
-  try Succeed (List.assoc ident env.gma)
+  try Ok (List.assoc ident env.gma)
   with Not_found -> Fail (sprintf "Unknown identifier: %s" ident)
 
 let tc_lookup_def ident env =
-  try Succeed (List.assoc ident env.rho)
+  try Ok (List.assoc ident env.rho)
   with Not_found -> Fail (sprintf "Unknown cell identifier: %s" ident)
 
 (* Find the k-th target of the given term an type *)
@@ -113,10 +148,10 @@ let rec tc_simple_ty_nf ty =
   match ty with
   | ObjT -> tc_ok ObjT
   | ArrT (ty', src, tgt) ->
-     tc_simple_ty_nf ty' >>= fun ty_nf ->
-     tc_simple_tm_nf src >>= fun src_nf ->
-     tc_simple_tm_nf tgt >>= fun tgt_nf ->
-     tc_ok (ArrT (ty_nf, src_nf, tgt_nf))
+    let* ty_nf = tc_simple_ty_nf ty' in
+    let* src_nf = tc_simple_tm_nf src in
+    let* tgt_nf = tc_simple_tm_nf tgt in 
+    tc_ok (ArrT (ty_nf, src_nf, tgt_nf))
      
 and tc_simple_tm_nf tm =
   match tm with

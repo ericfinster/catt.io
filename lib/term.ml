@@ -5,6 +5,10 @@
 open Common
 open Printf
 
+open Cheshire.Err
+open ErrMonad        
+open ErrMonad.MonadSyntax
+  
 module SS = Set.Make(String)
                     
 (* Internal term representation *)
@@ -79,13 +83,13 @@ let disc_pd k = fst (disc_pd_with_typ k)
 
 (* Source and target functions *)              
 let rec nth_src tm ty n =
-  if (n <= 0) then Succeed (tm, ty)
+  if (n <= 0) then Ok (tm, ty)
   else match ty with
        | ObjT -> Fail "Object has no source"
        | ArrT (typ,src,_) -> nth_src src typ (n-1) 
 
 let rec nth_tgt tm ty n =
-  if (n <= 0) then Succeed (tm, ty)
+  if (n <= 0) then Ok (tm, ty)
   else match ty with
        | ObjT -> Fail "Object has no source"
        | ArrT (typ,_,tgt) -> nth_tgt tgt typ (n-1)
@@ -98,17 +102,17 @@ let rec append_disc k n pd idx =
   match pd with
   | [] -> Fail "Empty pasting diagram"
   | (f_id, f_typ)::_ ->
-     nth_tgt (VarT f_id) f_typ k >>== fun (src_tm, typ)->
-     let d = dim_of typ in
-     if (n < d) then
-       Fail "Disc dimension too low"
-     else if (n = d) then 
-       Succeed pd
-     else
-       let tgt_id = sprintf "x%d" idx in
-       let dsc_id = sprintf "x%d" (idx+1) in 
-       let pd' = (dsc_id, ArrT (typ,src_tm,VarT tgt_id))::(tgt_id, typ)::pd in
-       append_disc 0 n pd' (idx+2)
+    let* (src_tm, typ) = nth_tgt (VarT f_id) f_typ k in 
+    let d = dim_of typ in
+    if (n < d) then
+      Fail "Disc dimension too low"
+    else if (n = d) then 
+      Ok pd
+    else
+      let tgt_id = sprintf "x%d" idx in
+      let dsc_id = sprintf "x%d" (idx+1) in 
+      let pd' = (dsc_id, ArrT (typ,src_tm,VarT tgt_id))::(tgt_id, typ)::pd in
+      append_disc 0 n pd' (idx+2)
 
 (* Build a pasting diagram consisting of a single
  * n-cell and two k-cells glued to its source and
@@ -116,7 +120,7 @@ let rec append_disc k n pd idx =
  *)
 let pad_pd k n =
   let k_dsc = disc_pd k in
-  append_disc 1 n k_dsc (2*k + 1) >>== fun pd ->
+  let* pd =  append_disc 1 n k_dsc (2*k + 1) in 
   append_disc (n-k+1) k pd (List.length pd)
   
 (* Return the canonical identity coherence in 
@@ -150,7 +154,7 @@ and tm_free_vars t =
   | VarT id -> SS.singleton id
   | DefAppT (_, args) ->
      List.fold_right SS.union (List.map tm_free_vars args) SS.empty
-  | CellAppT (cell, args) -> 
+  | CellAppT (_, args) -> 
      List.fold_right SS.union (List.map tm_free_vars args) SS.empty 
 
 and cell_free_vars t =
@@ -204,68 +208,68 @@ let app_zip_head_tm (((_,_),tm),_,_) = tm
 let app_zip_head_id (((id,_),_),_,_) = id
 
 let app_zip_with_head_ty ty (((id,_),tm),ls,rs) = (((id,ty),tm),ls,rs)
-                                    
+
+(* This routine need not be monadic: it can be simply
+ * a binary predicate... *)
 let app_zip_is_loc_max z =
   (* Printf.printf "Checking if cell %s is locally maximal\n" (app_zip_head_id z); *)
-  err_try (zipper_move_left z)
-          (fun zl -> let head_ty = app_zip_head_ty z in
-                     let left_ty = app_zip_head_ty zl in
-                     Succeed ((dim_of left_ty) < (dim_of head_ty)))
-          (fun _ -> Succeed true)
+  catch (let* zl = zipper_move_left z in
+         let head_ty = app_zip_head_ty z 
+         and left_ty = app_zip_head_ty zl
+         in Ok ((dim_of left_ty) < (dim_of head_ty)))
+    (fun _ -> Ok true)
 
 let rec app_zip_next_loc_max z =
-  err_try (zipper_move_left z)
-          (fun zl -> app_zip_is_loc_max zl >>== fun is_lmax ->
-                     if (is_lmax) then Succeed zl
-                     else app_zip_next_loc_max zl)
-          (fun _ -> Fail "No more locally maximal cells")
+  catch (let* zl = zipper_move_left z in
+         let* is_lmax = app_zip_is_loc_max zl in
+         if is_lmax then Ok zl
+         else app_zip_next_loc_max zl)
+    (fun _ -> Fail "No more locally maximal cells")
 
 (* Starting from a substitution, accumulate
  * any remaing variables as identities while
  * applying the accumulated substitution to 
  * the types in the pasting diagram *)
 let rec app_zip_extend_sub z s =
-  err_try (zipper_move_left z)
-          (fun zl ->
-            let id = app_zip_head_id zl in
-            let ty = subst_ty s (app_zip_head_ty zl) in
-            app_zip_extend_sub (app_zip_with_head_ty ty zl)
-                              ((id,VarT id)::s))
-          (fun _ -> Succeed (z,s))
+  catch (let* zl = zipper_move_left z in
+         let id = app_zip_head_id zl in
+         let ty = subst_ty s (app_zip_head_ty zl) in
+         app_zip_extend_sub (app_zip_with_head_ty ty zl)
+           ((id,VarT id)::s))
+    (fun _ -> Ok (z,s))
   
 (* Extract the remaining locally maximal arguments
  * from the provided zipper 
  *)
 let rec app_zip_extract_remaining_loc_max z lms =
-  err_try (app_zip_next_loc_max z)
-          (fun zlm -> let lm_arg = app_zip_head_tm zlm in 
-                      app_zip_extract_remaining_loc_max zlm (lm_arg::lms))
-          (fun _ -> Succeed lms)
+  catch (let* zlm = app_zip_next_loc_max z in
+         let lm_arg = app_zip_head_tm zlm in 
+         app_zip_extract_remaining_loc_max zlm (lm_arg::lms))
+    (fun _ -> Ok lms)
   
 (* Drop a locally maximal cell and its target, together
  * with their arguments. Return a substitution which 
  * inserts an identity in the appropriate place. *)
 let app_zip_drop z =
-  app_zip_is_loc_max z >>== fun is_lmax ->
+  let* is_lmax = app_zip_is_loc_max z in
   if (not is_lmax) then
     Fail "Cannot drop non-locally maximal cell"
   else
     match app_zip_head_ty z with
     | ObjT -> Fail "Cannot drop and object"
     | ArrT (bdry_typ, VarT src_id, VarT tgt_id) ->
-       zipper_drop_right z >>== fun zr ->
-       zipper_drop_right zr >>== fun zrr ->
-       let fill_id = app_zip_head_id z in
-       let id_tm = CellAppT (id_coh (dim_of bdry_typ), tm_to_disc_sub (VarT src_id) bdry_typ) in 
-       let s = (fill_id, id_tm)::
-                 (tgt_id,VarT src_id)::
-                   (src_id,VarT src_id)::
-                     (id_sub (fst (List.split (zipper_right_list zrr)))) in
-       app_zip_extend_sub zrr s >>== fun (z', s') ->
-       zipper_scan_right (fun ((id,_),_) -> id = src_id) z' >>== fun zr ->
-       Succeed (zr, s')
+      let* zr = zipper_drop_right z in
+      let* zrr = zipper_drop_right zr in
+      let fill_id = app_zip_head_id z in
+      let id_tm = CellAppT (id_coh (dim_of bdry_typ), tm_to_disc_sub (VarT src_id) bdry_typ) in 
+      let s = (fill_id, id_tm)::
+              (tgt_id,VarT src_id)::
+              (src_id,VarT src_id)::
+              (id_sub (fst (List.split (zipper_right_list zrr)))) in
+      let* (z' , s') = app_zip_extend_sub zrr s in 
+      let* zres = zipper_scan_right (fun ((id,_),_) -> id = src_id) z' in 
+      Ok (zres, s')
     | ArrT (_, _, _) -> Fail "Malformed pasting diagram"
-
 
 (*
  *  A zipper for pasting diagrams w/o arguments
@@ -278,19 +282,20 @@ let pd_zip_head_id ((id,_),_,_) = id
             
 let pd_zip_is_loc_max z =
   (* Printf.printf "Checking if cell %s is locally maximal\n" (app_zip_head_id z); *)
-  err_try (zipper_move_left z)
-          (fun zl -> let head_ty = pd_zip_head_ty z in
-                     let left_ty = pd_zip_head_ty zl in
-                     Succeed ((dim_of left_ty) < (dim_of head_ty)))
-          (fun _ -> Succeed true)
+  catch (let* zl = zipper_move_left z in
+         let head_ty = pd_zip_head_ty z in
+         let left_ty = pd_zip_head_ty zl in
+         Ok ((dim_of left_ty) < (dim_of head_ty)))
+    (fun _ -> Ok true)
 
 let rec pd_zip_next_loc_max z =
-  err_try (zipper_move_left z)
-          (fun zl -> pd_zip_is_loc_max zl >>== fun is_lmax ->
-                     if (is_lmax) then Succeed zl
-                     else pd_zip_next_loc_max zl)
-          (fun _ -> Fail "No more locally maximal cells")
+  catch (let* zl = zipper_move_left z in
+         let* is_lmax = pd_zip_is_loc_max zl in
+         if (is_lmax) then Ok zl
+         else pd_zip_next_loc_max zl)
+    (fun _ -> Fail "No more locally maximal cells")
 
+(* Ummm.  This surely is in the std library, no? *)
 let rec take n l =
   match l with
   | [] -> []
@@ -298,44 +303,42 @@ let rec take n l =
              else x::(take (n-1) xs)
                
 let rec pd_zip_consume_args z k args_rem args_done =
-  err_try (pd_zip_next_loc_max z)
-          (fun zlm -> match args_rem with
-                      | [] -> Fail "Ran out of arguments"
-                      | (tm,ty)::args_rem' ->
-                         let n = dim_of (pd_zip_head_ty zlm) in
-                         let codim = n - k in 
-                         let new_args = take (2 * codim) (tm_to_disc_sub tm ty) in
-                         let args_done' = new_args @ args_done in
-                         let k' = (match zipper_left_list zlm with
-                                   | [] -> 0
-                                   | (_,nxt_typ)::_ -> dim_of nxt_typ) in 
-                         pd_zip_consume_args zlm k' args_rem' args_done'
-          )
-          (fun _ -> if (List.length args_rem > 0) then
-                      Fail "Too many arguments"
-                    else Succeed args_done)
+  catch (let* zlm = pd_zip_next_loc_max z in
+         match args_rem with
+         | [] -> Fail "Ran out of arguments"
+         | (tm,ty)::args_rem' ->
+           let n = dim_of (pd_zip_head_ty zlm) in
+           let codim = n - k in 
+           let new_args = take (2 * codim) (tm_to_disc_sub tm ty) in
+           let args_done' = new_args @ args_done in
+           let k' = (match zipper_left_list zlm with
+               | [] -> 0
+               | (_,nxt_typ)::_ -> dim_of nxt_typ) in 
+           pd_zip_consume_args zlm k' args_rem' args_done')
+    (fun _ -> if (List.length args_rem > 0) then
+        Fail "Too many arguments"
+      else Ok args_done)
 
 (* Last step is the initial argument *)  
 let pd_zip_expand_args pd lm_args =
   (* let print_pair = fun (tm, ty) -> *)
   (*   sprintf "(%s : %s)" (print_tm_term tm) (print_ty_term  ty) in *)
   (* printf "Expanding locally maximal arguments: \n%s\n" (String.concat "\n" (List.map print_pair lm_args)); *)
-  zipper_open_right pd >>== fun z ->
+  let* z = zipper_open_right pd in 
   let lm_args_rev = List.rev lm_args in
   match lm_args_rev with
   | [] -> Fail "No arguments"
   | (tm,ty)::_ ->
-     nth_src tm ty (dim_of ty) >>== fun (init_arg,_) ->
-     let init_args_done = (init_arg::[]) in
-     if (List.length pd = 1) then
-       (* We have to single out the trivial pasting diagram so that
-        * the excess argument detection above does not give false 
-        * positives in this case .... *)
-       Succeed init_args_done
-     else pd_zip_consume_args z 0 lm_args_rev (init_arg::[]) >>== fun result ->
-     (* printf "Results: \n%s\n" (String.concat "\n" (List.map print_tm_term result)); *)
-     Succeed result
-
+    let* (init_arg,_) = nth_src tm ty (dim_of ty) in 
+    let init_args_done = (init_arg::[]) in
+    if (List.length pd = 1) then
+      (* We have to single out the trivial pasting diagram so that
+       * the excess argument detection above does not give false 
+       * positives in this case .... *)
+      Ok init_args_done
+    else let* result = pd_zip_consume_args z 0 lm_args_rev (init_arg::[]) in
+      (* printf "Results: \n%s\n" (String.concat "\n" (List.map print_tm_term result)); *)      
+      Ok result
                     
 (* 
  * Printing of types and terms 
@@ -363,12 +366,12 @@ and print_tm_term t =
      if (List.length pd = 1) then
        sprintf "[%s](%s)" (print_cell_term cell) (print_args args)
      else 
-       let pd_and_args = List.combine pd args in 
-       let m = zipper_open_right pd_and_args >>== fun z ->
-               app_zip_extract_remaining_loc_max z [] in
+       let pd_and_args = List.combine pd args in
+       let m = let* z = zipper_open_right pd_and_args in
+         app_zip_extract_remaining_loc_max z [] in
        match m with
        | Fail msg -> sprintf "**** %s ****" msg
-       | Succeed lm_args -> sprintf "[%s](%s)" (print_cell_term cell) (print_args lm_args)
+       | Ok lm_args -> sprintf "[%s](%s)" (print_cell_term cell) (print_args lm_args)
     
 and print_cell_term t =
   let print_decl (id, typ) =
@@ -405,15 +408,15 @@ let print_args args =
 let rec is_disc_pd pd =
   match pd with
   | [] -> Fail "Empty context"
-  | (id, ObjT) :: [] -> Succeed (id, ObjT)
+  | (id, ObjT) :: [] -> Ok (id, ObjT)
   | (_, _) :: [] -> Fail "Not a pasting diagram"
   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
-     is_disc_pd pd' >>== fun (src_id, src_typ) ->
-     if (tgt_typ <> src_typ) then
-       Fail "Incorrect target type"
-     else if (fill_typ <> ArrT (src_typ, VarT src_id, VarT tgt_id)) then
-       Fail "Incorrect filler type"
-     else Succeed (fill_id, fill_typ)
+    let* (src_id, src_typ) = is_disc_pd pd' in 
+    if (tgt_typ <> src_typ) then
+      Fail "Incorrect target type"
+    else if (fill_typ <> ArrT (src_typ, VarT src_id, VarT tgt_id)) then
+      Fail "Incorrect filler type"
+    else Ok (fill_id, fill_typ)
 
 (* Is the given cell an identity coherence? Assumes the 
  * term is already in normal form.  Returns the identifier
@@ -422,12 +425,12 @@ let rec is_disc_pd pd =
 let is_identity_coh cell =
   match cell with
   | CohT (pd, ArrT (_, src, tgt)) ->
-     is_disc_pd pd >>== fun (dsc_id, dsc_typ) ->
-     if (src <> VarT dsc_id) then
-       Fail "Wrong source"
-     else if (tgt <> VarT dsc_id) then
-       Fail "Wrong target"
-     else Succeed (dsc_id, dsc_typ)
+    let* (dsc_id, dsc_typ) = is_disc_pd pd in 
+    if (src <> VarT dsc_id) then
+      Fail "Wrong source"
+    else if (tgt <> VarT dsc_id) then
+      Fail "Wrong target"
+    else Ok (dsc_id, dsc_typ)
   | _ -> Fail "Not an identity"
 
 (* Is the given cell an endomorphism coherence. Assumes
@@ -438,7 +441,7 @@ let is_endomorphism_coh cell =
   match cell with
   | CohT (pd, ArrT (typ, src, tgt)) ->
      if (src = tgt) then
-       Succeed (pd, src, typ)
+       Ok (pd, src, typ)
      else Fail "Not an endomorphism"
   | _ -> Fail "Not an endo-coherence"
 
@@ -449,9 +452,9 @@ let is_endomorphism_coh cell =
 let is_unary_comp cell =
   match cell with
   | CompT (pd, typ) ->
-     is_disc_pd pd >>== fun (dsc_id, dsc_typ) ->
-     if (typ = dsc_typ) then
-       Succeed (dsc_id, dsc_typ)
-     else Fail "Wrong return type"
+    let* (dsc_id, dsc_typ) = is_disc_pd pd in 
+    if (typ = dsc_typ) then
+      Ok (dsc_id, dsc_typ)
+    else Fail "Wrong return type"
   | _ -> Fail "Not a unary comp"
 
