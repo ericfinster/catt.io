@@ -8,7 +8,8 @@ open Normalization
 open Printf
 
 open TcmMonad
-    
+open TcmMonad.MonadSyntax
+
 (* User Expressions *)
 type ty_expr =
   | ObjE
@@ -59,71 +60,74 @@ let print_expr_ctx g =
   let decls = List.map print_decl g in
   String.concat " " (List.rev decls)
     
-(*
- * Typechecking User Expressions
- *)
+(*****************************************************************************)
+(*                        Typechecking Raw Expressions                       *)
+(*****************************************************************************)
 
 let rec tc_check_ty_expr t =
   match t with
   | ObjE -> tc_ok ObjT
   | ArrE (src, tgt) ->
-     tc_infer_tm_expr src >>= fun (src_tm, src_ty) ->
-     tc_infer_tm_expr tgt >>= fun (tgt_tm, tgt_ty) ->
-     tc_eq_nf_ty src_ty tgt_ty >>= fun nf_match -> 
-     if (nf_match) then 
-       tc_ok (ArrT (src_ty, src_tm, tgt_tm))
-     else let msg = sprintf "%s =/= %s when checking that an arrow 
+    let* (src_tm, src_ty) = tc_infer_tm_expr src in
+    let* (tgt_tm, tgt_ty) = tc_infer_tm_expr tgt in
+    let* nf_match = tc_eq_nf_ty src_ty tgt_ty in 
+    if nf_match then 
+      tc_ok (ArrT (src_ty, src_tm, tgt_tm))
+    else let msg = sprintf "%s =/= %s when checking that an arrow 
                              type is well-formed."
-                            (print_tm_term src_tm) (print_tm_term tgt_tm) in 
-          tc_fail msg
+             (print_tm_term src_tm) (print_tm_term tgt_tm) in 
+      tc_fail msg
 
 and tc_check_tm_expr tm ty =
-  tc_infer_tm_expr tm >>= fun (tm', ty') ->
-  tc_eq_nf_ty ty ty' >>= fun nf_match -> 
+  let* (tm', ty') = tc_infer_tm_expr tm in 
+  let* nf_match = tc_eq_nf_ty ty ty' in 
   if (nf_match) then tc_ok tm' else
     let msg = sprintf "The term %s was expected to have type %s,
                        but was inferred to have type %s"
-                      (print_tm_term tm') (print_ty_term ty)
-                      (print_ty_term ty') in
+        (print_tm_term tm') (print_ty_term ty)
+        (print_ty_term ty') in
     tc_fail msg
 
 and tc_infer_tm_expr tm =
   match tm with
-  | VarE id -> 
-     tc_lookup_var id >>= fun typ ->
-     tc_ok (VarT id, typ)
-  | DefAppE (id, args) ->
-     tc_lookup_def id >>= fun def ->
-     (match def with
-      | TCCellDef cell_tm -> 
-         (* printf "Cell %s has definition %s\n" id (print_cell_term cell_tm); *)
-         let pd = cell_pd cell_tm in
-         tc_traverse tc_infer_tm_expr args >>= fun lm_args ->
-         tc_lift (pd_zip_expand_args pd lm_args) >>= fun args' ->
-         tc_check_args args' pd >>= fun sub ->
-         let typ = subst_ty sub (cell_typ cell_tm) in 
-         tc_ok (DefAppT (id, List.map snd sub), typ)
-      | TCTermDef (tele, typ, _) -> 
-         tc_check_args_expr args tele >>= fun sub ->
-         let typ' = subst_ty sub typ in
-         tc_ok (DefAppT (id, List.map snd sub), typ')
-     )
+  
+  | VarE id ->
+    let* typ = tc_lookup_var id in
+    tc_ok (VarT id, typ)
+      
+  | DefAppE (id, args) -> (
+    let* def = tc_lookup_def id in
+    match def with
+    | TCCellDef cell_tm -> 
+      (* printf "Cell %s has definition %s\n" id (print_cell_term cell_tm); *)
+      let pd = cell_pd cell_tm in
+      let* lm_args = tc_traverse tc_infer_tm_expr args in
+      let* args' = tc_lift (pd_zip_expand_args pd lm_args) in
+      let* sub = tc_check_args args' pd in 
+      let typ = subst_ty sub (cell_typ cell_tm) in 
+      tc_ok (DefAppT (id, List.map snd sub), typ)
+    | TCTermDef (tele, typ, _) ->
+      let* sub = tc_check_args_expr args tele in 
+      let typ' = subst_ty sub typ in
+      tc_ok (DefAppT (id, List.map snd sub), typ')
+  )
+  
   | CellAppE (cell, args) ->
-     tc_check_cell_expr cell >>= fun cell_tm ->
-     let pd = cell_pd cell_tm in 
-     tc_traverse tc_infer_tm_expr args >>= fun lm_args -> 
-     tc_lift (pd_zip_expand_args pd lm_args) >>= fun args' -> 
-     tc_check_args args' pd >>= fun sub ->
-     let typ = subst_ty sub (cell_typ cell_tm) in 
-     tc_ok (CellAppT (cell_tm, List.map snd sub), typ)
+    let* cell_tm = tc_check_cell_expr cell in 
+    let pd = cell_pd cell_tm in
+    let* lm_args = tc_traverse tc_infer_tm_expr args in
+    let* args' = tc_lift (pd_zip_expand_args pd lm_args) in
+    let* sub = tc_check_args args' pd in 
+    let typ = subst_ty sub (cell_typ cell_tm) in 
+    tc_ok (CellAppT (cell_tm, List.map snd sub), typ)
 
 and tc_check_tele tele =
   match tele with
   | [] -> tc_ok []
   | (id,typ)::tele' ->
-     tc_check_tele tele' >>= fun g ->
-     tc_in_ctx g (tc_check_ty_expr typ) >>= fun typ_tm ->
-     tc_ok ((id,typ_tm)::g)
+    let* g = tc_check_tele tele' in
+    let* typ_tm = tc_in_ctx g (tc_check_ty_expr typ) in 
+    tc_ok ((id,typ_tm)::g)
 
 and tc_check_args_expr args tele =
   match (args, tele) with 
@@ -131,10 +135,10 @@ and tc_check_args_expr args tele =
   | ([], _::_) -> tc_fail "Not enough arguments!"
   | ([], []) -> tc_ok []
   | (arg_exp::args', (id,arg_typ)::tele') ->
-     tc_check_args_expr args' tele' >>= fun sub ->
-     let arg_typ' = subst_ty sub arg_typ in
-     tc_check_tm_expr arg_exp arg_typ' >>= fun arg_tm ->
-     tc_ok ((id, arg_tm) :: sub)
+    let* sub = tc_check_args_expr args' tele' in
+    let arg_typ' = subst_ty sub arg_typ in
+    let* arg_tm = tc_check_tm_expr arg_exp arg_typ' in 
+    tc_ok ((id, arg_tm) :: sub)
      
 and tc_check_cell_expr cell =
   match cell with
@@ -178,32 +182,69 @@ and tc_check_pd_expr pd =
   | (id, ObjE) :: [] -> tc_ok ((id, ObjT) :: [], id, ObjT)
   | (_, _) :: [] -> tc_fail "Pasting diagram does not begin with an object"
   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
-     tc_check_pd_expr pd'                                          >>= fun (res_pd, pid, ptyp) ->
-     tc_in_ctx res_pd (tc_check_ty_expr tgt_typ)                   >>= fun tgt_typ_tm ->
-     tc_in_ctx ((tgt_id, tgt_typ_tm) :: res_pd)
-               (tc_check_ty_expr fill_typ)                         >>= fun fill_typ_tm ->
-     let cvars = List.map fst res_pd in 
-     let codim = (dim_of ptyp) - (dim_of tgt_typ_tm) in
-     tc_tgt_of (VarT pid) ptyp codim                          >>= fun (src_tm_tm, src_typ_tm) -> 
-     if (tgt_typ_tm <> src_typ_tm) then
-       let msg = sprintf "Type error: %s =/= %s"
-                         (print_ty_term tgt_typ_tm) (print_ty_term src_typ_tm) in
-       tc_fail msg
-     else if (fill_typ_tm <> ArrT (src_typ_tm, src_tm_tm, VarT tgt_id)) then
-       let msg = sprintf "Type error: %s =/= %s"
-                         (print_ty_term (ArrT (src_typ_tm, src_tm_tm, VarT tgt_id)))
-                         (print_ty_term fill_typ_tm) in
-       tc_fail msg
-     else if (fill_id = tgt_id) then
-       tc_fail (sprintf "Fill and target cell have the same identifier: %s" fill_id)
-     else if (List.mem fill_id cvars) then
-       tc_fail (sprintf "Filling identifier %s already exists" fill_id)
-     else if (List.mem tgt_id cvars) then 
-       tc_fail (sprintf "Target identifier %s already exists" tgt_id)
-     else tc_ok ((fill_id, fill_typ_tm) :: (tgt_id, tgt_typ_tm) :: res_pd, fill_id, fill_typ_tm)
+    
+    let* (res_pd, pid, ptyp) = tc_check_pd_expr pd' in
+    let* tgt_typ_tm = tc_in_ctx res_pd (tc_check_ty_expr tgt_typ) in
+    let* fill_typ_tm = tc_in_ctx ((tgt_id, tgt_typ_tm) :: res_pd)
+        (tc_check_ty_expr fill_typ)  in
+    let cvars = List.map fst res_pd in 
+    let codim = (dim_of ptyp) - (dim_of tgt_typ_tm) in
+    let* (src_tm_tm, src_typ_tm) = tc_tgt_of (VarT pid) ptyp codim in
+
+    let* _ = ensure (tgt_typ_tm = src_typ_tm)
+        (sprintf "Type error: %s =/= %s"
+           (print_ty_term tgt_typ_tm)
+           (print_ty_term src_typ_tm)) in
+
+    let* _ = ensure (fill_typ_tm = ArrT (src_typ_tm, src_tm_tm, VarT tgt_id))
+        (sprintf "Type error: %s =/= %s"
+           (print_ty_term (ArrT (src_typ_tm, src_tm_tm, VarT tgt_id)))
+           (print_ty_term fill_typ_tm)) in
+
+    let* _ = ensure (fill_id <> tgt_id)
+        (sprintf "Fill and target cell have the same identifier: %s" fill_id) in
+
+    let* _ = ensure (not (List.mem fill_id cvars))
+        (sprintf "Filling identifier %s already exists" fill_id) in 
+
+    let* _ = ensure (not (List.mem tgt_id cvars))
+        (sprintf "Target identifier %s already exists" tgt_id) in 
+
+    tc_ok ((fill_id, fill_typ_tm) :: (tgt_id, tgt_typ_tm) :: res_pd, fill_id, fill_typ_tm)
+
+(* open Pd
+ * open Cheshire.Err
+ * open ErrMonad.MonadSyntax *)
+
+(* Ah, but how do we know when to insert downs? 
+ * Well, I mean, it is technically possible: you 
+ * need a stack of all the targets.  Hmm.  But it's
+ * a bit annoying to do really.
+ *)
+(* let rec to_pd ctx =
+ *   match ctx with
+ *   | [] -> Fail "Empty context is not a pasting diagram"
+ *   | (id, ObjE) :: [] -> Ok (ObjP id, id, ObjE)
+ *   | (_ , _) :: [] -> Fail "Pasting diagram does not begin with an object"
+ *   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
+ *     let* (res_pd , src_id , src_typ) = to_pd pd' in
+ *     let exp_fill_typ = ArrE (VarE src_id , VarE tgt_id) in 
+ *     if (tgt_typ <> src_typ) then
+ *        let msg = sprintf "Type error: %s =/= %s"
+ *                          (print_ty_expr tgt_typ) (print_ty_expr src_typ) in
+ *        Fail msg
+ *     else if (fill_typ <> exp_fill_typ) then 
+ *        let msg = sprintf "Type error: %s =/= %s"
+ *                          (print_ty_expr exp_fill_typ)
+ *                          (print_ty_expr fill_typ) in
+ *        Fail msg 
+ *     else Ok (UpP (fill_id , src_id , res_pd) , fill_id , fill_typ) *)
+
+(*****************************************************************************)
+(*                                  Commands                                 *)
+(*****************************************************************************)
 
 
-(* Commands *)
 type cmd =
   | CellDef of string * cell_expr
   | TermDef of string * tele * ty_expr * tm_expr
@@ -212,10 +253,6 @@ type cmd =
   | Rectify of tele * tm_expr
   | Normalize of tele * tm_expr
   | LocMax of tele
-     
-(*
- *  Top-level command execution
- *)
                    
 let rec check_cmds cmds =
   match cmds with
@@ -305,4 +342,7 @@ let rec check_cmds cmds =
      printf "\n";
      check_cmds ds
           
+
+
+
 
