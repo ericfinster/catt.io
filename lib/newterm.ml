@@ -4,39 +4,13 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-open Printf
+open Pd
 
 open Cheshire.Monad
 open Cheshire.Err
-open ErrMonad.MonadSyntax
-       
-(*****************************************************************************)
-(*                      Dyck Words and Pasting Diagrams                      *)
-(*****************************************************************************)
+(* open ErrMonad.MonadSyntax *)
 
-type 'a dyck =
-  | Pt of 'a
-  | Up of 'a * 'a * 'a dyck
-  | Down of 'a dyck
-
-type pd = unit dyck
-type lpd = string dyck
-    
-let rec dyck_valid_with_height d =
-  match d with
-  | Pt _ -> (true , 0)
-  | Up (_ , _ , d) ->
-    let (v , h) = dyck_valid_with_height d in
-    (v && (h >= 0) , h + 1)
-  | Down d -> 
-    let (v , h) = dyck_valid_with_height d in
-    (v && (h > 0) , h - 1)
-
-let dyck_valid d =
-  fst (dyck_valid_with_height d)
-
-let dyck_height d =
-  snd (dyck_valid_with_height d)
+open Printf
 
 (*****************************************************************************)
 (*                                   Terms                                   *)
@@ -49,11 +23,7 @@ type ty_term =
  and tm_term =
    | VarT of int
    | DefAppT of string * tm_term list
-   | CellAppT of cell_term * tm_term list
-
- and cell_term =
-   | CohT of pd * ty_term
-   | CompT of pd * ty_term   
+   | CohT of unit pd * ty_term * tm_term list 
 
 (*****************************************************************************)
 (*                             De Brujin Lifting                             *)
@@ -74,9 +44,9 @@ and map_tm f tm =
   | DefAppT (id, args) ->
     let args' = List.map (map_tm f) args in
     DefAppT (id, args')
-  | CellAppT (cell, args) ->
+  | CohT (pd, typ, args) ->
     let args' = List.map (map_tm f) args in
-    CellAppT (cell, args')
+    CohT (pd, typ, args')
 
 let lift_tm tm k = map_tm ((+) k) tm
 let lift_ty ty k = map_ty ((+) k) ty
@@ -108,32 +78,8 @@ and subst_tm sub tm =
   | VarT i -> get_var i sub 
   | DefAppT (id, args) ->
      DefAppT (id, List.map (subst_tm sub) args)
-  | CellAppT (cell, args) ->
-     CellAppT (cell, List.map (subst_tm sub) args)
-
-(*****************************************************************************)
-(*                       Pasting Diagrams and Contexts                       *)
-(*****************************************************************************)
-
-let rec dyck_to_ctx d =
-  match d with
-  | Pt _ -> Ok (ObjT::[] , VarT 0 , ObjT)
-  | Up (_ , _ , d') -> 
-    let* (ctx, src, typ) = dyck_to_ctx d' in
-    let ltyp = lift_ty typ 1 in
-    let lsrc = lift_tm src 1 in 
-    let ftyp = ArrT (ltyp, lsrc, VarT 0) in
-    Ok (ftyp :: ltyp :: ctx , VarT 0, ftyp)
-  | Down d' ->
-    let* (ctx, _, typ) = dyck_to_ctx d' in
-    match typ with
-    | ObjT -> Fail "Negative Dyck Word"
-    | ArrT (typ',_,tgt) ->
-      Ok (ctx, tgt, typ')
-
-let pd_to_ctx pd =
-  let* (ctx , _ , _) = dyck_to_ctx pd in 
-  Ok ctx
+  | CohT (pd, typ, args) ->
+     CohT (pd, typ, List.map (subst_tm sub) args)
 
 (*****************************************************************************)
 (*                             Printing Raw Terms                            *)
@@ -150,23 +96,11 @@ and print_tm_term t =
   match t with
   | VarT i -> sprintf "%d" i 
   | DefAppT (id, args) ->
-     sprintf "%s(%s)" id (print_args args)
-  | CellAppT (cell, args) ->
-     sprintf "[%s](%s)" (print_cell_term cell) (print_args args)
-    
-and print_cell_term t =
-  match t with
-  | CohT (pd, typ) ->
-     sprintf "coh %s : %s" (print_pd pd) (print_ty_term typ)
-  | CompT (pd, typ) ->
-     sprintf "comp %s : %s" (print_pd pd) (print_ty_term typ)
+    sprintf "%s(%s)" id (print_args args)
+  | CohT (pd, typ, args) -> 
+     sprintf "coh[%s : %s](%s)" (print_tm_pd pd) (print_ty_term typ) (print_args args)
 
-and print_pd pd =
-  match pd_to_ctx pd with
-  | Fail _ -> "(! invalid pd !)"
-  | Ok pd_ctx ->
-    let prnt_typ t = sprintf "(%s)" (print_ty_term t) in 
-    String.concat " " (List.map prnt_typ pd_ctx)
+and print_tm_pd _ = "unimplemented"
   
 and print_args args =
   String.concat ", " (List.map print_tm_term args)
@@ -179,7 +113,7 @@ and print_decl (id, typ) =
 (*****************************************************************************)
               
 type tc_def =
-  | TCCellDef of cell_term
+  | TCCellDef of unit pd * ty_term 
   | TCTermDef of ty_term list * ty_term * tm_term
 
 type tc_env = {
@@ -277,7 +211,7 @@ and tc_infer_tm tm =
     | TCTermDef (_, _, _) -> tc_fail "unimplemented"
   )
                         
-  | CellAppT (_, _) -> tc_fail "cell check"
+  | CohT (_, _, _) -> tc_fail "cell check"
 
   (* match tm with
    * | VarT id -> 
@@ -302,19 +236,6 @@ and tc_infer_tm tm =
    *    tc_check_args args pd >>= fun sub ->
    *    let typ = subst_ty sub (cell_typ cell_tm) in 
    *    tc_ok (CellAppT (cell_tm, List.map snd sub), typ) *)
-
-and tc_check_cell cell =
-  match cell with
-  | CohT (pd, typ) ->
-
-    let* ctx = tc_lift (pd_to_ctx pd) in 
-    let* typ' = tc_in_ctx ctx (tc_check_ty typ) in
-
-    (* Have to check fullness! *)
-    
-    tc_ok (CohT (pd, typ') , pd)
-      
-  | CompT (_, _) -> tc_fail "unimplemented"
     
   (* match cell with
    * | CohT (pd, typ) -> 
