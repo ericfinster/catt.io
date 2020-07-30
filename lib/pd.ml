@@ -146,6 +146,18 @@ let ichg = Br ("x", [("y", Br ("f", [("g", Br("a", []));
                      ("z", Br ("i", [("j", Br("c", []));
                                      ("k", Br("d", []))]))])
 
+let vert2whiskl = Br ("x", [("y", Br ("f", [("g", Br("a", []));
+                                            ("h", Br("b", []))]));
+                            ("z", Br ("k", []))])
+
+let disc2 = Br ("x", [("y", Br ("f", [("g", Br("a", []))]))])
+
+let ichgmidwhisk = Br ("x", [("y", Br ("f", [("g", Br("a", []));
+                                             ("h", Br("b", []))]));
+                             ("z", Br ("i", []));
+                             ("w", Br ("j", [("k", Br("c", []));
+                                             ("l", Br("d", []))]))])
+
 let blank pd = map_pd (fun _ -> ()) pd
 let subst pd sub = map_pd (fun id -> List.assoc id sub) pd    
 
@@ -168,5 +180,25 @@ let example2 =
        ("h" , comp2);
        ("a" , horiz2);
        ("b" , horiz2)
+     ])
+
+let example3 =
+  (subst ichgmidwhisk
+     [
+       ("x", obj);
+       ("y", obj);
+       ("f", comp2);
+       ("g", comp2);
+       ("a", vert2whiskl);
+       ("h", comp2);
+       ("b", ichg);
+       ("z", obj);
+       ("i", comp3);
+       ("w", obj);
+       ("j", arr);
+       ("k", arr);
+       ("c", disc2);
+       ("l", arr);
+       ("d", vert2)
      ])
 
