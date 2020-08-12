@@ -211,40 +211,12 @@ and tc_check_pd_expr pd =
         (sprintf "Target identifier %s already exists" tgt_id) in 
 
     tc_ok ((fill_id, fill_typ_tm) :: (tgt_id, tgt_typ_tm) :: res_pd, fill_id, fill_typ_tm)
-
-(* open Pd
- * open Cheshire.Err
- * open ErrMonad.MonadSyntax *)
-
-(* Ah, but how do we know when to insert downs? 
- * Well, I mean, it is technically possible: you 
- * need a stack of all the targets.  Hmm.  But it's
- * a bit annoying to do really.
- *)
-(* let rec to_pd ctx =
- *   match ctx with
- *   | [] -> Fail "Empty context is not a pasting diagram"
- *   | (id, ObjE) :: [] -> Ok (ObjP id, id, ObjE)
- *   | (_ , _) :: [] -> Fail "Pasting diagram does not begin with an object"
- *   | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' ->
- *     let* (res_pd , src_id , src_typ) = to_pd pd' in
- *     let exp_fill_typ = ArrE (VarE src_id , VarE tgt_id) in 
- *     if (tgt_typ <> src_typ) then
- *        let msg = sprintf "Type error: %s =/= %s"
- *                          (print_ty_expr tgt_typ) (print_ty_expr src_typ) in
- *        Fail msg
- *     else if (fill_typ <> exp_fill_typ) then 
- *        let msg = sprintf "Type error: %s =/= %s"
- *                          (print_ty_expr exp_fill_typ)
- *                          (print_ty_expr fill_typ) in
- *        Fail msg 
- *     else Ok (UpP (fill_id , src_id , res_pd) , fill_id , fill_typ) *)
+      
 
 (*****************************************************************************)
 (*                                  Commands                                 *)
 (*****************************************************************************)
-
-
+      
 type cmd =
   | CellDef of string * cell_expr
   | TermDef of string * tele * ty_expr * tm_expr
@@ -342,7 +314,3 @@ let rec check_cmds cmds =
      printf "\n";
      check_cmds ds
           
-
-
-
-

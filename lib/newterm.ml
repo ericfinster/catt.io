@@ -49,18 +49,30 @@ let rec dim_typ typ =
   | ObjT -> 0
   | ArrT (typ',_,_) -> 1 + dim_typ typ'
 
+let rec nth_tgt n typ tm =
+  if (n <= 0) then Ok (typ, tm) else
+    match typ with
+    | ObjT -> Fail "Target of object"
+    | ArrT (typ',_,tgt) -> nth_tgt (n-1) typ' tgt
+
+let rec nth_src n typ tm = 
+  if (n <= 0) then Ok (typ, tm) else
+    match typ with
+    | ObjT -> Fail "Target of object"
+    | ArrT (typ',src,_) -> nth_src (n-1) typ' src
+
 (* Enclose the given pasting diagram of terms
  * with the boundaries specified by the given type *)
 let rec suspend_with ty pd =
   match ty with
   | ObjT -> pd
   | ArrT (typ, src, tgt) ->
-    suspend_with typ (Br (src,[(tgt,pd)]))
+    suspend_with typ (Br ([(pd,tgt)],src))
 
 (* Return the term-labelled pasting diagram 
  * associated to a type/term pair *)
 let disc_pd ty tm =
-  suspend_with ty (Br (tm,[]))
+  suspend_with ty (Br ([],tm))
 
 (*****************************************************************************)
 (*                             De Brujin Indices                             *)
@@ -84,17 +96,17 @@ let lift_ty ty k = map_ty ((+) k) ty
         
 let rec to_db_run k pd =
   match pd with
-  | Br (_,brs) ->
+  | Br (brs,_) ->
     let (brs', k') = to_db_brs k brs
-    in (Br (VarT k', brs'), k'+1)
+    in (Br (brs', VarT k'), k'+1)
     
 and to_db_brs k brs =
   match brs with
   | [] -> ([], k)
-  | (_,b)::bs ->
+  | (b,_)::bs ->
     let (bs', k') = to_db_brs k bs in
     let (b' , k'') = to_db_run k' b in 
-    ((VarT k'', b')::bs', k'' + 1)
+    ((b', VarT k'')::bs', k'' + 1)
 
 let to_db pd = fst (to_db_run 0 pd)
 
@@ -105,13 +117,36 @@ let to_db pd = fst (to_db_run 0 pd)
     
 let rec pd_to_ctx_wtyp typ pd =
   match pd with
-  | Br (s,brs) ->
-    let lcl (t,b) = (pd_to_ctx_wtyp (ArrT (typ, s, t)) b) @ [typ] in
+  | Br (brs,s) ->
+    let lcl (b,t) = typ :: (pd_to_ctx_wtyp (ArrT (typ, s, t)) b) in
     let ll = List.map lcl brs in
-    List.concat ll @ [typ]
+    typ :: List.concat ll 
 
 let pd_to_ctx pd =
   pd_to_ctx_wtyp ObjT (to_db pd)
+
+open ErrMonad.MonadSyntax
+       
+(* Convert a context to a pasting diagram if possible *)
+let rec ctx_to_pd ctx =
+  match ctx with
+  | [] -> Fail "Empty context is not a pasting diagram"
+  | ObjT :: [] -> Ok (Br ([],()), ObjT, VarT 0, 0)
+  | _ :: [] -> Fail "Pasting diagram does not begin with an object"
+  | ftyp :: ttyp :: ctx' ->
+    let* (pd, styp, stm, dim) = ctx_to_pd ctx' in
+    let tdim = dim_typ ttyp in
+    let codim = dim - tdim in 
+    let* (styp', stm') = nth_tgt codim styp stm in
+    if (styp' <> ttyp) then
+      Fail "Source and target types incompatible"
+      (* Think we need a lift here, right? *)
+    else if (ftyp <> ArrT (styp',stm',VarT 0)) then
+      Fail "Incorrect filling type"
+    else
+      (* pd is wrong.  need to append an element in the 
+       * appropriate dimension *)
+      Ok (pd, ftyp, VarT 0, tdim+1)
 
 (*****************************************************************************)
 (*                                Substitution                               *)
@@ -172,9 +207,10 @@ type tc_def =
 type tc_env = {
     gma : ty_term list;
     rho : (string * tc_def) list;
+    tau : (string * int) list; 
   }
 
-let empty_env = { gma = [] ; rho = [] }
+let empty_env = { gma = [] ; rho = [] ; tau = [] }
 
 type 'a tcm = tc_env -> 'a err
 
@@ -212,10 +248,12 @@ open TcMonad.MonadSyntax
 let tc_ok = pure
 let tc_fail = throw
 
-let tc_normalize tm = tc_ok tm
 let tc_in_ctx g m env = m { env with gma = g }
 let tc_ctx env = Ok env.gma
+let tc_env env = Ok env
+let tc_with_env e m _ = m e
 let tc_lift m _ = m
+let tc_depth env = Ok (List.length env.gma)
 
 let err_lookup_var i l =
   try Ok (db_get i l)
@@ -228,8 +266,21 @@ let tc_lookup_def id env =
   try Ok (List.assoc id env.rho)
   with Not_found -> Fail (sprintf "Unknown cell identifier: %s" id)
 
+let tc_id_to_level id env =
+  try Ok (List.assoc id env.tau)
+  with Not_found -> Fail (sprintf "Unknown variable identifier: %s" id)
+
 module LT = ListTraverse(TcMonad)
 module PdT = PdTraverse(TcMonad)
+
+let tc_normalize tm = tc_ok tm
+
+let tc_eq_nf_ty tya tyb =
+  let* tya_nf = tc_normalize tya in
+  let* tyb_nf = tc_normalize tyb in
+  if (tya_nf = tyb_nf)
+  then tc_ok ()
+  else tc_fail "Type mismatch"
 
 (*****************************************************************************)
 (*                                Typing Rules                               *)
@@ -246,16 +297,14 @@ let rec tc_check_ty t =
 
 and tc_check_tm tm ty =
   let* (tm', ty') = tc_infer_tm tm in
-  let* ty_nf = tc_normalize ty in
-  let* ty_nf' = tc_normalize ty' in
-
-  let* _ = ensure (ty_nf = ty_nf') 
-    (sprintf "The term %s was expected to have type %s,
-                         but was inferred to have type %s"
-       (print_tm_term tm') (print_ty_term ty) (print_ty_term ty')) in 
-
+  let* _ = catch (tc_eq_nf_ty ty ty')
+      
+      (fun _ -> tc_fail (sprintf "The term %s was expected to have type %s, 
+                                  but was inferred to have type %s"
+                           (print_tm_term tm') (print_ty_term ty) (print_ty_term ty'))) in 
+      
   tc_ok tm'
-   
+
 and tc_infer_tm tm =
   match tm with
   
