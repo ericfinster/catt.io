@@ -5,16 +5,17 @@
 (*****************************************************************************)
 
 open Cheshire.Functor
-       
+open Cheshire.Applicative
+
 type 'a pd =
   | Br of 'a * ('a * 'a pd) list
 
 let lmap = List.map
 
-let rec dim pd =
+let rec dim_pd pd =
   match pd with
   | Br (_,brs) ->
-    let bdims = lmap (fun (_,b) -> dim b) brs in 
+    let bdims = lmap (fun (_,b) -> dim_pd b) brs in 
     let maxdim = List.fold_left max (-1) bdims in
     1 + maxdim 
 
@@ -22,14 +23,24 @@ let decorations pd =
   match pd with
   | Br (a,brs) -> a :: lmap fst brs 
 
-let rec chop d pd =
+(* Truncate to the provided dimension.  The boolean
+   flag dir is true for the source direction, false
+   for the target *)
+                    
+let rec chop dir d pd =
   match pd with
   | Br (a,brs) ->
-    if (d <= 0) then Br (a,[])
-    else Br (a, lmap (fun (l,b) -> (l,chop (d-1) b)) brs)
+    if (d <= 0) then
+      (
+        if dir then Br (a,[])
+        else let a' = List.fold_left (fun _ (y,_) -> y) a brs in 
+          Br (a',[])
+      )
+    else Br (a, lmap (fun (l,b) -> (l, chop dir (d-1) b)) brs)
+
 
 (*****************************************************************************)
-(*                              Functor Instance                             *)
+(*                              Instances                                    *)
 (*****************************************************************************)
     
 module PdFunctor : Functor with type 'a t := 'a pd =
@@ -46,7 +57,30 @@ module PdFunctor : Functor with type 'a t := 'a pd =
   end)
 
 let map_pd = PdFunctor.map
-              
+
+module PdTraverse(A : Applicative) = struct
+
+  type 'a t = 'a pd
+  type 'a m = 'a A.t
+
+  open A.ApplicativeSyntax
+        
+  open Cheshire.Listmnd
+  module LT = ListTraverse(A)
+
+  let rec traverse f pd =
+    match pd with
+    | Br (a,abrs) ->
+      let loop (l,p) =
+        let+ l' = f l
+        and+ p' = traverse f p
+        in (l',p') in 
+      let+ b = f a
+      and+ bbrs = LT.traverse loop abrs in
+      Br (b,bbrs)
+        
+end
+
 (*****************************************************************************)
 (*                              Pretty Printing                              *)
 (*****************************************************************************)
@@ -124,7 +158,11 @@ let rec join_pd d pd =
 (*****************************************************************************)
 (*                                  Examples                                 *)
 (*****************************************************************************)
-      
+
+let rec disc n =
+  if (n <= 0) then Br (() , [])
+  else Br (() , [(), disc (n-1)])
+
 let obj = Br ("x", [])
 let arr = Br ("x", [("y", Br ("f", []))])
 
