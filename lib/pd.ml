@@ -170,84 +170,85 @@ let rec join_pd d pd =
 (*                                  Examples                                 *)
 (*****************************************************************************)
 
-(* let rec disc n =
- *   if (n <= 0) then Br (() , [])
- *   else Br (() , [(), disc (n-1)])
- * 
- * let obj = Br ("x", [])
- * let arr = Br ("x", [("y", Br ("f", []))])
- * 
- * let comp2 = Br ("x", [("y", Br ("f", []));
- *                       ("z", Br ("g", []))])
- *     
- * let comp3 = Br ("x", [("y", Br ("f", []));
- *                       ("z", Br ("g", []));
- *                       ("w", Br ("h", []))])
- * 
- * let vert2 = Br ("x", [("y", Br ("f", [("g", Br("a", []));
- *                                       ("h", Br("b", []))]))])
- * 
- * let horiz2 = Br ("x", [("y", Br ("f", [("g", Br("a", []))]));
- *                        ("z", Br ("h", [("k", Br("b", []))]))])
- *   
- * let ichg = Br ("x", [("y", Br ("f", [("g", Br("a", []));
- *                                      ("h", Br("b", []))]));
- *                      ("z", Br ("i", [("j", Br("c", []));
- *                                      ("k", Br("d", []))]))])
- * 
- * let vert2whiskl = Br ("x", [("y", Br ("f", [("g", Br("a", []));
- *                                             ("h", Br("b", []))]));
- *                             ("z", Br ("k", []))])
- * 
- * let disc2 = Br ("x", [("y", Br ("f", [("g", Br("a", []))]))])
- * 
- * let ichgmidwhisk = Br ("x", [("y", Br ("f", [("g", Br("a", []));
- *                                              ("h", Br("b", []))]));
- *                              ("z", Br ("i", []));
- *                              ("w", Br ("j", [("k", Br("c", []));
- *                                              ("l", Br("d", []))]))])
- * 
- * let blank pd = map_pd (fun _ -> ()) pd
- * let subst pd sub = map_pd (fun id -> List.assoc id sub) pd    
- * 
- * let example =
- *   (subst comp2
- *      [ ("x" , obj);
- *        ("y" , obj);
- *        ("z" , obj);
- *        ("f" , comp2);
- *        ("g" , comp2)
- *      ])
- * 
- * let example2 =
- *   (subst vert2
- *      [
- *        ("x" , obj);
- *        ("y" , obj);
- *        ("f" , comp2);
- *        ("g" , comp2);
- *        ("h" , comp2);
- *        ("a" , horiz2);
- *        ("b" , horiz2)
- *      ])
- * 
- * let example3 =
- *   (subst ichgmidwhisk
- *      [
- *        ("x", obj);
- *        ("y", obj);
- *        ("f", comp2);
- *        ("g", comp2);
- *        ("a", vert2whiskl);
- *        ("h", comp2);
- *        ("b", ichg);
- *        ("z", obj);
- *        ("i", comp3);
- *        ("w", obj);
- *        ("j", arr);
- *        ("k", arr);
- *        ("c", disc2);
- *        ("l", arr);
- *        ("d", vert2)
- *      ]) *)
+let rec disc n =
+  if (n <= 0) then Br ([] , ())
+  else Br ([disc (n-1),()], ())
+
+let obj = Br ([], "x")
+let arr = Br ([(Br ([],"f")), "y"],"x")
+
+let comp2 = Br ([(Br ([],"g")),"z";
+                 (Br ([],"f")),"y"],"x")
+
+let comp3 = Br ([(Br ([],"h")),"w";
+                 (Br ([],"g")),"z";
+                 (Br ([],"f")),"y"],"x")
+
+let vert2 = Br ([(Br ([(Br ([],"b"),"h");
+                       (Br ([],"a"),"g")],"f"),"y")],"x")
+
+let horiz2 = Br ([(Br ([(Br ([],"b"),"k")],"h"),"z");
+                  (Br ([(Br ([],"a"),"g")],"f"),"y")],"x")
+
+let ichg = Br ([(Br ([(Br ([],"d"),"k");
+                      (Br ([],"c"),"j")],"i"),"z");
+                (Br ([(Br ([],"b"),"h");
+                      (Br ([],"a"),"g")],"f"),"y")],"x")
+
+let vert2whiskl = Br ([(Br ([],"k"),"z");
+                       (Br ([(Br ([],"b"),"h");
+                             (Br ([],"a"),"g")],"f"),"y")],"x")
+
+let disc2 = Br ([(Br ([(Br ([],"a"),"g")],"f"),"y")],"x")
+
+
+let ichgmidwhisk = Br ([(Br ([(Br ([],"d"),"l");
+                              (Br ([],"c"),"k")],"j"),"w");
+                                         (Br ([],"i"),"z");                        
+                        (Br ([(Br ([],"b"),"h");
+                              (Br ([],"a"),"g")],"f"),"y")],"x")
+
+let blank pd = map_pd (fun _ -> ()) pd
+let subst pd sub = map_pd (fun id -> List.assoc id sub) pd    
+
+let example =
+  (subst comp2
+     [ ("x" , obj);
+       ("y" , obj);
+       ("z" , obj);
+       ("f" , comp2);
+       ("g" , comp2)
+     ])
+
+let example2 =
+  (subst vert2
+     [
+       ("x" , obj);
+       ("y" , obj);
+       ("f" , comp2);
+       ("g" , comp2);
+       ("h" , comp2);
+       ("a" , horiz2);
+       ("b" , horiz2)
+     ])
+
+let example3 =
+  (subst ichgmidwhisk
+     [
+       ("x", obj);
+       ("y", obj);
+       ("f", comp2);
+       ("g", comp2);
+       ("a", vert2whiskl);
+       ("h", comp2);
+       ("b", ichg);
+       ("z", obj);
+       ("i", comp3);
+       ("w", obj);
+       ("j", arr);
+       ("k", arr);
+       ("c", disc2);
+       ("l", arr);
+       ("d", vert2)
+     ])
 
