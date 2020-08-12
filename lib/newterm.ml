@@ -263,11 +263,16 @@ and tc_infer_tm tm =
     let* typ = tc_lookup_var i in
     tc_ok (VarT i , typ)
       
-  | DefAppT (id, _) -> (
+  | DefAppT (id, sub) -> (
     let* def = tc_lookup_def id in
     match def with
-    | TCCellDef _ ->  tc_fail "unimplemented"
-    | TCTermDef (_, _, _) -> tc_fail "unimplemented"
+    | TCCellDef (pd,typ) -> 
+      let pd_ctx = pd_to_ctx pd in
+      let* sub' = tc_check_args sub pd_ctx in
+      tc_ok (DefAppT (id, sub'), subst_ty sub' typ)
+    | TCTermDef (ctx, typ, _) ->
+      let* sub' = tc_check_args sub ctx in
+      tc_ok (DefAppT (id, sub'), subst_ty sub' typ)
   )
 
   | CohT (pd, typ, sub) ->
@@ -294,23 +299,19 @@ and tc_infer_tm tm =
              tc_ok rtyp
         ) in
     (* Check the substitution and calculate the return type *)
-    let* sub' = tc_check_sub sub in
+    let* sub' = tc_check_args sub pd_ctx in
     tc_ok (CohT (pd, typ', sub'), subst_ty sub' typ')
 
-and tc_check_sub_rec sub ctx =
+and tc_check_args sub ctx =
   match (sub, ctx) with 
   | (_::_, []) -> tc_fail "Too many arguments!"
   | ([], _::_) -> tc_fail "Not enough arguments!"
   | ([], []) -> tc_ok []
-  | (tm::sub', typ::ctx') ->
-    let* rsub = tc_check_sub_rec sub' ctx' in
+  | (tm::ss, typ::ts) ->
+    let* rsub = tc_check_args ss ts in
     let typ' = subst_ty rsub typ in
     let* tm' = tc_check_tm tm typ' in
     tc_ok (tm'::rsub)
-
-and tc_check_sub sub =
-  let* ctx = tc_ctx in
-  tc_check_sub_rec sub ctx
     
 (* Extract the pasting diagram of a well typed term.
  * Note that the term is assumed to be well typed in 
