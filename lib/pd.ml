@@ -33,22 +33,19 @@ let rec chop dir d pd =
       )
     else Br (lmap (fun (b,l) -> (chop dir (d-1) b , l)) brs, a)
 
-(*****************************************************************************)
-(*                                 Update Bar                                *)
-(*****************************************************************************)
+open Cheshire.Err
+open ErrMonad.MonadSyntax
 
-(* Again, this is super inefficient and annoying because the
- * elements are in the wrong order with respect to how we
- * want to consider contexts 
-*)
-        
-(* let insert d l pd =
- *   match pd with
- *   | Br (a,brs) ->
- *     if (d <= 0) then
- *       Br (a,brs@[(l,pd)])
- *     else
- *       Br (a, brs) *)
+let rec insert pd d n l =
+  match pd with
+  | Br (brs,a) ->
+    if (d <= 0) then
+      Ok (Br ((n,l)::brs,a))
+    else match brs with
+      | [] -> Fail "Depth overflow"
+      | (b,k)::bs ->
+        let* r = insert b (d-1) n l in 
+        Ok (Br ((r,k)::bs,a))
         
 (*****************************************************************************)
 (*                              Instances                                    *)
@@ -165,90 +162,10 @@ let rec join_pd d pd =
     let loop (b,_) = join_pd (d+1) b in
     let res = lmap loop brs in
     List.fold_left (merge d) p res 
-    
-(*****************************************************************************)
-(*                                  Examples                                 *)
-(*****************************************************************************)
 
 let rec disc n =
   if (n <= 0) then Br ([] , ())
   else Br ([disc (n-1),()], ())
 
-let obj = Br ([], "x")
-let arr = Br ([(Br ([],"f")), "y"],"x")
-
-let comp2 = Br ([(Br ([],"g")),"z";
-                 (Br ([],"f")),"y"],"x")
-
-let comp3 = Br ([(Br ([],"h")),"w";
-                 (Br ([],"g")),"z";
-                 (Br ([],"f")),"y"],"x")
-
-let vert2 = Br ([(Br ([(Br ([],"b"),"h");
-                       (Br ([],"a"),"g")],"f"),"y")],"x")
-
-let horiz2 = Br ([(Br ([(Br ([],"b"),"k")],"h"),"z");
-                  (Br ([(Br ([],"a"),"g")],"f"),"y")],"x")
-
-let ichg = Br ([(Br ([(Br ([],"d"),"k");
-                      (Br ([],"c"),"j")],"i"),"z");
-                (Br ([(Br ([],"b"),"h");
-                      (Br ([],"a"),"g")],"f"),"y")],"x")
-
-let vert2whiskl = Br ([(Br ([],"k"),"z");
-                       (Br ([(Br ([],"b"),"h");
-                             (Br ([],"a"),"g")],"f"),"y")],"x")
-
-let disc2 = Br ([(Br ([(Br ([],"a"),"g")],"f"),"y")],"x")
-
-
-let ichgmidwhisk = Br ([(Br ([(Br ([],"d"),"l");
-                              (Br ([],"c"),"k")],"j"),"w");
-                                         (Br ([],"i"),"z");                        
-                        (Br ([(Br ([],"b"),"h");
-                              (Br ([],"a"),"g")],"f"),"y")],"x")
-
 let blank pd = map_pd (fun _ -> ()) pd
 let subst pd sub = map_pd (fun id -> List.assoc id sub) pd    
-
-let example =
-  (subst comp2
-     [ ("x" , obj);
-       ("y" , obj);
-       ("z" , obj);
-       ("f" , comp2);
-       ("g" , comp2)
-     ])
-
-let example2 =
-  (subst vert2
-     [
-       ("x" , obj);
-       ("y" , obj);
-       ("f" , comp2);
-       ("g" , comp2);
-       ("h" , comp2);
-       ("a" , horiz2);
-       ("b" , horiz2)
-     ])
-
-let example3 =
-  (subst ichgmidwhisk
-     [
-       ("x", obj);
-       ("y", obj);
-       ("f", comp2);
-       ("g", comp2);
-       ("a", vert2whiskl);
-       ("h", comp2);
-       ("b", ichg);
-       ("z", obj);
-       ("i", comp3);
-       ("w", obj);
-       ("j", arr);
-       ("k", arr);
-       ("c", disc2);
-       ("l", arr);
-       ("d", vert2)
-     ])
-

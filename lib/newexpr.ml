@@ -4,7 +4,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-open Pd
+(* open Pd *)
 open Newterm
 
 type ty_expr =
@@ -55,52 +55,15 @@ and tc_expr_infer_tm tm =
 
   | DefAppE (_, _) -> tc_fail "unimplemented"
 
-  | CohE (_, _, _) -> tc_fail "unimplemented"
-
-(* First step: check that the context is indeed a pasting diagram ... *)
-
-and tc_expr_check_pd ctx =
-  match ctx with
-  | [] -> tc_fail "Empty context is not a pasting diagram"
-  | (id, ObjE) :: [] -> tc_ok (Br (id,[]), id, ObjT)            
-  | (_, _) :: [] -> tc_fail "Pasting diagram does not begin with an object"
-  | _ :: _ :: _ -> tc_fail "unimplemented"
-  (* | (fill_id, fill_typ) :: (tgt_id, tgt_typ) :: pd' -> 
-   *   
-   *   let* (res_pd, pid, ptyp) = tc_expr_check_pd pd' in
-   * 
-   *   
-   *   (\* checking here seems redundant: the type are completely forced
-   *    * by what comes before ... *\)
-   *   let* tgt_typ_tm = tc_in_ctx res_pd (tc_check_ty_expr tgt_typ) in
-   *   let* fill_typ_tm = tc_in_ctx ((tgt_id, tgt_typ_tm) :: res_pd)
-   *       (tc_check_ty_expr fill_typ)  in
-   *   
-   *   let cvars = List.map fst res_pd in 
-   *   let codim = (dim_of ptyp) - (dim_of tgt_typ_tm) in
-   *   let* (src_tm_tm, src_typ_tm) = tc_tgt_of (VarT pid) ptyp codim in
-   * 
-   *   let* _ = ensure (tgt_typ_tm = src_typ_tm)
-   *       (sprintf "Type error: %s =/= %s"
-   *          (print_ty_term tgt_typ_tm)
-   *          (print_ty_term src_typ_tm)) in
-   * 
-   *   let* _ = ensure (fill_typ_tm = ArrT (src_typ_tm, src_tm_tm, VarT tgt_id))
-   *       (sprintf "Type error: %s =/= %s"
-   *          (print_ty_term (ArrT (src_typ_tm, src_tm_tm, VarT tgt_id)))
-   *          (print_ty_term fill_typ_tm)) in
-   * 
-   *   let* _ = ensure (fill_id <> tgt_id)
-   *       (sprintf "Fill and target cell have the same identifier: %s" fill_id) in
-   * 
-   *   let* _ = ensure (not (List.mem fill_id cvars))
-   *       (sprintf "Filling identifier %s already exists" fill_id) in 
-   * 
-   *   let* _ = ensure (not (List.mem tgt_id cvars))
-   *       (sprintf "Target identifier %s already exists" tgt_id) in 
-   * 
-   *   tc_ok ((fill_id, fill_typ_tm) :: (tgt_id, tgt_typ_tm) :: res_pd, fill_id, fill_typ_tm) *)
-  
+  | CohE (tele,typ, _) ->
+    tc_expr_check_tele tele
+      (
+        let* ctx = tc_ctx in
+        let* (pd,_,_,_) = tc_lift (ctx_to_pd ctx) in
+        let* typ' = tc_expr_check_ty typ in
+        (* Still gotta check the substitution .... *)
+        tc_ok (CohT (pd,typ',[]), ObjT)
+      )
 
 (* run the computation m in the context given 
  * by the telescope, checking as one goes that
@@ -109,7 +72,7 @@ and tc_expr_check_tele tele m =
   match tele with
   | [] ->
     let* env = tc_env in
-    tc_with_env { gma = [] ; rho = env.rho ; tau = [] } m
+    tc_with_env { gma = [] ; rho = env.rho ; tau = [] } m 
   | (id,typ)::tele' ->
     tc_expr_check_tele tele'
       (let* typ' = tc_expr_check_ty typ in
