@@ -1,3 +1,10 @@
+(menhir
+  (infer false)
+  (modules parser))
+
+(ocamllex
+  (modules lexer))
+
 (library
  (name catt)
  (public_name catt)
