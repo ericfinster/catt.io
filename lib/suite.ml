@@ -38,7 +38,35 @@ let rec append s t =
 let rec join ss =
   match ss with
   | Emp -> Emp
-  | Ext (ss',s) -> append (join ss') s 
+  | Ext (ss',s) -> append (join ss') s
+
+let rec zip s t =
+  match (s,t) with
+  | (Emp,_) -> Emp
+  | (_,Emp) -> Emp
+  | (Ext (s',a), Ext (t',b)) ->
+    Ext (zip s' t', (a, b))
+
+let rec assoc k s =
+  match s with
+  | Emp -> raise Not_found
+  | Ext (s',(k',v)) ->
+    if (k = k') then v
+    else assoc k s'
+
+let singleton a = Ext (Emp, a)
+
+(* Extract de Brujin index from a suite *)
+let rec db_get i s =
+  match s with
+  | Emp -> raise Not_found
+  | Ext (s',x) ->
+    if (i <= 0) then x
+    else db_get (i-1) s'
+
+(*****************************************************************************)
+(*                                 Instances                                 *)
+(*****************************************************************************)
 
 open Cheshire.Monad
 open Cheshire.Applicative
@@ -49,7 +77,7 @@ module SuiteMonad = MakeMonad(struct
 
     let map = map
 
-    let pure a = Ext (Emp, a)
+    let pure = singleton 
 
     let rec bind s f =
       match s with
@@ -74,3 +102,17 @@ module SuiteTraverse(A : Applicative) = struct
       Ext (t,y)
         
   end
+
+(*****************************************************************************)
+(*                              Pretty Printing                              *)
+(*****************************************************************************)
+
+open Format
+    
+let rec pp_print_suite f ppf s =
+  match s with
+  | Emp -> fprintf ppf "Emp"
+  | Ext (s',a) ->
+    pp_print_suite f ppf s' ; 
+    fprintf ppf "@,|> %a" f a
+

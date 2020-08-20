@@ -4,53 +4,53 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-open Cheshire.Functor
-open Cheshire.Applicative
-
+open Suite
+    
 type 'a pd =
-  | Br of ('a pd * 'a) list * 'a 
-
-let lmap = List.map
+  | Br of 'a * ('a * 'a pd) suite
 
 let rec dim_pd pd =
   match pd with
-  | Br (brs,_) ->
-    let fold_fun d (b,_) = max d (dim_pd b) in 
-    1 + (List.fold_left fold_fun (-1) brs)
+  | Br (_,brs) ->
+    let f d (_,b) = max d (dim_pd b) in 
+    1 + fold_left f (-1) brs 
 
 (* Truncate to the provided dimension.  The boolean
    flag dir is true for the source direction, false
    for the target *)
-                    
-let rec chop dir d pd =
+
+let rec truncate dir d pd =
   match pd with
-  | Br (brs,a) ->
+  | Br (a, brs) ->
     if (d <= 0) then
       (
-        if dir then Br ([],a)
-        else let a' = List.fold_left (fun _ (_,y) -> y) a brs in 
-          Br ([],a')
+        if dir then Br (a, Emp)
+        else let a' = fold_left (fun _ (y,_) -> y) a brs in 
+          Br (a', Emp)
       )
-    else Br (lmap (fun (b,l) -> (chop dir (d-1) b , l)) brs, a)
+    else Br (a, map (fun (l,b) -> (l,truncate dir (d-1) b)) brs)
 
-open Cheshire.Err
-open ErrMonad.MonadSyntax
+(* open Cheshire.Err
+ * open ErrMonad.MonadSyntax
+ * 
+ * let rec insert pd d n l =
+ *   match pd with
+ *   | Br (brs,a) ->
+ *     if (d <= 0) then
+ *       Ok (Br ((n,l)::brs,a))
+ *     else match brs with
+ *       | [] -> Fail "Depth overflow"
+ *       | (b,k)::bs ->
+ *         let* r = insert b (d-1) n l in 
+ *         Ok (Br ((r,k)::bs,a)) *)
 
-let rec insert pd d n l =
-  match pd with
-  | Br (brs,a) ->
-    if (d <= 0) then
-      Ok (Br ((n,l)::brs,a))
-    else match brs with
-      | [] -> Fail "Depth overflow"
-      | (b,k)::bs ->
-        let* r = insert b (d-1) n l in 
-        Ok (Br ((r,k)::bs,a))
-        
 (*****************************************************************************)
 (*                              Instances                                    *)
 (*****************************************************************************)
-    
+
+open Cheshire.Functor
+open Cheshire.Applicative
+
 module PdFunctor : Functor with type 'a t := 'a pd =
   MakeFunctor(struct
 
@@ -58,9 +58,9 @@ module PdFunctor : Functor with type 'a t := 'a pd =
         
     let rec map f pd =
       match pd with
-      | Br (brs, a) ->
-        let loop (p, a) = (map f p, f a) in
-        Br (lmap loop brs, f a)
+      | Br (a, brs) ->
+        let fm (l, b) = (f l, map f b) in
+        Br (f a, Suite.map fm brs)
 
   end)
 
@@ -72,100 +72,161 @@ module PdTraverse(A : Applicative) = struct
   type 'a m = 'a A.t
 
   open A.ApplicativeSyntax
-        
-  open Cheshire.Listmnd
-  module LT = ListTraverse(A)
+
+  module ST = SuiteTraverse(A)
 
   let rec traverse f pd =
     match pd with
-    | Br (abrs,a) ->
-      let loop (p,l) =
+    | Br (a,abrs) ->
+      let tr (l,b) =
         let+ l' = f l
-        and+ p' = traverse f p
-        in (p',l') in 
+        and+ b' = traverse f b
+        in (l',b') in 
       let+ b = f a
-      and+ bbrs = LT.traverse loop abrs in
-      Br (bbrs,b)
+      and+ bbrs = ST.traverse tr abrs in
+      Br (b,bbrs)
         
 end
 
 (*****************************************************************************)
 (*                              Pretty Printing                              *)
 (*****************************************************************************)
-      
+
+
 open Format
 
-let rec pplist f ppf l = 
-  match l with
-  | [] -> ()
-  | x::[] -> fprintf ppf "%a" f x
-  | x::xs ->
-    fprintf ppf "%a@," f x ;
-    pplist f ppf xs
-
-let print_enclosed f ppf l =
-  pp_print_string ppf "[" ; 
-  pp_open_vbox ppf 0 ;
-  pplist f ppf l ;
-  pp_close_box ppf () ; 
-  pp_print_string ppf "]"
-
-let rec pp_print_pd ppf pd =
+let rec pp_print_pd f ppf pd =
   match pd with
-  | Br (brs,s) ->
-    fprintf ppf "Br (%a,%s)" (print_enclosed pp_print_branch) brs s 
-
-and pp_print_branch ppf (pd,s) =
-  fprintf ppf "(%a,%s)" pp_print_pd pd s
+  | Br (s,brs) ->
+    let ps ppf (l,b) = fprintf ppf "(%a, %a)" f l (pp_print_pd f) b in 
+    fprintf ppf "Br (%a, @[<v>%a@])" f s (pp_print_suite ps) brs
 
 let print_pd pd =
-  pp_print_pd std_formatter pd ;
+  pp_print_pd pp_print_string std_formatter pd ;
   pp_print_newline std_formatter
 
 (*****************************************************************************)
-(*                             Monadic Structure                             *)
+(*                      Substitution of Pasting Diagrams                     *)
 (*****************************************************************************)
 
-open Cheshire.Err
-open ErrMonad.MonadSyntax
-
-let rec match_zip_with f l l' =
-  match l,l' with
-  | [],[] -> Ok []
-  | (x::xs),(y::ys) ->
-    let* res = match_zip_with f xs ys in
-    Ok ((f x y)::res)
-  | _ -> Fail "Mismatch"
-
-let rec zip l l' =
-  match l,l' with
-  | [],_ -> []
-  | _,[] -> []
-  | (x::xs),(y::ys) ->
-    (x,y)::(zip xs ys)
-
-(* This version makes no well-typing checks ... *)
 let rec merge d p q =
   match p,q with
-  | Br (bas,_), Br (bbs,l) ->
+  | Br (_,bas), Br (l,bbs) ->
     if (d <= 0) then
-      Br (bas@bbs, l)
+      Br (l, append bas bbs)
     else
-      let loop ((p',_),(q',l)) = (merge (d-1) p' q', l) in 
-      let rbrs = lmap loop (zip bas bbs) in
-      Br (rbrs,l)
+      let mm ((_,p'),(l,q')) = (l,merge (d-1) p' q') in 
+      Br (l, map mm (zip bas bbs))
 
-(* Okay, here's a first guess ... *)
 let rec join_pd d pd =
   match pd with
-  | Br (brs,p) ->
-    let loop (b,_) = join_pd (d+1) b in
-    let res = lmap loop brs in
-    List.fold_left (merge d) p res 
+  | Br (p,brs) ->
+    let jr (_,b) = join_pd (d+1) b in
+    fold_left (merge d) p (map jr brs)
 
 let rec disc n =
-  if (n <= 0) then Br ([] , ())
-  else Br ([disc (n-1),()], ())
+  if (n <= 0) then Br ((), Emp)
+  else Br ((), Ext (Emp, ((), disc (n-1))))
 
 let blank pd = map_pd (fun _ -> ()) pd
-let subst pd sub = map_pd (fun id -> List.assoc id sub) pd    
+let subst pd sub = map_pd (fun id -> assoc id sub) pd
+
+(*****************************************************************************)
+(*                                  Examples                                 *)
+(*****************************************************************************)
+
+let obj = Br ("x", Emp)
+    
+let arr = Br ("x", Emp
+                   |> ("y", Br ("f", Emp)))
+
+let comp2 = Br ("x", Emp
+                     |> ("y", Br ("f", Emp))
+                     |> ("z", Br ("g", Emp)))
+    
+let comp3 = Br ("x", Emp
+                     |> ("y", Br ("f", Emp))
+                     |> ("z", Br ("g", Emp))
+                     |> ("w", Br ("h", Emp)))
+
+let vert2 = Br ("x", Emp
+                     |> ("y", Br ("f", Emp
+                                       |> ("g", Br ("a", Emp))
+                                       |> ("h", Br ("b", Emp)))))
+
+let horiz2 = Br ("x", Emp
+                      |> ("y", Br ("f", Emp
+                                        |> ("g", Br ("a", Emp))))
+                      |> ("z", Br ("h", Emp
+                                        |> ("k", Br ("a", Emp)))))
+
+let ichg = Br ("x", Emp
+                    |> ("y", Br ("f", Emp
+                                      |> ("g", Br ("a", Emp))
+                                      |> ("h", Br ("b", Emp))))
+                    |> ("z", Br ("i", Emp
+                                      |> ("j", Br ("c", Emp))
+                                      |> ("k", Br ("d", Emp)))))
+
+let vert2whiskl = Br ("x", Emp
+                           |> ("y", Br ("f", Emp
+                                             |> ("g", Br ("a", Emp))
+                                             |> ("h", Br ("b", Emp))))
+                           |> ("z", Br ("k", Emp)))
+
+let disc2 = Br ("x", Emp
+                     |> ("y", Br ("f", Emp
+                                       |> ("g", Br ("a", Emp)))))
+
+let ichgmidwhisk =  Br ("x", Emp
+                             |> ("y", Br ("f", Emp
+                                               |> ("g", Br ("a", Emp))
+                                               |> ("h", Br ("b", Emp))))
+                             |> ("z", Br ("i", Emp))
+                             |> ("w", Br ("j", Emp
+                                               |> ("k", Br ("c", Emp))
+                                               |> ("l", Br ("d", Emp)))))
+
+(*****************************************************************************)
+(*                           Substitution Examples                           *)
+(*****************************************************************************)
+    
+let example =
+  subst comp2
+    (Emp
+     |> ("x", obj)
+     |> ("y", obj)
+     |> ("z", obj)
+     |> ("f", comp2)
+     |> ("g", comp2))
+
+let example2 =
+  subst vert2
+    (Emp
+     |> ("x" , obj)
+     |> ("y" , obj)
+     |> ("f" , comp2)
+     |> ("g" , comp2)
+     |> ("h" , comp2)
+     |> ("a" , horiz2)
+     |> ("b" , horiz2))
+
+let example3 =
+  subst ichgmidwhisk
+    (Emp
+     |> ("x", obj)
+     |> ("y", obj)
+     |> ("f", comp2)
+     |> ("g", comp2)
+     |> ("a", vert2whiskl)
+     |> ("h", comp2)
+     |> ("b", ichg)
+     |> ("z", obj)
+     |> ("i", comp3)
+     |> ("w", obj)
+     |> ("j", arr)
+     |> ("k", arr)
+     |> ("c", disc2)
+     |> ("l", arr)
+     |> ("d", vert2))
+
