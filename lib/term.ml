@@ -9,7 +9,7 @@ open Suite
     
 open Cheshire.Err
 open Cheshire.Monad
-       
+
 (*****************************************************************************)
 (*                                   Terms                                   *)
 (*****************************************************************************)
@@ -21,7 +21,7 @@ type ty_term =
  and tm_term =
    | VarT of int
    | DefAppT of string * tm_term suite
-   | CohT of int pd * ty_term * tm_term suite
+   | CohT of tm_term pd * ty_term * tm_term suite
 
 let rec map_ty f ty =
   match ty with
@@ -71,57 +71,6 @@ let disc_pd ty tm =
   suspend_with ty (Br (tm, Emp))
 
 (*****************************************************************************)
-(*                             De Brujin Indices                             *)
-(*****************************************************************************)
-
-(* De Brujin Lifting *)
-let lift_tm tm k = map_tm ((+) k) tm
-let lift_ty ty k = map_ty ((+) k) ty
-
-(* Labels a given pasting diagram with 
- * its appropriate de Bruijn indices 
- *)
-    
-(* let rec to_db_run k pd =
- *   match pd with
- *   | Br (_,brs) ->
- *     let (k', brs') = to_db_brs k brs
- *     in (k'+1, Br (VarT k', brs'))
- *     
- * and to_db_brs k brs =
- *   match brs with
- *   | Emp -> (k,Emp)
- *   | Ext (bs,(_,b)) ->
- *     let (k', bs') = to_db_brs k bs in
- *     let (k'', b') = to_db_run k' b in 
- *     (k'' + 1, Ext (bs',(VarT k'', b')))
- * 
- * let to_db pd = snd (to_db_run 0 pd) *)
-
-(* Convert a pasting diagram to a context. *)
-let rec pd_to_ctx_br gma typ br =
-  match br with
-  | Br (_,brs) ->
-    let gma' = Ext (gma, typ) in
-    let typ' = lift_ty typ 1 in 
-    pd_to_ctx_brs gma' (VarT 0) typ' brs 
-
-and pd_to_ctx_brs gma src typ brs =
-  match brs with
-  | Emp -> (gma, src, typ)
-  | Ext (brs',(_,br)) ->
-    let (gma',src',typ') = pd_to_ctx_brs gma src typ brs' in
-    let br_gma = Ext (gma', typ') in 
-    let br_typ = ArrT (lift_ty typ' 1, lift_tm src' 1, VarT 0) in 
-    let (gma'',_,typ'') = pd_to_ctx_br br_gma br_typ br in
-    match typ'' with
-    | ObjT -> raise Not_found
-    | ArrT (bt,_,tgt) ->
-      (gma'', tgt, bt)
-
-let pd_to_ctx pd = let (rpd,_,_) = pd_to_ctx_br Emp ObjT pd in rpd 
-      
-(*****************************************************************************)
 (*                             Printing Raw Terms                            *)
 (*****************************************************************************)
 
@@ -144,7 +93,7 @@ and pp_print_tm ppf tm =
       id (pp_print_suite pp_print_tm) args
   | CohT (pd, typ, args) ->
     fprintf ppf "coh[%a : %a](%a)"
-      (pp_print_pd pp_print_int) pd
+      (pp_print_pd pp_print_tm) pd
       pp_print_ty typ
       (pp_print_suite pp_print_tm) args
 
@@ -157,6 +106,117 @@ let print_ty = pp_print_ty std_formatter
 let print_ctx gma =
   fprintf std_formatter "@[<v>%a@]"
     pp_print_ctx gma 
+
+(*****************************************************************************)
+(*                             De Brujin Indices                             *)
+(*****************************************************************************)
+
+(* De Brujin Lifting *)
+let lift_tm tm k = map_tm ((+) k) tm
+let lift_ty ty k = map_ty ((+) k) ty
+
+(* Labels a given pasting diagram with 
+ * its appropriate de Bruijn indices 
+ *)
+    
+let rec pd_to_db_br k pd =
+  match pd with
+  | Br (_,brs) ->
+    let (k', brs') = pd_to_db_brs k brs
+    in (k'+1, Br (VarT k', brs'))
+    
+and pd_to_db_brs k brs =
+  match brs with
+  | Emp -> (k,Emp)
+  | Ext (bs,(_,b)) ->
+    let (k', bs') = pd_to_db_brs k bs in
+    let (k'', b') = pd_to_db_br k' b in 
+    (k'' + 1, Ext (bs',(VarT k'', b')))
+
+let pd_to_db pd = snd (pd_to_db_br 0 pd)
+
+(*****************************************************************************)
+(*                         Context <-> Pd Conversion                         *)
+(*****************************************************************************)
+    
+(* Convert a pasting diagram to a context. *)
+let rec pd_to_ctx_br gma typ br =
+  match br with
+  | Br (_,brs) ->
+    let gma' = Ext (gma, typ) in
+    let typ' = lift_ty typ 1 in 
+    pd_to_ctx_brs gma' (VarT 0) typ' brs 
+
+and pd_to_ctx_brs gma src typ brs =
+  match brs with
+  | Emp -> (gma, src, typ)
+  | Ext (brs',(_,br)) ->
+    let (gma',src',typ') = pd_to_ctx_brs gma src typ brs' in
+    let br_gma = Ext (gma', typ') in 
+    let br_typ = ArrT (lift_ty typ' 1, lift_tm src' 1, VarT 0) in 
+    let (gma'',_,typ'') = pd_to_ctx_br br_gma br_typ br in
+    match typ'' with
+    | ObjT -> raise Not_found
+    | ArrT (bt,_,tgt) ->
+      (gma'', tgt, bt)
+
+let pd_to_ctx pd = let (rpd,_,_) = pd_to_ctx_br Emp ObjT pd in rpd 
+
+(* Try to convert a context to a pasting diagram *)
+let rec ctx_to_unit_pd gma =
+  let open ErrMonad.MonadSyntax in
+  match gma with
+  | Emp -> Fail "Empty context is not a pasting diagram"
+  | Ext (Emp, ObjT) -> Ok (Br ((),Emp), ObjT, VarT 0, 0)
+  | Ext (Emp, _) -> Fail "Pasting context does not begin with an object"
+  | Ext (Ext (gma', ttyp), ftyp) ->
+    let* (pd, styp, stm, dim) = ctx_to_unit_pd gma' in
+    let tdim = dim_typ ttyp in
+    let codim = dim - tdim in
+    let* (styp', stm') = nth_tgt codim styp stm in
+    
+    (* print_ctx gma;
+     * pp_print_newline std_formatter ();
+     * 
+     * fprintf std_formatter "@[<v>Dim: %d@,Target dim: %d@,Source type: %a@,Source term: %a@]"
+     *   dim tdim
+     *   pp_print_ty styp
+     *   pp_print_tm stm;
+     * pp_print_newline std_formatter ();
+     * 
+     * fprintf std_formatter "@[<v>Extracted Source type: %a@,Extracted Source term: %a@]"
+     *   pp_print_ty styp'
+     *   pp_print_tm stm';
+     * pp_print_newline std_formatter ();
+     * 
+     * pp_print_string std_formatter "************************";
+     * pp_print_newline std_formatter (); *)
+    
+    if (styp' <> ttyp) then
+      
+      let msg = fprintf str_formatter
+          "@[<v>Source and target types incompatible
+          @,Source: %a@,Target: %a@]"
+          pp_print_ty styp' pp_print_ty ttyp;
+        flush_str_formatter () in Fail msg
+
+    else let etyp = ArrT (lift_ty styp' 1, lift_tm stm' 1, VarT 0) in
+      if (ftyp <> etyp) then
+
+        let msg = fprintf str_formatter
+            "@[<v>Incorrect filling type.
+          @,Expected: %a@,Provided: %a@]"
+            pp_print_ty etyp
+            pp_print_ty ftyp;
+          flush_str_formatter () in Fail msg
+
+      else let* rpd = insert pd tdim () (Br ((), Emp)) in 
+        Ok (rpd, lift_ty ftyp 1, VarT 0, tdim+1)
+
+let ctx_to_pd gma =
+  let open ErrMonad.MonadSyntax in
+  let* (unit_pd,_,_,_) = ctx_to_unit_pd gma in
+  Ok (pd_to_db unit_pd)
 
 (*****************************************************************************)
 (*                                Substitution                               *)
@@ -311,31 +371,32 @@ and tc_infer_tm tm =
                       
   | CohT (pd, typ, sub) ->
     let pd_ctx = pd_to_ctx pd in
-    let pd_tm = map_pd (fun i -> VarT i) pd in 
-    let pd_dim = dim_pd pd in 
     let* typ' = tc_in_ctx pd_ctx
         (let* rtyp = tc_check_ty typ in
-         match rtyp with
-         | ObjT -> tc_fail "No coherences have object type."
-         | ArrT (btyp,src,tgt) -> 
-           let* src_pd = tc_term_pd src in
-           let* tgt_pd = tc_term_pd tgt in
-           let typ_dim = dim_typ btyp in
-           if (typ_dim >= pd_dim) then
-             let* _ = ensure (src_pd = pd_tm) ("Non-full source in coherence") in
-             let* _ = ensure (tgt_pd = pd_tm) ("Non-full target in coherence") in
-             tc_ok rtyp
-           else
-             let pd_src = truncate true (pd_dim - 1) pd_tm in
-             let pd_tgt = truncate false (pd_dim - 1) pd_tm in
-             let* _ = ensure (src_pd = pd_src) ("Non-full source in composite") in
-             let* _ = ensure (tgt_pd = pd_tgt) ("Non-full target in composite") in 
-             tc_ok rtyp
-        ) in
+         tc_check_is_full pd rtyp) in 
     (* Check the substitution and calculate the return type *)
     let* sub' = tc_check_args sub pd_ctx in
     tc_ok (CohT (pd, typ', sub'), subst_ty sub' typ')
 
+and tc_check_is_full pd typ =
+  let pd_dim = dim_pd pd in 
+  match typ with
+  | ObjT -> tc_fail "No coherences have object type."
+  | ArrT (btyp,src,tgt) -> 
+    let* src_pd = tc_term_pd src in
+    let* tgt_pd = tc_term_pd tgt in
+    let typ_dim = dim_typ btyp in
+    if (typ_dim >= pd_dim) then
+      let* _ = ensure (src_pd = pd) ("Non-full source in coherence") in
+      let* _ = ensure (tgt_pd = pd) ("Non-full target in coherence") in
+      tc_ok typ
+    else
+      let pd_src = truncate true (pd_dim - 1) pd in
+      let pd_tgt = truncate false (pd_dim - 1) pd in
+      let* _ = ensure (src_pd = pd_src) ("Non-full source in composite") in
+      let* _ = ensure (tgt_pd = pd_tgt) ("Non-full target in composite") in 
+      tc_ok typ
+    
 and tc_check_args sub gma =
   match (sub,gma) with
   | (Ext (_,_), Emp) -> tc_fail "Too many arguments!"
@@ -360,7 +421,10 @@ and tc_term_pd tm =
     tc_fail "Not unfolding ..."
   | CohT (pd, _, sub) -> 
     let* pd_sub = ST.traverse tc_term_pd sub in
-    let extract_pd i = tc_lift (err_lookup_var i pd_sub) in 
-    let* ppd = PdT.traverse extract_pd pd in
+    let extract_pd t =
+      match t with
+      | VarT i ->  tc_lift (err_lookup_var i pd_sub)
+      | _ -> tc_fail "Invalid term in pasting diagram"
+    in let* ppd = PdT.traverse extract_pd pd in
     tc_ok (join_pd 0 ppd)
 

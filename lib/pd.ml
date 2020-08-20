@@ -30,19 +30,18 @@ let rec truncate dir d pd =
       )
     else Br (a, map (fun (l,b) -> (l,truncate dir (d-1) b)) brs)
 
-(* open Cheshire.Err
- * open ErrMonad.MonadSyntax
- * 
- * let rec insert pd d n l =
- *   match pd with
- *   | Br (brs,a) ->
- *     if (d <= 0) then
- *       Ok (Br ((n,l)::brs,a))
- *     else match brs with
- *       | [] -> Fail "Depth overflow"
- *       | (b,k)::bs ->
- *         let* r = insert b (d-1) n l in 
- *         Ok (Br ((r,k)::bs,a)) *)
+let rec insert pd d lbl nbr =
+  let open Cheshire.Err in
+  let open ErrMonad.MonadSyntax in 
+  match pd with
+  | Br (a,brs) ->
+    if (d <= 0) then
+      Ok (Br (a, Ext(brs,(lbl,nbr))))
+    else match brs with
+      | Emp -> Fail "Depth overflow"
+      | Ext(bs,(b,br)) ->
+        let* rbr = insert br (d-1) lbl nbr in
+        Ok (Br (a,Ext(bs,(b,rbr))))
 
 (*****************************************************************************)
 (*                              Instances                                    *)

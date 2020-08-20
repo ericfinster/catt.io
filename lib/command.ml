@@ -25,8 +25,8 @@ let rec check_cmds cmds =
   match cmds with
   | [] -> tc_env 
   | (CellDef (id, _, _)) :: ds ->
-     printf "-----------------\n";
-     printf "Checking cell: %s\n" id;
+    printf "-----------------\n";
+    printf "Checking cell definition: %s\n" id;
      (* tc_check_cell_expr cell >>= fun cell_tm ->
       * printf "Ok!\n";
       * tc_with_cell id cell_tm (check_cmds ds) *)
