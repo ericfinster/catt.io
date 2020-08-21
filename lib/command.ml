@@ -7,34 +7,29 @@
 open Expr
 open Term
 
-open Printf
+open Format
 
 open TcMonad.MonadSyntax
        
 type cmd =
   | CellDef of string * tele * ty_expr
   | TermDef of string * tele * ty_expr * tm_expr
-               
-  (* | EqNf of tele * tm_expr * tm_expr
-   * | Prune of tele * tm_expr
-   * | Rectify of tele * tm_expr
-   * | Normalize of tele * tm_expr
-   * | LocMax of tele *)
 
 let rec check_cmds cmds =
   match cmds with
   | [] -> tc_env 
-  | (CellDef (id, _, _)) :: ds ->
-    printf "-----------------\n";
-    printf "Checking cell definition: %s\n" id;
-     (* tc_check_cell_expr cell >>= fun cell_tm ->
-      * printf "Ok!\n";
-      * tc_with_cell id cell_tm (check_cmds ds) *)
-     let* env = check_cmds ds in 
-     tc_ok env
+  | (CellDef (id, tele, typ)) :: ds ->
+    printf "-----------------@,";
+    printf "Checking cell definition: %s@," id;
+    printf "@[<hov>%a : %a@]@," pp_print_tele tele pp_print_expr_ty typ;
+    let* _ = expr_tc_check_coh tele typ in 
+    printf "Ok!@,";
+      (* tc_with_cell id cell_tm (check_cmds ds) *)
+    let* env = check_cmds ds in 
+    tc_ok env
   | (TermDef (id, _, _, _)) :: ds ->
-     printf "-----------------\n";
-     printf "Checking definition: %s\n" id;
+     printf "-----------------@,";
+     printf "Checking definition: %s@," id;
      (* tc_check_tele tele >>= fun g ->
       * printf "Valid telescope: %s\n" (print_term_ctx g);
       * tc_in_ctx g (tc_check_ty_expr typ) >>= fun typ_tm ->

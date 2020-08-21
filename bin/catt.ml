@@ -2,6 +2,8 @@
  * catt.ml - top level catt module
  *)
 
+open Format
+
 open Catt.Term
 open Catt.Command
        
@@ -16,8 +18,14 @@ let parse s =
   try
     Catt.Parser.prog Catt.Lexer.token lexbuf
   with
-  | Failure msg -> print_endline msg; exit (-1)
-  | Parsing.Parse_error -> print_endline "Parse error"; exit (-1)
+  | Failure msg ->
+    print_string msg;
+    print_newline ();
+    exit (-1)
+  | Parsing.Parse_error ->
+    print_string "Parse error";
+    print_newline ();
+    exit (-1)
 
 let parse_file f =
   let sin =
@@ -36,9 +44,10 @@ let rec tc_check_all files =
      (* let s = Node.Fs.readFileAsUtf8Sync f in *)
      let (impts, cmds) = parse_file f in
      let imprt_nms = List.map (fun fn -> fn ^ ".catt") impts in
-     let* env = tc_check_all imprt_nms in 
-     Printf.printf "-----------------\n";
-     Printf.printf "Processing input file: %s\n" f;
+     let* env = tc_check_all imprt_nms in
+     print_string "-----------------";
+     print_cut ();
+     printf "Processing input file: %s\n" f;
      let* env' = tc_with_env env (check_cmds cmds) in 
      tc_with_env env' (tc_check_all fs)
      
@@ -46,10 +55,15 @@ let () =
   let file_in = ref []
   in Arg.parse [] (fun s -> file_in := s::!file_in) usage;
      let files = List.rev (!file_in) in 
-     (* let files = List.tl (List.rev (!file_in)) in *)
+     open_vbox 0;
      match tc_check_all files empty_env with
-     | Ok _ -> print_endline "-----------------\nFinished"
-     | Fail msg -> Printf.printf "Typechecking error: %s\n" msg ; exit (-1)
-       
+     | Ok _ ->
+       printf "----------------@,Done";
+       print_newline ()
+     | Fail msg ->
+       print_string msg;
+       print_cut ();
+       print_string "----------------";
+       print_newline ()
      
 

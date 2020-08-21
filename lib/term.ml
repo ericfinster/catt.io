@@ -10,6 +10,8 @@ open Suite
 open Cheshire.Err
 open Cheshire.Monad
 
+open Format
+
 (*****************************************************************************)
 (*                                   Terms                                   *)
 (*****************************************************************************)
@@ -74,8 +76,6 @@ let disc_pd ty tm =
 (*                             Printing Raw Terms                            *)
 (*****************************************************************************)
 
-open Format
-
 let rec pp_print_ty ppf ty =
   match ty with
   | ObjT -> fprintf ppf "*"
@@ -129,9 +129,9 @@ and pd_to_db_brs k brs =
   match brs with
   | Emp -> (k,Emp)
   | Ext (bs,(_,b)) ->
-    let (k', bs') = pd_to_db_brs k bs in
-    let (k'', b') = pd_to_db_br k' b in 
-    (k'' + 1, Ext (bs',(VarT k'', b')))
+    let (k', b') = pd_to_db_br k b in 
+    let (k'', bs') = pd_to_db_brs (k'+1) bs in
+    (k'', Ext (bs',(VarT k', b')))
 
 let pd_to_db pd = snd (pd_to_db_br 0 pd)
 
@@ -379,7 +379,10 @@ and tc_infer_tm tm =
     tc_ok (CohT (pd, typ', sub'), subst_ty sub' typ')
 
 and tc_check_is_full pd typ =
-  let pd_dim = dim_pd pd in 
+  let pd_dim = dim_pd pd in
+  printf "Checking fullness@,";
+  printf "Pd: %a@," (pp_print_pd pp_print_tm) pd;
+  printf "Type: %a@," pp_print_ty typ;
   match typ with
   | ObjT -> tc_fail "No coherences have object type."
   | ArrT (btyp,src,tgt) -> 
@@ -387,12 +390,16 @@ and tc_check_is_full pd typ =
     let* tgt_pd = tc_term_pd tgt in
     let typ_dim = dim_typ btyp in
     if (typ_dim >= pd_dim) then
+      let _ = () in printf "Checking coherence@,";
       let* _ = ensure (src_pd = pd) ("Non-full source in coherence") in
       let* _ = ensure (tgt_pd = pd) ("Non-full target in coherence") in
       tc_ok typ
     else
+      let _ = () in printf "Checking composite@,";
       let pd_src = truncate true (pd_dim - 1) pd in
       let pd_tgt = truncate false (pd_dim - 1) pd in
+      printf "Source pd: %a@," (pp_print_pd pp_print_tm) pd_src;
+      printf "Target pd: %a@," (pp_print_pd pp_print_tm) pd_tgt;
       let* _ = ensure (src_pd = pd_src) ("Non-full source in composite") in
       let* _ = ensure (tgt_pd = pd_tgt) ("Non-full target in composite") in 
       tc_ok typ

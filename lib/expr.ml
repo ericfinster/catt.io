@@ -48,18 +48,22 @@ and pp_print_tele ppf tele =
   match tele with
   | Emp -> ()
   | Ext(tele',(id,ty)) ->
-    fprintf ppf "%a@, (%s , %a)"
+    fprintf ppf "%a(%s : %a)@ "
       pp_print_tele tele'
       id (pp_print_expr_ty) ty
 
-let expr_ty_str ty =
+let expr_ty_to_str ty =
   pp_print_expr_ty str_formatter ty;
   flush_str_formatter ()
 
-let expr_tm_str tm = 
+let expr_tm_to_str tm = 
   pp_print_expr_tm str_formatter tm;
   flush_str_formatter ()
 
+let expr_tele_to_str tele =
+  pp_print_tele str_formatter tele;
+  flush_str_formatter ()
+    
 (*****************************************************************************)
 (*                        Typechecking Raw Expressions                       *)
 (*****************************************************************************)
@@ -149,6 +153,7 @@ and expr_tc_check_coh tele typ =
   expr_tc_in_tele tele
     (let* typ' = expr_tc_check_ty typ in
      let* gma = tc_ctx in
+     printf "Telescope: %a@," pp_print_ctx gma;
      let* pd = tc_lift (ctx_to_pd gma) in
      let* _ = tc_check_is_full pd typ' in
      tc_ok (gma, pd, typ'))
