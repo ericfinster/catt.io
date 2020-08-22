@@ -47,6 +47,17 @@ let rec zip s t =
   | (Ext (s',a), Ext (t',b)) ->
     Ext (zip s' t', (a, b))
 
+let rec first s =
+  match s with
+  | Emp -> raise Not_found
+  | Ext (Emp,x) -> x
+  | Ext (s',_) -> first s'
+
+let last s =
+  match s with
+  | Emp -> raise Not_found
+  | Ext (_,x) -> x
+    
 let rec assoc k s =
   match s with
   | Emp -> raise Not_found
@@ -115,11 +126,15 @@ module SuiteTraverse(A : Applicative) = struct
 (*****************************************************************************)
 
 open Format
-    
-let rec pp_print_suite f ppf s =
-  match s with
-  | Emp -> fprintf ppf "Emp"
-  | Ext (s',a) ->
-    pp_print_suite f ppf s' ; 
-    fprintf ppf "@,|> %a" f a
 
+let rec pp_print_suite_custom emp sep f ppf s =
+  match s with
+  | Emp -> pp_print_string ppf emp
+  | Ext (s',a) ->
+    pp_print_suite_custom emp sep f ppf s'; 
+    fprintf ppf "@,%s %a" sep f a
+
+let pp_print_suite f ppf s =
+  pp_print_suite_custom "Emp" "|>" f ppf s
+
+  

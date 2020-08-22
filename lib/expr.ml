@@ -4,6 +4,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open Pd
 open Term
 open Suite
     
@@ -71,6 +72,9 @@ let expr_tele_to_str tele =
 open TcMonad
 open TcMonad.MonadSyntax
 
+module ST = SuiteTraverse(TcMonad)
+module SM = SuiteMonad
+  
 let rec expr_tc_check_ty typ = 
     
   match typ with
@@ -108,22 +112,30 @@ and expr_tc_infer_tm tm =
   
   | VarE id ->
     let* l = tc_id_to_level id in
-    (* let* d = tc_depth in
-     * let k = d - l - 1 in  *)
     let* typ = tc_lookup_var l in
 
-    printf "Looking up id: %s@," id;
-    printf "Result type: %a@," pp_print_ty typ;
+    (* printf "Looking up id: %s@," id;
+     * printf "Result type: %a@," pp_print_ty typ; *)
     
     tc_ok (VarT l, typ)
 
   | DefAppE (id, args) -> (
     let* def = tc_lookup_def id in
     match def with
-    | TCCellDef (pd,typ) -> 
-      let pd_ctx = pd_to_ctx pd in
-      let* args' = expr_tc_check_args args pd_ctx in
-      tc_ok (DefAppT (id, args'), subst_ty args' typ)
+    | TCCohDef (pd,typ) ->
+
+      (* printf "Extracted defined coherence: %s@," id; *)
+
+      let args_map = zip (leaves pd) args in
+      let* (_, arg_pd) = expr_pd_infer_args pd args_map in 
+      let args' = labels arg_pd in
+
+      (* printf "Inferred arguments:@,%a@," (pp_print_suite pp_print_tm) args'; *)
+
+      let* args'' = tc_check_args args' (pd_to_ctx pd) in 
+      
+      tc_ok (DefAppT (id, args''), subst_ty args'' typ)
+    
     | TCTermDef (gma, typ, _) -> 
       let* args' = expr_tc_check_args args gma in
       tc_ok (DefAppT (id, args'), subst_ty args' typ)
@@ -170,9 +182,26 @@ and expr_tc_check_coh tele typ =
   expr_tc_in_tele tele
     (let* typ' = expr_tc_check_ty typ in
      let* gma = tc_ctx in
-     printf "Telescope: %a@," pp_print_ctx gma;
+     (* printf "Telescope: %a@," pp_print_ctx gma; *)
      let* pd = tc_lift (ctx_to_pd gma) in
      let* _ = tc_check_is_full pd typ' in
      tc_ok (gma, pd, typ'))
 
-
+and expr_pd_infer_args pd args_map =
+  match pd with
+  | Br (l,Emp) ->
+    let arg = assoc l args_map in
+    let* (arg_tm, arg_typ) = expr_tc_infer_tm arg in 
+    tc_ok (arg_typ, Br (arg_tm,Emp))
+  | Br (_,brs) ->
+    let lcl (_,b) = 
+      let* (arg_typ, arg_br) = expr_pd_infer_args b args_map in
+      (match arg_typ with
+       | ObjT -> tc_fail "something"
+       | ArrT (typ,src,tgt) ->
+         tc_ok (typ,src,(tgt,arg_br))) in 
+    let* branch_results = ST.traverse lcl brs in
+    let (t,s,_) = first branch_results in
+    let branches = SM.map (fun (_,_,b) -> b) branch_results in
+    tc_ok (t, Br(s,branches))
+    

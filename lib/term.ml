@@ -90,12 +90,12 @@ and pp_print_tm ppf tm =
   | VarT i -> fprintf ppf "%d" i 
   | DefAppT (id, args) ->
     fprintf ppf "%s(%a)"
-      id (pp_print_suite pp_print_tm) args
+      id (pp_print_suite_custom "" "," pp_print_tm) args
   | CohT (pd, typ, args) ->
     fprintf ppf "coh[%a : %a](%a)"
       (pp_print_pd pp_print_tm) pd
       pp_print_ty typ
-      (pp_print_suite pp_print_tm) args
+      (pp_print_suite_custom "" "," pp_print_tm) args
 
 let pp_print_ctx ppf gma =
   pp_print_suite pp_print_ty ppf gma
@@ -256,7 +256,7 @@ and subst_tm sub tm =
 (*****************************************************************************)
 
 type tc_def =
-  | TCCellDef of unit pd * ty_term 
+  | TCCohDef of tm_term pd * ty_term 
   | TCTermDef of ty_term suite * ty_term * tm_term
 
 type tc_env = {
@@ -309,7 +309,9 @@ let tc_env env = Ok env
 let tc_with_env e m _ = m e
 let tc_lift m _ = m
 let tc_depth env = Ok (length env.gma)
-
+let tc_with_coh id pd typ m env =
+  m { env with rho = Ext (env.rho, (id , TCCohDef (pd,typ))) }
+      
 let err_lookup_var i l =
   try Ok (nth i l)
   with Not_found -> Fail (sprintf "Unknown index: %d" i)
@@ -372,7 +374,7 @@ and tc_infer_tm tm =
   | DefAppT (id, sub) -> (
     let* def = tc_lookup_def id in
     match def with
-    | TCCellDef (pd,typ) -> 
+    | TCCohDef (pd,typ) -> 
       let pd_ctx = pd_to_ctx pd in
       let* sub' = tc_check_args sub pd_ctx in
       tc_ok (DefAppT (id, sub'), subst_ty sub' typ)
@@ -394,7 +396,7 @@ and tc_check_is_full pd typ =
   let pd_dim = dim_pd pd in
   printf "Checking fullness@,";
   printf "Pd: %a@," (pp_print_pd pp_print_tm) pd;
-  printf "Type: %a@," pp_print_ty typ;
+  printf "Type: @[<hov>%a@]@," pp_print_ty typ;
   match typ with
   | ObjT -> tc_fail "No coherences have object type."
   | ArrT (btyp,src,tgt) -> 
@@ -410,8 +412,10 @@ and tc_check_is_full pd typ =
       let _ = () in printf "Checking composite@,";
       let pd_src = truncate true (pd_dim - 1) pd in
       let pd_tgt = truncate false (pd_dim - 1) pd in
-      printf "Source pd: %a@," (pp_print_pd pp_print_tm) pd_src;
-      printf "Target pd: %a@," (pp_print_pd pp_print_tm) pd_tgt;
+      printf "Expected source pd: %a@," (pp_print_pd pp_print_tm) pd_src;
+      printf "Provided source pd: %a@," (pp_print_pd pp_print_tm) src_pd;
+      printf "Expected target pd: %a@," (pp_print_pd pp_print_tm) pd_tgt;
+      printf "Provided target pd: %a@," (pp_print_pd pp_print_tm) tgt_pd;
       let* _ = ensure (src_pd = pd_src) ("Non-full source in composite") in
       let* _ = ensure (tgt_pd = pd_tgt) ("Non-full target in composite") in 
       tc_ok typ
@@ -436,8 +440,14 @@ and tc_term_pd tm =
   | VarT i -> 
     let* typ = tc_lookup_var i in
     tc_ok (disc_pd typ (VarT i))
-  | DefAppT (_ , _) ->
-    tc_fail "Not unfolding ..."
+  | DefAppT (id , args) -> (
+    let* def = tc_lookup_def id in
+    match def with
+    | TCCohDef (pd,typ) ->
+      tc_term_pd (CohT (pd,typ,args))
+    | TCTermDef (_, _, tm) ->
+      tc_term_pd (subst_tm args tm)
+  )    
   | CohT (pd, _, sub) -> 
     let* pd_sub = ST.traverse tc_term_pd sub in
     let extract_pd t =
@@ -445,5 +455,12 @@ and tc_term_pd tm =
       | VarT i ->  tc_lift (err_lookup_var i pd_sub)
       | _ -> tc_fail "Invalid term in pasting diagram"
     in let* ppd = PdT.traverse extract_pd pd in
+
+    printf "To Join: %a@," (pp_print_pd (pp_print_pd pp_print_tm)) ppd;
+
+    let jres = join_pd 0 ppd in
+
+    printf "Result: %a@," (pp_print_pd pp_print_tm) jres;
+    
     tc_ok (join_pd 0 ppd)
 

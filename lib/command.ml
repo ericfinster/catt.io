@@ -22,11 +22,11 @@ let rec check_cmds cmds =
     printf "-----------------@,";
     printf "Checking cell definition: %s@," id;
     printf "@[<hov>%a : %a@]@," pp_print_tele tele pp_print_expr_ty typ;
-    let* _ = expr_tc_check_coh tele typ in 
+    let* (_,pd,typ') = expr_tc_check_coh tele typ in 
     printf "Ok!@,";
-      (* tc_with_cell id cell_tm (check_cmds ds) *)
-    let* env = check_cmds ds in 
-    tc_ok env
+    tc_with_coh id pd typ' (check_cmds ds)
+    (* let* env = check_cmds ds in 
+     * tc_ok env *)
   | (TermDef (id, _, _, _)) :: ds ->
      printf "-----------------@,";
      printf "Checking definition: %s@," id;

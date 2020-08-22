@@ -43,6 +43,22 @@ let rec insert pd d lbl nbr =
         let* rbr = insert br (d-1) lbl nbr in
         Ok (Br (a,Ext(bs,(b,rbr))))
 
+let rec append_leaves pd lvs =
+  match pd with
+  | Br (l,Emp) -> Ext (lvs,l)
+  | Br (_,bs) -> 
+    let open Suite.SuiteMonad in
+    bs >>= (fun (_,b) -> leaves b)
+
+and leaves pd = append_leaves pd Emp
+
+let rec labels pd =
+  match pd with
+  | Br (l,brs) ->
+    let open Suite.SuiteMonad in
+    append (singleton l)
+      (brs >>= (fun (bl,b) -> append (singleton bl) (labels b)))
+
 (*****************************************************************************)
 (*                              Instances                                    *)
 (*****************************************************************************)
@@ -91,7 +107,6 @@ end
 (*                              Pretty Printing                              *)
 (*****************************************************************************)
 
-
 open Format
 
 let rec pp_print_pd f ppf pd =
@@ -110,11 +125,11 @@ let print_pd pd =
 
 let rec merge d p q =
   match p,q with
-  | Br (_,bas), Br (l,bbs) ->
+  | Br (l,bas), Br (_,bbs) ->
     if (d <= 0) then
       Br (l, append bas bbs)
     else
-      let mm ((_,p'),(l,q')) = (l,merge (d-1) p' q') in 
+      let mm ((l,p'),(_,q')) = (l,merge (d-1) p' q') in 
       Br (l, map mm (zip bas bbs))
 
 let rec join_pd d pd =
@@ -130,6 +145,23 @@ let rec disc n =
 let blank pd = map_pd (fun _ -> ()) pd
 let subst pd sub = map_pd (fun id -> assoc id sub) pd
 
+(* let comp2 = Br ("x", Emp
+ *                      |> ("y", Br ("f", Emp))
+ *                      |> ("z", Br ("g", Emp))) *)
+
+
+(* let example5 =
+ *   subst comp2
+ *     (Emp
+ *      |> ("x", mk_obj "x")
+ *      |> ("y", mk_obj "y")
+ *      |> ("f", mk_arr "x" "y" "f")
+ *      |> ("z", mk_obj "z")
+ *      |> ("g", mk_arr "y" "z" "g")) *)
+
+
+
+
 (*****************************************************************************)
 (*                                  Examples                                 *)
 (*****************************************************************************)
@@ -139,6 +171,10 @@ let obj = Br ("x", Emp)
 let arr = Br ("x", Emp
                    |> ("y", Br ("f", Emp)))
 
+let mk_obj x = Br (x, Emp)
+let mk_arr x y f = Br (x,Emp
+                         |> (y, Br (f, Emp)))
+                   
 let comp2 = Br ("x", Emp
                      |> ("y", Br ("f", Emp))
                      |> ("z", Br ("g", Emp)))
@@ -228,4 +264,21 @@ let example3 =
      |> ("c", disc2)
      |> ("l", arr)
      |> ("d", vert2))
+
+let example4 =
+  subst arr
+    (Emp
+     |> ("x", Br("x",Emp))
+     |> ("y", Br("z",Emp))
+     |> ("f", comp2))
+
+let example5 =
+  subst comp2
+    (Emp
+     |> ("x", mk_obj "x")
+     |> ("y", mk_obj "y")
+     |> ("f", mk_arr "x" "y" "f")
+     |> ("z", mk_obj "z")
+     |> ("g", mk_arr "y" "z" "g"))
+
 
