@@ -25,4 +25,19 @@ coh assoc (x : *)
 	  (z : *) (g : y -> z)
 	  (w : *) (h : z -> w)
   : comp(comp(f,g),h) -> comp(f,comp(g,h))
-  
+
+coh vert (x : *)
+         (y : *) (f : x -> y)
+	         (g : x -> y) (a : f -> g)
+		 (h : x -> y) (b : g -> h)
+  : f -> h
+
+coh ich (x : *)
+        (y : *) (f : x -> y)
+	        (g : x -> y) (a : f -> g)
+		(h : x -> y) (b : g -> h)
+	(z : *) (i : y -> z)
+	     	(j : y -> z) (c : i -> j)
+		(k : y -> z) (d : j -> k)
+  : horiz(vert(a,b),vert(c,d)) ->
+    vert(horiz(a,c),horiz(b,d))
