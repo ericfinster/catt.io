@@ -116,21 +116,21 @@ let lift_tm tm k = map_tm ((+) k) tm
 let lift_ty ty k = map_ty ((+) k) ty
 
 (* Labels a given pasting diagram with 
- * its appropriate de Bruijn indices 
+ * its appropriate de Bruijn levels
  *)
     
 let rec pd_to_db_br k pd =
   match pd with
   | Br (_,brs) ->
-    let (k', brs') = pd_to_db_brs k brs
-    in (k'+1, Br (VarT k', brs'))
+    let (k', brs') = pd_to_db_brs (k+1) brs
+    in (k', Br (VarT k, brs'))
     
 and pd_to_db_brs k brs =
   match brs with
   | Emp -> (k,Emp)
   | Ext (bs,(_,b)) ->
-    let (k', b') = pd_to_db_br k b in 
-    let (k'', bs') = pd_to_db_brs (k'+1) bs in
+    let (k', bs') = pd_to_db_brs k bs in
+    let (k'', b') = pd_to_db_br (k'+1) b in 
     (k'', Ext (bs',(VarT k', b')))
 
 let pd_to_db pd = snd (pd_to_db_br 0 pd)
@@ -140,39 +140,44 @@ let pd_to_db pd = snd (pd_to_db_br 0 pd)
 (*****************************************************************************)
     
 (* Convert a pasting diagram to a context. *)
-let rec pd_to_ctx_br gma typ br =
+let rec pd_to_ctx_br gma typ k br =
   match br with
   | Br (_,brs) ->
-    let gma' = Ext (gma, typ) in
-    let typ' = lift_ty typ 1 in 
-    pd_to_ctx_brs gma' (VarT 0) typ' brs 
+    pd_to_ctx_brs (Ext (gma, typ)) (VarT k) typ (k+1) brs 
 
-and pd_to_ctx_brs gma src typ brs =
+and pd_to_ctx_brs gma src typ k brs =
   match brs with
-  | Emp -> (gma, src, typ)
+  | Emp -> (gma, src, k, typ)
   | Ext (brs',(_,br)) ->
-    let (gma',src',typ') = pd_to_ctx_brs gma src typ brs' in
+    
+    let (gma',src',k',typ') = pd_to_ctx_brs gma src typ k brs' in
+    
     let br_gma = Ext (gma', typ') in 
-    let br_typ = ArrT (lift_ty typ' 1, lift_tm src' 1, VarT 0) in 
-    let (gma'',_,typ'') = pd_to_ctx_br br_gma br_typ br in
+    let br_typ = ArrT (typ', src', VarT k') in
+
+    let (gma'',_,k'',typ'') = pd_to_ctx_br br_gma br_typ (k'+1) br in
+    
     match typ'' with
     | ObjT -> raise Not_found
     | ArrT (bt,_,tgt) ->
-      (gma'', tgt, bt)
+      (gma'', tgt, k'', bt)
 
-let pd_to_ctx pd = let (rpd,_,_) = pd_to_ctx_br Emp ObjT pd in rpd 
+let pd_to_ctx pd = let (rpd,_,_,_) = pd_to_ctx_br Emp ObjT 0 pd in rpd 
 
 (* Try to convert a context to a pasting diagram *)
 let rec ctx_to_unit_pd gma =
   let open ErrMonad.MonadSyntax in
   match gma with
   | Emp -> Fail "Empty context is not a pasting diagram"
-  | Ext (Emp, ObjT) -> Ok (Br ((),Emp), ObjT, VarT 0, 0)
+  | Ext (Emp, ObjT) -> Ok (Br (VarT 0,Emp), ObjT, VarT 0, 0, 0)
   | Ext (Emp, _) -> Fail "Pasting context does not begin with an object"
   | Ext (Ext (gma', ttyp), ftyp) ->
-    let* (pd, styp, stm, dim) = ctx_to_unit_pd gma' in
+    
+    let* (pd, styp, stm, k, dim) = ctx_to_unit_pd gma' in
+    
     let tdim = dim_typ ttyp in
     let codim = dim - tdim in
+    
     let* (styp', stm') = nth_tgt codim styp stm in
     
     (* print_ctx gma;
@@ -194,29 +199,36 @@ let rec ctx_to_unit_pd gma =
     
     if (styp' <> ttyp) then
       
-      let msg = fprintf str_formatter
-          "@[<v>Source and target types incompatible
-          @,Source: %a@,Target: %a@]"
-          pp_print_ty styp' pp_print_ty ttyp;
-        flush_str_formatter () in Fail msg
+      let msg = asprintf 
+          "@[<v>Source and target types incompatible.
+              @,Source: %a
+              @,Target: %a@]"
+          pp_print_ty styp' pp_print_ty ttyp
+      in Fail msg
 
-    else let etyp = ArrT (lift_ty styp' 1, lift_tm stm' 1, VarT 0) in
+    else let etyp = ArrT (styp', stm', VarT (k+1)) in
       if (ftyp <> etyp) then
 
-        let msg = fprintf str_formatter
+        let msg = asprintf
             "@[<v>Incorrect filling type.
-          @,Expected: %a@,Provided: %a@]"
+                @,Expected: %a
+                @,Provided: %a@]"
             pp_print_ty etyp
-            pp_print_ty ftyp;
-          flush_str_formatter () in Fail msg
+            pp_print_ty ftyp
+        in Fail msg
 
-      else let* rpd = insert pd tdim () (Br ((), Emp)) in 
-        Ok (rpd, lift_ty ftyp 1, VarT 0, tdim+1)
+      else let* rpd = insert pd tdim (VarT (k+1)) (Br (VarT (k+2), Emp)) in 
+        Ok (rpd, ftyp, VarT (k+2), k+2, tdim+1)
 
 let ctx_to_pd gma =
   let open ErrMonad.MonadSyntax in
-  let* (unit_pd,_,_,_) = ctx_to_unit_pd gma in
+  let* (unit_pd,_,_,_,_) = ctx_to_unit_pd gma in
   Ok (pd_to_db unit_pd)
+
+(* let run_ctx_to_pd gma = 
+ *   match ctx_to_unit_pd gma with
+ *   | Ok (pd,_,_,_,_) -> printf "Well-formed!@,%a" (pp_print_pd pp_print_tm) pd
+ *   | Fail msg -> printf "Error: %s" msg *)
 
 (*****************************************************************************)
 (*                                Substitution                               *)
