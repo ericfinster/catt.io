@@ -68,7 +68,7 @@ let expr_tele_to_str tele =
 (*                        Typechecking Raw Expressions                       *)
 (*****************************************************************************)
 
-(* open TcMonad *)
+open TcMonad
 open TcMonad.MonadSyntax
 
 let rec expr_tc_check_ty typ = 
@@ -78,14 +78,28 @@ let rec expr_tc_check_ty typ =
   | ArrE (src, tgt) -> 
     let* (src_tm, src_ty) = expr_tc_infer_tm src in
     let* (tgt_tm, tgt_ty) = expr_tc_infer_tm tgt in
-    (* Add a proper message here ... *)
-    let* _ = tc_eq_nf_ty src_ty tgt_ty in
+
+    let* _ = catch (tc_eq_nf_ty src_ty tgt_ty) 
+
+      (fun _ -> let msg = asprintf "%a =/= %a when checking that %a is a valid type"
+                    pp_print_ty src_ty
+                    pp_print_ty tgt_ty
+                    pp_print_expr_ty typ
+        in tc_fail msg) in 
+    
     tc_ok (ArrT (src_ty, src_tm, tgt_tm))
 
 and expr_tc_check_tm tm ty =
   
   let* (tm', ty') = expr_tc_infer_tm tm in
-  let* _ = tc_eq_nf_ty ty ty' in
+  let* _ = catch (tc_eq_nf_ty ty ty')
+
+      (fun _ -> let msg = asprintf "%a =/= %a when inferring the type of %a"
+                    pp_print_ty ty
+                    pp_print_ty ty'
+                    pp_print_expr_tm tm
+        in tc_fail msg) in 
+
   (* Add a proper message here ... *)
   tc_ok tm'
   
@@ -98,6 +112,10 @@ and expr_tc_infer_tm tm =
     let* d = tc_depth in
     let k = d - l - 1 in 
     let* typ = tc_lookup_var k in
+
+    printf "Looking up id: %s@," id;
+    printf "Result type: %a@," pp_print_ty typ;
+    
     tc_ok (VarT k, typ)
 
   | DefAppE (id, args) -> (

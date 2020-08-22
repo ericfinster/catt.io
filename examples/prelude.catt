@@ -10,4 +10,10 @@ coh comp (x : *)
 	 (z : *) (g : y -> z)
   : x -> z
 
+coh horiz (x : *)
+    	  (y : *) (f : x -> y)
+	       	  (g : x -> y) (a : f -> g)
+	  (z : *) (h : y -> z)
+	          (k : y -> z) (b : h -> k)
+  : comp(f,h) -> comp(g,k)
 

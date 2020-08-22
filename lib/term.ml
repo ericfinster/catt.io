@@ -342,12 +342,12 @@ and tc_check_tm tm ty =
   let* (tm', ty') = tc_infer_tm tm in
   let* _ = catch (tc_eq_nf_ty ty ty')
 
-      (fun _ -> let msg = fprintf str_formatter "%a =/= %a when inferring the type of %a"
+      (fun _ -> let msg = asprintf "%a =/= %a when inferring the type of %a"
                     pp_print_ty ty
                     pp_print_ty ty'
-                    pp_print_tm tm ;
-                  flush_str_formatter () in tc_fail msg) in 
-      
+                    pp_print_tm tm
+        in tc_fail msg) in 
+  
   tc_ok tm'
 
 and tc_infer_tm tm =
