@@ -16,4 +16,13 @@ coh horiz (x : *)
 	  (z : *) (h : y -> z)
 	          (k : y -> z) (b : h -> k)
   : comp(f,h) -> comp(g,k)
+  
+coh unitl (x : *) (y : *) (f : x -> y)
+  : f -> comp(id(x),f)
 
+coh assoc (x : *)
+          (y : *) (f : x -> y)
+	  (z : *) (g : y -> z)
+	  (w : *) (h : z -> w)
+  : comp(comp(f,g),h) -> comp(f,comp(g,h))
+  

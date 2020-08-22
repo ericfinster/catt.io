@@ -127,14 +127,21 @@ module SuiteTraverse(A : Applicative) = struct
 
 open Format
 
-let rec pp_print_suite_custom emp sep f ppf s =
+let rec pp_print_suite_custom emp b sep f ppf s =
   match s with
   | Emp -> pp_print_string ppf emp
+  | Ext (Emp,a) ->
+    if b then 
+      fprintf ppf "%s@,%s%a" emp sep f a
+    else
+      fprintf ppf "%s@,%a" emp f a
   | Ext (s',a) ->
-    pp_print_suite_custom emp sep f ppf s'; 
-    fprintf ppf "@,%s %a" sep f a
+    pp_print_suite_custom emp b sep f ppf s'; 
+    fprintf ppf "@,%s%a" sep f a
 
 let pp_print_suite f ppf s =
-  pp_print_suite_custom "Emp" "|>" f ppf s
+  pp_print_suite_custom "Emp" true "|>" f ppf s
 
-  
+let pp_print_suite_horiz f ppf s =
+  pp_print_suite_custom "" false "," f ppf s
+    

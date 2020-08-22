@@ -38,12 +38,12 @@ and pp_print_expr_tm ppf tm =
   | VarE id -> fprintf ppf "%s" id
   | DefAppE (id, args) ->
     fprintf ppf "%s(%a)"
-      id (pp_print_suite pp_print_expr_tm) args
+      id (pp_print_suite_horiz pp_print_expr_tm) args
   | CohE (tele, typ, args) ->
     fprintf ppf "coh[%a : %a](%a)"
       (pp_print_tele) tele
       pp_print_expr_ty typ
-      (pp_print_suite pp_print_expr_tm) args
+      (pp_print_suite_horiz pp_print_expr_tm) args
 
 and pp_print_tele ppf tele =
   match tele with
