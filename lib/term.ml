@@ -245,7 +245,7 @@ let rec subst_ty sub ty =
 
 and subst_tm sub tm =
   match tm with
-  | VarT i -> db_get i sub 
+  | VarT i -> nth i sub 
   | DefAppT (id, args) ->
      DefAppT (id, map (subst_tm sub) args)
   | CohT (pd, typ, args) ->
@@ -311,7 +311,7 @@ let tc_lift m _ = m
 let tc_depth env = Ok (length env.gma)
 
 let err_lookup_var i l =
-  try Ok (db_get i l)
+  try Ok (nth i l)
   with Not_found -> Fail (sprintf "Unknown index: %d" i)
                       
 let tc_lookup_var i env =

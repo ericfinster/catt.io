@@ -100,7 +100,6 @@ and expr_tc_check_tm tm ty =
                     pp_print_expr_tm tm
         in tc_fail msg) in 
 
-  (* Add a proper message here ... *)
   tc_ok tm'
   
 and expr_tc_infer_tm tm = 
@@ -109,14 +108,14 @@ and expr_tc_infer_tm tm =
   
   | VarE id ->
     let* l = tc_id_to_level id in
-    let* d = tc_depth in
-    let k = d - l - 1 in 
-    let* typ = tc_lookup_var k in
+    (* let* d = tc_depth in
+     * let k = d - l - 1 in  *)
+    let* typ = tc_lookup_var l in
 
     printf "Looking up id: %s@," id;
     printf "Result type: %a@," pp_print_ty typ;
     
-    tc_ok (VarT k, typ)
+    tc_ok (VarT l, typ)
 
   | DefAppE (id, args) -> (
     let* def = tc_lookup_def id in

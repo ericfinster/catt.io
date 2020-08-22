@@ -64,6 +64,13 @@ let rec db_get i s =
     if (i <= 0) then x
     else db_get (i-1) s'
 
+(* Is there a version which doesn't traverse
+   twice? *)
+        
+let nth n s =
+  let l = length s in
+  db_get (l-n-1) s 
+    
 (*****************************************************************************)
 (*                                 Instances                                 *)
 (*****************************************************************************)
