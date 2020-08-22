@@ -394,9 +394,9 @@ and tc_infer_tm tm =
 
 and tc_check_is_full pd typ =
   let pd_dim = dim_pd pd in
-  printf "Checking fullness@,";
-  printf "Pd: %a@," (pp_print_pd pp_print_tm) pd;
-  printf "Type: @[<hov>%a@]@," pp_print_ty typ;
+  printf "Checking fullness...";
+  (* printf "Pd: %a@," (pp_print_pd pp_print_tm) pd;
+   * printf "Type: @[<hov>%a@]@," pp_print_ty typ; *)
   match typ with
   | ObjT -> tc_fail "No coherences have object type."
   | ArrT (btyp,src,tgt) -> 

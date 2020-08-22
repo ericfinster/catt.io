@@ -20,6 +20,9 @@ coh horiz (x : *)
 coh unitl (x : *) (y : *) (f : x -> y)
   : f -> comp(id(x),f)
 
+coh unitr (x : *) (y : *) (f : x -> y)
+  : comp(id(x), f) -> f
+  
 coh assoc (x : *)
           (y : *) (f : x -> y)
 	  (z : *) (g : y -> z)
@@ -41,3 +44,4 @@ coh ich (x : *)
 		(k : y -> z) (d : j -> k)
   : horiz(vert(a,b),vert(c,d)) ->
     vert(horiz(a,c),horiz(b,d))
+
