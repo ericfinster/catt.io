@@ -76,6 +76,42 @@ let zip_with_addr pd =
   zip_with_addr_lcl Emp pd
 
 (*****************************************************************************)
+(*                                   Zipper                                  *)
+(*****************************************************************************)
+
+type 'a pd_ctx = 'a * 'a * ('a * 'a pd) suite * ('a * 'a pd) list 
+type 'a pd_zip = 'a pd_ctx suite * 'a pd
+
+let visit d (ctx, fcs) =
+  match fcs with
+  | Br (s,brs) ->
+    let (l,(t,b),r) = open_at d brs in
+    (Ext (ctx,(s,t,l,r)), b)
+
+let rec seek addr pz =
+  match addr with
+  | Emp -> pz
+  | Ext(addr',d) ->
+    let pz' = seek addr' pz in
+    visit d pz'
+
+let rec pd_close (ctx, fcs) =
+  match ctx with
+  | Emp -> fcs
+  | Ext(ctx',(s,t,l,r)) ->
+    pd_close (ctx', Br (s, close (l,(t,fcs),r)))
+
+let pd_drop (ctx, _) =
+  match ctx with
+  | Emp -> raise Not_found
+  | Ext(ctx',(s,_,l,r)) ->
+    pd_close (ctx', Br(s, append_list l r))
+
+(* Now we can implement droping of a branch ... *)
+let drop_at addr pd =
+  pd_drop (seek addr pd)
+    
+(*****************************************************************************)
 (*                              Instances                                    *)
 (*****************************************************************************)
 
