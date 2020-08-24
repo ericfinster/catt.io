@@ -18,7 +18,6 @@ type cmd =
 let rec check_cmds cmds =
   match cmds with
   | [] -> tc_env 
-  (* | (CellDef (_, _, _)) :: _ -> tc_fail "dumb" *)
   | (CellDef (id, tele, typ)) :: ds -> 
     printf "-----------------@,";
     printf "Checking coh definition: %s@," id;
