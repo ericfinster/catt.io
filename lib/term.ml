@@ -309,9 +309,12 @@ let tc_env env = Ok env
 let tc_with_env e m _ = m e
 let tc_lift m _ = m
 let tc_depth env = Ok (length env.gma)
+    
 let tc_with_coh id pd typ m env =
-  m { env with rho = Ext (env.rho, (id , TCCohDef (pd,typ))) }
-      
+  m { env with rho = Ext (env.rho, (id, TCCohDef (pd,typ))) }
+let tc_with_let id gma ty tm m env =
+  m { env with rho = Ext (env.rho, (id, TCTermDef (gma,ty,tm))) }
+
 let err_lookup_var i l =
   try Ok (nth i l)
   with Not_found -> Fail (sprintf "Unknown index: %d" i)
@@ -336,8 +339,18 @@ let tc_eq_nf_ty tya tyb =
   then tc_ok ()
   else tc_fail "Type mismatch"
 
-module PdT = PdTraverse(TcMonad)
+module PdT = PdTraverse(ErrMonad)
 module ST = SuiteTraverse(TcMonad)
+
+(* map the given arguments into the 
+   pasting diagram *)
+    
+let args_to_pd pd args =
+  let get_arg t =
+    match t with
+    | VarT i -> err_lookup_var i args
+    | _ -> Fail "Invalid term in pasting diagram"
+  in PdT.traverse get_arg pd
 
 (*****************************************************************************)
 (*                                Typing Rules                               *)
@@ -450,16 +463,35 @@ and tc_term_pd tm =
   )    
   | CohT (pd, _, sub) -> 
     let* pd_sub = ST.traverse tc_term_pd sub in
-    let extract_pd t =
-      match t with
-      | VarT i ->  tc_lift (err_lookup_var i pd_sub)
-      | _ -> tc_fail "Invalid term in pasting diagram"
-    in let* ppd = PdT.traverse extract_pd pd in
-
+    let* ppd = tc_lift (args_to_pd pd pd_sub) in
     (* printf "To Join: %a@," (pp_print_pd (pp_print_pd pp_print_tm)) ppd; *)
-
-    (* let jres = join_pd 0 ppd in *)
+    let jres = join_pd 0 ppd in
     (* printf "Result: %a@," (pp_print_pd pp_print_tm) jres; *)
+    tc_ok jres 
     
-    tc_ok (join_pd 0 ppd)
+(*****************************************************************************)
+(*                         Strict Unit Normalization                         *)
+(*****************************************************************************)
+      
+let match_identity tm =
+  match tm with
+  | CohT (pd,typ,args) ->
+    let d = dim_pd pd in
+    let dsc_pd = pd_to_db (disc d) in
+    let gma = pd_to_ctx dsc_pd in
+    let id_typ = ArrT (last gma,VarT (2 * d),VarT (2 *d)) in
+    if (pd = dsc_pd && typ = id_typ) then
+      Ok (last args)
+    else
+      Fail "Not an identity"
+  (* perhaps you should unfold? *)
+  | _ -> Fail "Not an identity"
 
+
+(* let tc_prune_arg pd arg =
+ *   tc_fail ""
+ * 
+ * let tc_prune pd typ args =
+ *   let* pd_args = tc_lift (args_to_pd pd args) in
+ *   let lmax_args = leaves pd in
+ *   tc_fail "unimplemented" *)

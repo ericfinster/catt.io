@@ -160,8 +160,13 @@ and expr_tc_check_args sub gma =
 (* run the computation m in the context given 
  * by the telescope, checking as one goes that
  * the telescope is valid *)
+
+(* because this is only used once in this file, it is not given a
+   general enough type.  But it is used later in the command module.
+   Anyway to fix this? *)
       
-and expr_tc_in_tele tele m =
+and expr_tc_in_tele : 'a. tele -> 'a tcm -> 'a tcm = 
+  fun tele m -> 
   match tele with
   | Emp ->
     let* env = tc_env in
@@ -177,8 +182,8 @@ and expr_tc_in_tele tele m =
          tau = Ext (env.tau, (id,d))
        } in 
        tc_with_env env' m)
-    
-and expr_tc_check_coh tele typ =
+
+and expr_tc_check_coh tele typ = 
   expr_tc_in_tele tele
     (let* typ' = expr_tc_check_ty typ in
      let* gma = tc_ctx in

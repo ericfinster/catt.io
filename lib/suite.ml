@@ -47,6 +47,15 @@ let rec zip s t =
   | (Ext (s',a), Ext (t',b)) ->
     Ext (zip s' t', (a, b))
 
+let zip_with_idx s =
+  let rec zip_with_idx_pr s =
+    match s with
+    | Emp -> (Emp,0)
+    | Ext (s',x) ->
+      let (s'', i) = zip_with_idx_pr s' in
+      (Ext (s'',(i,x)), i+1)
+  in fst (zip_with_idx_pr s)
+    
 let rec first s =
   match s with
   | Emp -> raise Not_found

@@ -5,35 +5,63 @@
 coh id (x : *)
   : x -> x
 
-coh comp (x : *)
-    	 (y : *) (f : x -> y)
-	 (z : *) (g : y -> z)
+coh comp110 (x : *)
+    	    (y : *) (f : x -> y)
+	    (z : *) (g : y -> z)
   : x -> z
-
-coh horiz (x : *)
-    	  (y : *) (f : x -> y)
-	       	  (g : x -> y) (a : f -> g)
-	  (z : *) (h : y -> z)
-	          (k : y -> z) (b : h -> k)
-  : comp(f,h) -> comp(g,k)
   
-coh unitl (x : *) (y : *) (f : x -> y)
-  : f -> comp(id(x),f)
+coh unitl (x : *)
+          (y : *) (f : x -> y)
+  : f -> comp110(id(x),f)
 
-coh unitr (x : *) (y : *) (f : x -> y)
-  : comp(id(x), f) -> f
+coh unitr (x : *)
+          (y : *) (f : x -> y)
+  : comp110(id(x), f) -> f
   
 coh assoc (x : *)
           (y : *) (f : x -> y)
 	  (z : *) (g : y -> z)
 	  (w : *) (h : z -> w)
-  : comp(comp(f,g),h) -> comp(f,comp(g,h))
+  : comp110(comp110(f,g),h) -> comp110(f,comp110(g,h))
 
-coh vert (x : *)
-         (y : *) (f : x -> y)
-	         (g : x -> y) (a : f -> g)
-		 (h : x -> y) (b : g -> h)
+coh comp221 (x : *)
+            (y : *) (f : x -> y)
+	            (g : x -> y) (a : f -> g)
+	            (h : x -> y) (b : g -> h)
   : f -> h
+
+coh comp220 (x : *)
+            (y : *) (f : x -> y)
+	       	    (g : x -> y) (a : f -> g)
+	    (z : *) (h : y -> z)
+	            (k : y -> z) (b : h -> k)
+  : comp110(f,h) -> comp110(g,k)
+
+coh comp210 (x : *)
+            (y : *) (f : x -> y)
+	            (g : x -> y) (a : f -> g)
+            (z : *) (h : y -> z)
+  : comp110(f,h) -> comp110(g,h)
+
+coh comp120 (x : *)
+            (y : *) (f : x -> y)
+	    (z : *) (g : y -> z)
+	            (h : y -> z) (a : g -> h)
+  : comp110(f,g) -> comp110(f,h)
+
+coh swap3 (x : *)
+    	  (y : *) (f : x -> y)
+	       	  (g : x -> y) (a : f -> g)
+	  (z : *) (h : y -> z)
+	          (k : y -> z) (b : h -> k)
+  : comp221(comp210(a,h),comp120(g,b)) ->
+    comp221(comp120(f,b),comp210(a,k))
+
+let eh (x : *) (a : id(x) -> id(x))
+               (b : id(x) -> id(x))
+  : comp221(comp210(a,id(x)),comp120(id(x),b)) ->
+    comp221(comp120(id(x),b),comp210(a,id(x)))
+  = swap3(a,b)
 
 coh ich (x : *)
         (y : *) (f : x -> y)
@@ -42,6 +70,55 @@ coh ich (x : *)
 	(z : *) (i : y -> z)
 	     	(j : y -> z) (c : i -> j)
 		(k : y -> z) (d : j -> k)
-  : horiz(vert(a,b),vert(c,d)) ->
-    vert(horiz(a,c),horiz(b,d))
+  : comp220(comp221(a,b),comp221(c,d)) ->
+    comp221(comp220(a,c),comp220(b,d))
+
+coh comp330 (x : *)
+            (y : *) (f : x -> y)
+ 	            (g : x -> y) (a : f -> g)
+ 		                 (b : f -> g) (m : a -> b)
+            (z : *) (h : y -> z)
+	            (k : y -> z) (c : h -> k)
+		                 (d : h -> k) (n : c -> d)
+  : comp220(a,c) -> comp220(b,d)
+
+coh comp331 (x : *)
+            (y : *) (f : x -> y)
+	            (g : x -> y) (a : f -> g)
+		                 (b : f -> g) (m : a -> b)
+		    (h : x -> y) (c : g -> h)
+		                 (d : g -> h) (n : c -> d)
+  : comp221(a,c) -> comp221(b,d)
+
+coh comp332 (x : *)
+            (y : *) (f : x -> y)
+	            (g : x -> y) (a : f -> g)
+	   	                 (b : f -> g) (m : a -> b)
+		      		 (c : f -> g) (n : b -> c)
+  : a -> c
+
+coh comp321 (x : *)
+            (y : *) (f : x -> y)
+	            (g : x -> y) (a : f -> g)
+		                 (b : f -> g) (m : a -> b)
+		    (h : x -> y) (c : g -> h)
+  : comp221(a,c) -> comp221(b,c)		                 
+
+
+coh comp231 (x : *)
+            (y : *) (f : x -> y)
+	            (g : x -> y) (a : f -> g)
+		    (h : x -> y) (c : g -> h)
+		                 (d : g -> h) (n : c -> d)
+  : comp221(a,c) -> comp221(a,d)
+
+coh swap4 (u : *)
+          (v : *) (x : u -> v)
+    	          (y : u -> v) (f : x -> y)
+	                       (g : x -> y) (a : f -> g)
+	          (z : u -> v) (h : y -> z)
+	                       (k : y -> z) (b : h -> k)
+  : comp332(comp321(a,h),comp231(g,b)) ->
+    comp332(comp231(f,b),comp321(a,k))
+
 

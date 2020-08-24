@@ -59,6 +59,22 @@ let rec labels pd =
     append (singleton l)
       (brs >>= (fun (bl,b) -> append (singleton bl) (labels b)))
 
+(* The addresses of a source and target are
+   the same in this implementation. A more subtle
+   version would distinguish the two .... *)
+      
+let rec zip_with_addr_lcl addr pd =
+  match pd with
+  | Br (l,brs) ->
+    let brs' = map (fun (i,(x,b)) ->
+        let addr' = Ext (addr,i) in 
+        ((addr',x),zip_with_addr_lcl addr' b))
+        (zip_with_idx brs) in 
+    Br ((addr,l),brs')
+
+let zip_with_addr pd =
+  zip_with_addr_lcl Emp pd
+
 (*****************************************************************************)
 (*                              Instances                                    *)
 (*****************************************************************************)
@@ -144,20 +160,6 @@ let rec disc n =
 
 let blank pd = map_pd (fun _ -> ()) pd
 let subst pd sub = map_pd (fun id -> assoc id sub) pd
-
-(* let comp2 = Br ("x", Emp
- *                      |> ("y", Br ("f", Emp))
- *                      |> ("z", Br ("g", Emp))) *)
-
-
-(* let example5 =
- *   subst comp2
- *     (Emp
- *      |> ("x", mk_obj "x")
- *      |> ("y", mk_obj "y")
- *      |> ("f", mk_arr "x" "y" "f")
- *      |> ("z", mk_obj "z")
- *      |> ("g", mk_arr "y" "z" "g")) *)
 
 (*****************************************************************************)
 (*                                  Examples                                 *)
