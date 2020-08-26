@@ -83,7 +83,7 @@ let rec pp_print_ty ppf ty =
   match ty with
   | ObjT -> fprintf ppf "*"
   | ArrT (typ, src, tgt) ->
-    fprintf ppf "%a | %a -> %a"
+    fprintf ppf "%a | %a @,-> %a"
       pp_print_ty typ
       pp_print_tm src
       pp_print_tm tgt
@@ -383,133 +383,6 @@ and tc_unfold_tm tm =
     let* typ' = tc_unfold_ty typ in 
     tc_ok (CohT (pd,typ',sub'))
 
-let tc_normalize tm = tc_ok tm
-
-let tc_eq_nf_ty tya tyb =
-  let* tya_nf = tc_normalize tya in
-  let* tyb_nf = tc_normalize tyb in
-  if (tya_nf = tyb_nf)
-  then tc_ok ()
-  else tc_fail "Type mismatch"
-
-
-(*****************************************************************************)
-(*                                Typing Rules                               *)
-(*****************************************************************************)
-
-let rec tc_check_ty t = 
-  match t with
-  | ObjT -> tc_ok ObjT
-  | ArrT (typ, src, tgt) ->
-    let* typ' = tc_check_ty typ in
-    let* src' = tc_check_tm src typ' in
-    let* tgt' = tc_check_tm tgt typ' in
-    tc_ok (ArrT (typ', src', tgt'))
-
-and tc_check_tm tm ty =
-  let* (tm', ty') = tc_infer_tm tm in
-  let* _ = catch (tc_eq_nf_ty ty ty')
-
-      (fun _ -> let msg = asprintf "%a =/= %a when inferring the type of %a"
-                    pp_print_ty ty
-                    pp_print_ty ty'
-                    pp_print_tm tm
-        in tc_fail msg) in 
-  
-  tc_ok tm'
-
-and tc_infer_tm tm =
-  match tm with
-  
-  | VarT i ->
-    let* typ = tc_lookup_var i in
-    tc_ok (VarT i , typ)
-      
-  | DefAppT (id, sub) -> (
-    let* def = tc_lookup_def id in
-    match def with
-    | TCCohDef (pd,typ) -> 
-      let pd_ctx = pd_to_ctx pd in
-      let* sub' = tc_check_args sub pd_ctx in
-      tc_ok (DefAppT (id, sub'), subst_ty sub' typ)
-    | TCTermDef (ctx, typ, _) -> 
-      let* sub' = tc_check_args sub ctx in
-      tc_ok (DefAppT (id, sub'), subst_ty sub' typ)
-  )
-                      
-  | CohT (pd, typ, sub) ->
-    let pd_ctx = pd_to_ctx pd in
-    let* typ' = tc_in_ctx pd_ctx
-        (let* rtyp = tc_check_ty typ in
-         tc_check_is_full pd rtyp) in 
-    (* Check the substitution and calculate the return type *)
-    let* sub' = tc_check_args sub pd_ctx in
-    tc_ok (CohT (pd, typ', sub'), subst_ty sub' typ')
-
-and tc_check_is_full pd typ =
-  let pd_dim = dim_pd pd in
-  printf "Checking fullness...";
-  (* printf "Pd: %a@," (pp_print_pd pp_print_tm) pd;
-   * printf "Type: @[<hov>%a@]@," pp_print_ty typ; *)
-  match typ with
-  | ObjT -> tc_fail "No coherences have object type."
-  | ArrT (btyp,src,tgt) -> 
-    let* src_pd = tc_term_pd src in
-    let* tgt_pd = tc_term_pd tgt in
-    let typ_dim = dim_typ btyp in
-    if (typ_dim >= pd_dim) then
-      let _ = () in printf "Checking coherence@,";
-      let* _ = ensure (src_pd = pd) ("Non-full source in coherence") in
-      let* _ = ensure (tgt_pd = pd) ("Non-full target in coherence") in
-      tc_ok typ
-    else
-      let _ = () in printf "Checking composite@,";
-      let pd_src = truncate true (pd_dim - 1) pd in
-      let pd_tgt = truncate false (pd_dim - 1) pd in
-      (* printf "Expected source pd: %a@," (pp_print_pd pp_print_tm) pd_src;
-       * printf "Provided source pd: %a@," (pp_print_pd pp_print_tm) src_pd;
-       * printf "Expected target pd: %a@," (pp_print_pd pp_print_tm) pd_tgt;
-       * printf "Provided target pd: %a@," (pp_print_pd pp_print_tm) tgt_pd; *)
-      let* _ = ensure (src_pd = pd_src) ("Non-full source in composite") in
-      let* _ = ensure (tgt_pd = pd_tgt) ("Non-full target in composite") in 
-      tc_ok typ
-    
-and tc_check_args sub gma =
-  match (sub,gma) with
-  | (Ext (_,_), Emp) -> tc_fail "Too many arguments!"
-  | (Emp, Ext (_,_)) -> tc_fail "Not enough arguments!"
-  | (Emp, Emp) -> tc_ok Emp
-  | (Ext (sub',tm), Ext (gma',typ)) ->
-    let* rsub = tc_check_args sub' gma' in
-    let typ' = subst_ty rsub typ in
-    let* rtm = tc_check_tm tm typ' in
-    tc_ok (Ext (rsub, rtm))
-    
-(* Extract the pasting diagram of a well typed term.
- * Note that the term is assumed to be well typed in 
- * the current context *)
-      
-and tc_term_pd tm =
-  match tm with
-  | VarT i -> 
-    let* typ = tc_lookup_var i in
-    tc_ok (disc_pd typ (VarT i))
-  | DefAppT (id , args) -> (
-    let* def = tc_lookup_def id in
-    match def with
-    | TCCohDef (pd,typ) ->
-      tc_term_pd (CohT (pd,typ,args))
-    | TCTermDef (_, _, tm) ->
-      tc_term_pd (subst_tm args tm)
-  )    
-  | CohT (pd, _, sub) -> 
-    let* pd_sub = ST.traverse tc_term_pd sub in
-    let* ppd = tc_lift (args_to_pd pd pd_sub) in
-    (* printf "To Join: %a@," (pp_print_pd (pp_print_pd pp_print_tm)) ppd; *)
-    let jres = join_pd 0 ppd in
-    (* printf "Result: %a@," (pp_print_pd pp_print_tm) jres; *)
-    tc_ok jres 
-    
 (*****************************************************************************)
 (*                         Strict Unit Normalization                         *)
 (*****************************************************************************)
@@ -630,3 +503,202 @@ let rec prune pd typ args =
   | NothingPruned -> Ok (pd,typ,args)
   | PrunedData (pd',pi,args') ->
     prune pd' (subst_ty pi typ) args'
+
+let disc_cell k =
+  (pd_to_db (disc k), id_typ k)
+
+let disc_remove pd typ sub =
+  (* match tm with
+   * | VarT i -> Ok (VarT i)
+   * | CohT (pd, typ, sub) -> *)
+    if ((pd,typ) = disc_cell (dim_pd pd)) then
+      Ok (last sub)
+    else Ok (CohT (pd,typ,sub))
+  (* | _ -> Fail "unfold in disc remove" *)
+
+type endo_result =
+  | NoEndoReduction
+  | EndoReduced of tm_term
+
+let endo_coherence tm =
+  let nored = Ok NoEndoReduction in 
+  match tm with
+  | VarT _ -> nored
+  | CohT (_, ObjT, _) -> nored
+  | CohT (_, ArrT (btyp,src,tgt), sub) -> 
+    if (src = tgt) then
+      let src' = subst_tm sub src in
+      let typ' = subst_ty sub btyp in 
+      Ok (EndoReduced (identity_on typ' src'))
+    else nored
+  | _ -> Fail "Unfold in endo-coh"
+
+let rec strict_unit_normalize_ty ty =
+  match ty with
+  | ObjT -> tc_ok ObjT
+  | ArrT (typ,src,tgt) ->
+    let* typ' = strict_unit_normalize_ty typ in
+    let* src' = strict_unit_normalize_tm src in
+    let* tgt' = strict_unit_normalize_tm tgt in 
+    tc_ok (ArrT (typ',src',tgt'))
+
+and strict_unit_normalize_tm tm =
+  match tm with
+  | VarT i -> tc_ok (VarT i)
+  | DefAppT (id, sub) -> (
+    let* def = tc_lookup_def id in
+    match def with
+    | TCCohDef (pd,typ) ->
+      strict_unit_normalize_tm (CohT (pd,typ,sub))
+    | TCTermDef (_, _, tm) -> 
+      strict_unit_normalize_tm (subst_tm sub tm)
+  )
+  | CohT (pd,typ,sub) -> 
+    let* sub' = ST.traverse strict_unit_normalize_tm sub in
+    let* (ppd,ptyp,psub) = 
+      if (not (is_identity tm)) then
+        tc_lift (prune pd typ sub')
+      else tc_ok (pd,typ,sub') in 
+    let* ptyp' = strict_unit_normalize_ty ptyp in 
+    let* dtm = tc_lift (disc_remove ppd ptyp' psub) in
+    if (not (is_identity dtm)) then
+      let* er = tc_lift (endo_coherence tm) in
+      match er with
+      | NoEndoReduction -> tc_ok dtm
+      | EndoReduced tm' -> strict_unit_normalize_tm tm'
+    else tc_ok dtm 
+
+(*****************************************************************************)
+(*                           Toplevel Normalization                          *)
+(*****************************************************************************)
+
+let tc_normalize_tm tm =
+  strict_unit_normalize_tm tm 
+
+let tc_normalize_ty ty =
+  strict_unit_normalize_ty ty
+    
+let tc_eq_nf_ty tya tyb =
+  let* tya_nf = tc_normalize_ty tya in
+  let* tyb_nf = tc_normalize_ty tyb in
+  if (tya_nf = tyb_nf)
+  then tc_ok ()
+  else tc_fail "Type mismatch"
+
+(*****************************************************************************)
+(*                                Typing Rules                               *)
+(*****************************************************************************)
+
+let rec tc_check_ty t = 
+  match t with
+  | ObjT -> tc_ok ObjT
+  | ArrT (typ, src, tgt) ->
+    let* typ' = tc_check_ty typ in
+    let* src' = tc_check_tm src typ' in
+    let* tgt' = tc_check_tm tgt typ' in
+    tc_ok (ArrT (typ', src', tgt'))
+
+and tc_check_tm tm ty =
+  let* (tm', ty') = tc_infer_tm tm in
+  let* _ = catch (tc_eq_nf_ty ty ty')
+
+      (fun _ -> let msg = asprintf "%a =/= %a when inferring the type of %a"
+                    pp_print_ty ty
+                    pp_print_ty ty'
+                    pp_print_tm tm
+        in tc_fail msg) in 
+  
+  tc_ok tm'
+
+and tc_infer_tm tm =
+  match tm with
+  
+  | VarT i ->
+    let* typ = tc_lookup_var i in
+    tc_ok (VarT i , typ)
+      
+  | DefAppT (id, sub) -> (
+    let* def = tc_lookup_def id in
+    match def with
+    | TCCohDef (pd,typ) -> 
+      let pd_ctx = pd_to_ctx pd in
+      let* sub' = tc_check_args sub pd_ctx in
+      tc_ok (DefAppT (id, sub'), subst_ty sub' typ)
+    | TCTermDef (ctx, typ, _) -> 
+      let* sub' = tc_check_args sub ctx in
+      tc_ok (DefAppT (id, sub'), subst_ty sub' typ)
+  )
+                      
+  | CohT (pd, typ, sub) ->
+    let pd_ctx = pd_to_ctx pd in
+    let* typ' = tc_in_ctx pd_ctx
+        (let* rtyp = tc_check_ty typ in
+         tc_check_is_full pd rtyp) in 
+    (* Check the substitution and calculate the return type *)
+    let* sub' = tc_check_args sub pd_ctx in
+    tc_ok (CohT (pd, typ', sub'), subst_ty sub' typ')
+
+and tc_check_is_full pd typ =
+  let pd_dim = dim_pd pd in
+  printf "Checking fullness...";
+  (* printf "Pd: %a@," (pp_print_pd pp_print_tm) pd;
+   * printf "Type: @[<hov>%a@]@," pp_print_ty typ; *)
+  match typ with
+  | ObjT -> tc_fail "No coherences have object type."
+  | ArrT (btyp,src,tgt) -> 
+    let* src_pd = tc_term_pd src in
+    let* tgt_pd = tc_term_pd tgt in
+    let typ_dim = dim_typ btyp in
+    if (typ_dim >= pd_dim) then
+      let _ = () in printf "Checking coherence@,";
+      let* _ = ensure (src_pd = pd) ("Non-full source in coherence") in
+      let* _ = ensure (tgt_pd = pd) ("Non-full target in coherence") in
+      tc_ok typ
+    else
+      let _ = () in printf "Checking composite@,";
+      let pd_src = truncate true (pd_dim - 1) pd in
+      let pd_tgt = truncate false (pd_dim - 1) pd in
+      (* printf "Expected source pd: %a@," (pp_print_pd pp_print_tm) pd_src;
+       * printf "Provided source pd: %a@," (pp_print_pd pp_print_tm) src_pd;
+       * printf "Expected target pd: %a@," (pp_print_pd pp_print_tm) pd_tgt;
+       * printf "Provided target pd: %a@," (pp_print_pd pp_print_tm) tgt_pd; *)
+      let* _ = ensure (src_pd = pd_src) ("Non-full source in composite") in
+      let* _ = ensure (tgt_pd = pd_tgt) ("Non-full target in composite") in 
+      tc_ok typ
+    
+and tc_check_args sub gma =
+  match (sub,gma) with
+  | (Ext (_,_), Emp) -> tc_fail "Too many arguments!"
+  | (Emp, Ext (_,_)) -> tc_fail "Not enough arguments!"
+  | (Emp, Emp) -> tc_ok Emp
+  | (Ext (sub',tm), Ext (gma',typ)) ->
+    let* rsub = tc_check_args sub' gma' in
+    let typ' = subst_ty rsub typ in
+    let* rtm = tc_check_tm tm typ' in
+    tc_ok (Ext (rsub, rtm))
+    
+(* Extract the pasting diagram of a well typed term.
+ * Note that the term is assumed to be well typed in 
+ * the current context *)
+      
+and tc_term_pd tm =
+  match tm with
+  | VarT i -> 
+    let* typ = tc_lookup_var i in
+    tc_ok (disc_pd typ (VarT i))
+  | DefAppT (id , args) -> (
+    let* def = tc_lookup_def id in
+    match def with
+    | TCCohDef (pd,typ) ->
+      tc_term_pd (CohT (pd,typ,args))
+    | TCTermDef (_, _, tm) ->
+      tc_term_pd (subst_tm args tm)
+  )    
+  | CohT (pd, _, sub) -> 
+    let* pd_sub = ST.traverse tc_term_pd sub in
+    let* ppd = tc_lift (args_to_pd pd pd_sub) in
+    (* printf "To Join: %a@," (pp_print_pd (pp_print_pd pp_print_tm)) ppd; *)
+    let jres = join_pd 0 ppd in
+    (* printf "Result: %a@," (pp_print_pd pp_print_tm) jres; *)
+    tc_ok jres 
+    

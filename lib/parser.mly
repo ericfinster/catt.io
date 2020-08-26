@@ -7,8 +7,8 @@
 %} 
 
 %token IMPORT
-%token PRUNE 
-/* %token RECTIFY NORMALIZE */
+%token PRUNE NORMALIZE
+/* %token RECTIFY */
 /* %token EQNF LOCMAX */
 %token LET COH 
 %token OBJ ARROW 
@@ -39,6 +39,8 @@ cmd:
     { TermDef (id, tl, ty, tm) }
   | PRUNE tl = tele VBAR tm = tm_expr
     { Prune (tl, tm) }
+  | NORMALIZE tl = tele VBAR tm = tm_expr
+    { Normalize (tl, tm) }
 
   /* | EQNF ctx = var_decl+ VBAR tm_a = tm_expr VBAR tm_b = tm_expr */
   /*   { EqNf (List.rev ctx, tm_a, tm_b) } */

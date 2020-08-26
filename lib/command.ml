@@ -15,10 +15,13 @@ type cmd =
   | CellDef of string * tele * ty_expr
   | TermDef of string * tele * ty_expr * tm_expr
   | Prune of tele * tm_expr
+  | Normalize of tele * tm_expr
 
 let rec check_cmds cmds =
   match cmds with
-  | [] -> tc_env 
+  | [] -> tc_env
+
+
   | (CellDef (id, tele, typ)) :: ds -> 
     printf "-----------------@,";
     printf "Checking coh definition: %s@," id;
@@ -26,6 +29,8 @@ let rec check_cmds cmds =
     let* (_,pd,typ') = expr_tc_check_coh tele typ in 
     printf "Ok!@,";
     tc_with_coh id pd typ' (check_cmds ds)
+
+
   | (TermDef (id, tele, ty, tm)) :: ds -> 
     printf "-----------------@,";
     printf "Checking let definition: %s@," id;
@@ -36,6 +41,8 @@ let rec check_cmds cmds =
          tc_ok (gma,ty',tm')) in
     printf "Ok!@,";
     tc_with_let id gma ty' tm' (check_cmds ds)
+
+
   | (Prune (tele, tm)) :: ds ->
     printf "-----------------@,";
     printf "Pruning@,";
@@ -53,4 +60,17 @@ let rec check_cmds cmds =
            tc_ok ()) in 
     
     check_cmds ds
+
+
+  | (Normalize (tele, tm)) :: ds ->
+    printf "-----------------@,";
+    printf "Normalizing@,";
+    printf "Expr: @[<hov>%a@]@," pp_print_expr_tm tm; 
+    let* _ = expr_tc_in_tele tele
+        (let* (tm',_) = expr_tc_infer_tm tm in
+         let* tm_nf = tc_normalize_tm tm' in
+         printf "Normalized term:@,%a@," pp_print_tm tm_nf;
+         tc_ok ()) in 
+    check_cmds ds
+
 
