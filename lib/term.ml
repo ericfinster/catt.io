@@ -72,6 +72,9 @@ let rec suspend_with ty pd =
 let disc_pd ty tm =
   suspend_with ty (Br (tm, Emp))
 
+let disc_sub ty tm =
+  labels (disc_pd ty tm)
+
 (*****************************************************************************)
 (*                             Printing Raw Terms                            *)
 (*****************************************************************************)
@@ -89,10 +92,10 @@ and pp_print_tm ppf tm =
   match tm with
   | VarT i -> fprintf ppf "%d" i 
   | DefAppT (id, args) ->
-    fprintf ppf "%s(%a)"
+    fprintf ppf "@[<hov>%s(%a)@]"
       id (pp_print_suite_horiz pp_print_tm) args
   | CohT (pd, typ, args) ->
-    fprintf ppf "coh[%a : %a](%a)"
+    fprintf ppf "@[<hov>coh[%a @,: %a](%a)@]"
       (pp_print_pd pp_print_tm) pd
       pp_print_ty typ
       (pp_print_suite_horiz pp_print_tm) args
@@ -107,6 +110,16 @@ let print_ctx gma =
   fprintf std_formatter "@[<v>%a@]"
     pp_print_ctx gma 
 
+let pp_print_term_pd ppf pd =
+  pp_print_pd pp_print_tm ppf pd
+    
+let print_term_pd pd =
+  pp_print_term_pd std_formatter pd
+
+let pp_print_sub ppf sub =
+  fprintf ppf "@[<hov>(%a)@]"
+    (pp_print_suite_horiz pp_print_tm) sub
+    
 (*****************************************************************************)
 (*                             De Brujin Indices                             *)
 (*****************************************************************************)
@@ -330,15 +343,6 @@ let tc_id_to_level id env =
   try Ok (assoc id env.tau)
   with Not_found -> Fail (sprintf "Unknown variable identifier: %s" id)
 
-let tc_normalize tm = tc_ok tm
-
-let tc_eq_nf_ty tya tyb =
-  let* tya_nf = tc_normalize tya in
-  let* tyb_nf = tc_normalize tyb in
-  if (tya_nf = tyb_nf)
-  then tc_ok ()
-  else tc_fail "Type mismatch"
-
 module PdT = PdTraverse(ErrMonad)
 module ST = SuiteTraverse(TcMonad)
 
@@ -351,6 +355,43 @@ let args_to_pd pd args =
     | VarT i -> err_lookup_var i args
     | _ -> Fail "Invalid term in pasting diagram"
   in PdT.traverse get_arg pd
+
+let rec tc_unfold_ty ty =
+  match ty with
+  | ObjT -> tc_ok ObjT
+  | ArrT (typ,src,tgt) ->
+    let* typ' = tc_unfold_ty typ in
+    let* src' = tc_unfold_tm src in
+    let* tgt' = tc_unfold_tm tgt in
+    tc_ok (ArrT (typ',src',tgt'))
+    
+and tc_unfold_tm tm =
+  match tm with
+  | VarT i -> tc_ok (VarT i)
+  | DefAppT (id, sub) -> (
+    let* sub' = ST.traverse tc_unfold_tm sub in 
+    let* def = tc_lookup_def id in
+    match def with
+    | TCCohDef (pd,typ) ->
+      let* typ' = tc_unfold_ty typ in 
+      tc_ok (CohT (pd,typ',sub'))
+    | TCTermDef (_, _, tm) -> 
+      tc_ok (subst_tm sub' tm)
+  )
+  | CohT (pd,typ,sub) ->
+    let* sub' = ST.traverse tc_unfold_tm sub in
+    let* typ' = tc_unfold_ty typ in 
+    tc_ok (CohT (pd,typ',sub'))
+
+let tc_normalize tm = tc_ok tm
+
+let tc_eq_nf_ty tya tyb =
+  let* tya_nf = tc_normalize tya in
+  let* tyb_nf = tc_normalize tyb in
+  if (tya_nf = tyb_nf)
+  then tc_ok ()
+  else tc_fail "Type mismatch"
+
 
 (*****************************************************************************)
 (*                                Typing Rules                               *)
@@ -472,26 +513,120 @@ and tc_term_pd tm =
 (*****************************************************************************)
 (*                         Strict Unit Normalization                         *)
 (*****************************************************************************)
-      
+
+let rec id_typ k =
+  if (k <= 0) then ObjT else
+    ArrT (id_typ (k-1), VarT (2*k - 2), VarT (2*k - 1))
+
+let id_cell k =
+  (pd_to_db (disc k),
+   ArrT (id_typ k, VarT (2*k), VarT (2*k)))
+  
+let identity_on ty tm =
+  let (id_pd, id_ty) = id_cell (dim_typ ty) in
+  CohT (id_pd, id_ty, disc_sub ty tm)
+
+(* Extract the type of the current
+   focus in a pasting diagram context *)
+let rec ctx_typ ctx =
+  match ctx with
+  | Emp -> ObjT
+  | Ext (ctx',(s,t,_,_)) ->
+    ArrT (ctx_typ ctx', s, t)
+
+(* Not used currently ... *)
 let match_identity tm =
   match tm with
   | CohT (pd,typ,args) ->
-    let d = dim_pd pd in
-    let dsc_pd = pd_to_db (disc d) in
-    let gma = pd_to_ctx dsc_pd in
-    let id_typ = ArrT (last gma,VarT (2 * d),VarT (2 *d)) in
-    if (pd = dsc_pd && typ = id_typ) then
+    let (id_pd, id_ty) = id_cell (dim_pd pd) in
+    if (pd = id_pd && typ = id_ty) then
       Ok (last args)
     else
       Fail "Not an identity"
   (* perhaps you should unfold? *)
   | _ -> Fail "Not an identity"
 
+let is_identity tm =
+  (* printf "Checking if term is ident: %a@," pp_print_tm tm; *)
+  match tm with
+  | CohT (pd,typ,_) ->
+    (* let (id_pd,id_typ) = id_cell (dim_pd pd) in
+     * printf "Expected id cell: @[<hov>%a:%a@]@," pp_print_term_pd id_pd pp_print_ty id_typ; *)
+    (pd,typ)=(id_cell (dim_pd pd))
+  | _ -> false
 
-(* let tc_prune_arg pd arg =
- *   tc_fail ""
- * 
- * let tc_prune pd typ args =
- *   let* pd_args = tc_lift (args_to_pd pd args) in
- *   let lmax_args = leaves pd in
- *   tc_fail "unimplemented" *)
+let (>>==) = ErrMonad.(>>=)
+let (<||>) = ErrMonad.(<||>)
+
+type prune_result =
+  | NothingPruned
+  | PrunedData of (tm_term pd * tm_term suite * tm_term suite)
+
+(* Assumes we are at a leaf.  Finds the next
+   (moving right) leaf with a prunable term
+   or fails *)
+let rec next_prunable z =
+  (* printf "At leaf: %a@," pp_print_term_pd (snd z); *)
+  if (is_identity (label_of (snd z))) then Ok z
+  else leaf_right z >>==
+    next_prunable
+
+let prune_once pd =
+  let open ErrMonad.MonadSyntax in 
+  let* lz = to_leftmost_leaf (Emp,pd) in
+  match next_prunable lz with
+  | Fail _ -> Ok NothingPruned
+  | Ok pz ->
+
+    printf "Found a prunable argument: %a@," pp_print_tm (label_of (snd pz));
+    
+    let* (addr,dir) = (
+      match addr_of pz with
+      | Emp -> Fail "Invalid address during pruning"
+      | Ext(a,d) -> Ok (a,d)
+    ) in
+
+    (* printf "Address: %a@," pp_print_addr (Ext(addr,dir)); *)
+    
+    let* dz = pd_drop pz in
+    let pd' = pd_close dz in
+    let db_pd = pd_to_db pd' in
+
+    printf "New pasting diagram is: %a@," pp_print_term_pd db_pd;
+
+    let* (ctx,fcs) = seek addr (Emp, db_pd) in
+
+    (* printf "Seek has focus: %a@," pp_print_term_pd fcs; *)
+    
+    let* newfcs = 
+      (match fcs with
+       | Br (s,brs) ->
+         let id_ty = ctx_typ ctx in
+         let id_tm = identity_on id_ty s in 
+         let id_br = Br (id_tm, Emp) in
+         let (l,r) = split_at dir brs in
+         let src = (match l with
+           | Emp -> s
+           | Ext(_,(t,_)) -> t) in 
+         Ok (Br (s, append_list (Ext (l,(src,id_br))) r))) in
+
+    (* printf "Got new focus@,"; *)
+    
+    let pi_pd = pd_close (ctx, newfcs) in 
+
+    let pi = labels pi_pd in 
+    let sigma = labels pd' in
+
+    printf "pi: %a@," pp_print_sub pi;
+    printf "sigma: %a@," pp_print_sub sigma;
+    
+    Ok (PrunedData (db_pd, pi, sigma))
+
+let rec prune pd typ args =
+  let open ErrMonad.MonadSyntax in 
+  let* arg_pd = args_to_pd pd args in 
+  let* pr = prune_once arg_pd in
+  match pr with
+  | NothingPruned -> Ok (pd,typ,args)
+  | PrunedData (pd',pi,args') ->
+    prune pd' (subst_ty pi typ) args'

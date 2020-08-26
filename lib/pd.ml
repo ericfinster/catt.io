@@ -5,10 +5,15 @@
 (*****************************************************************************)
 
 open Suite
-    
+
 type 'a pd =
   | Br of 'a * ('a * 'a pd) suite
 
+let is_leaf pd = 
+  match pd with
+  | Br (_,Emp) -> true
+  | _ -> false
+    
 let rec dim_pd pd =
   match pd with
   | Br (_,brs) ->
@@ -30,6 +35,9 @@ let rec truncate dir d pd =
       )
     else Br (a, map (fun (l,b) -> (l,truncate dir (d-1) b)) brs)
 
+(* This could probably be integrated into 
+   the zipper routines below *)
+        
 let rec insert pd d lbl nbr =
   let open Cheshire.Err in
   let open ErrMonad.MonadSyntax in 
@@ -59,6 +67,14 @@ let rec labels pd =
     append (singleton l)
       (brs >>= (fun (bl,b) -> append (singleton bl) (labels b)))
 
+let label_of pd =
+  match pd with
+  | Br (a,_) -> a
+    
+let with_label a pd =
+  match pd with
+  | Br(_, brs) -> Br (a,brs)
+
 (* The addresses of a source and target are
    the same in this implementation. A more subtle
    version would distinguish the two .... *)
@@ -79,21 +95,30 @@ let zip_with_addr pd =
 (*                                   Zipper                                  *)
 (*****************************************************************************)
 
+open Cheshire.Err
+open ErrMonad.MonadSyntax
+       
 type 'a pd_ctx = 'a * 'a * ('a * 'a pd) suite * ('a * 'a pd) list 
 type 'a pd_zip = 'a pd_ctx suite * 'a pd
 
 let visit d (ctx, fcs) =
   match fcs with
   | Br (s,brs) ->
-    let (l,(t,b),r) = open_at d brs in
-    (Ext (ctx,(s,t,l,r)), b)
+    let* (l,(t,b),r) = open_at d brs in
+    Ok (Ext (ctx,(s,t,l,r)), b)
 
 let rec seek addr pz =
   match addr with
-  | Emp -> pz
+  | Emp -> Ok pz
   | Ext(addr',d) ->
-    let pz' = seek addr' pz in
+    let* pz' = seek addr' pz in
     visit d pz'
+
+let rec addr_of (ctx, fcs) =
+  match ctx with
+  | Emp -> Emp
+  | Ext(ctx',(s,t,l,r)) ->
+    Ext (addr_of (ctx', Br (s, close (l,(t,fcs),r))), length l)
 
 let rec pd_close (ctx, fcs) =
   match ctx with
@@ -103,14 +128,77 @@ let rec pd_close (ctx, fcs) =
 
 let pd_drop (ctx, _) =
   match ctx with
-  | Emp -> raise Not_found
+  | Emp -> Fail "Cannot drop root"
   | Ext(ctx',(s,_,l,r)) ->
-    pd_close (ctx', Br(s, append_list l r))
+    Ok (ctx', Br(s, append_list l r))
 
-(* Now we can implement droping of a branch ... *)
-let drop_at addr pd =
-  pd_drop (seek addr pd)
+let parent (ctx,fcs) =
+  match ctx with
+  | Emp -> Fail "No parent in empty context"
+  | Ext(ctx',(s,t,l,r)) ->
+    Ok (ctx', Br (s, close (l,(t,fcs),r)))
     
+let sibling_right (ctx,fcs) =
+  match ctx with
+  | Ext(ctx',(s,t,l,(t',fcs')::rs)) ->
+    Ok (Ext (ctx',(s,t',Ext (l,(t,fcs)),rs)), fcs')
+  | _ -> Fail "No right sibling"
+
+let sibling_left (ctx,fcs) =
+  match ctx with
+  | Ext(ctx',(s,t,Ext(l,(t',fcs')),r)) ->
+    Ok (Ext (ctx',(s,t',l,(t,fcs)::r)), fcs')
+  | _ -> Fail "No left sibling"
+
+let rec to_rightmost_leaf (ctx,fcs) =
+  match fcs with
+  | Br (_,Emp) -> Ok (ctx, fcs)
+  | Br (s,Ext(brs,(t,b))) ->
+    to_rightmost_leaf
+      (Ext (ctx,(s,t,brs,[])), b)
+
+let rec to_leftmost_leaf (ctx,fcs) =
+  match fcs with
+  | Br (_,Emp) -> Ok (ctx, fcs)
+  | Br (s,brs) ->
+    let* (_,(t,b),r) = open_leftmost brs in
+    to_leftmost_leaf
+      (Ext(ctx,(s,t,Emp,r)),b)
+
+let rec parent_sibling_left z =
+  let open ErrMonad in
+  sibling_left z <||>
+  (parent z >>= parent_sibling_left) <||>
+  Fail "No more left siblings"
+
+let rec parent_sibling_right z =
+  let open ErrMonad in
+  sibling_right z <||>
+  (parent z >>= parent_sibling_right) <||>
+  Fail "No more right siblings"
+
+let leaf_right z =
+  let open ErrMonad in 
+  parent_sibling_right z >>=
+  to_leftmost_leaf
+
+let leaf_left z =
+  let open ErrMonad in 
+  parent_sibling_left z >>=
+  to_rightmost_leaf
+
+let insert_at addr b pd =
+  match addr with
+  | Emp -> Fail "Empty address for insertion"
+  | Ext(base,dir) ->
+    let* (ctx, fcs) = seek base (Emp, pd) in 
+    let* newfcs =
+      (match fcs with
+       | Br (a,brs) ->
+         let* (l,br,r) = open_at dir brs in
+         Ok (Br (a, close (l,b,br::r)))) in
+    Ok (pd_close (ctx, newfcs))
+
 (*****************************************************************************)
 (*                              Instances                                    *)
 (*****************************************************************************)
@@ -171,6 +259,10 @@ let print_pd pd =
   pp_print_pd pp_print_string std_formatter pd ;
   pp_print_newline std_formatter
 
+let pp_print_addr ppf addr =
+  fprintf ppf "@[<hov>{%a}@]"
+    (pp_print_suite pp_print_int) addr
+
 (*****************************************************************************)
 (*                      Substitution of Pasting Diagrams                     *)
 (*****************************************************************************)
@@ -228,7 +320,7 @@ let horiz2 = Br ("x", Emp
                       |> ("y", Br ("f", Emp
                                         |> ("g", Br ("a", Emp))))
                       |> ("z", Br ("h", Emp
-                                        |> ("k", Br ("a", Emp)))))
+                                        |> ("k", Br ("b", Emp)))))
 
 let ichg = Br ("x", Emp
                     |> ("y", Br ("f", Emp

@@ -7,12 +7,13 @@
 %} 
 
 %token IMPORT
-/* %token PRUNE RECTIFY NORMALIZE */
+%token PRUNE 
+/* %token RECTIFY NORMALIZE */
 /* %token EQNF LOCMAX */
 %token LET COH 
 %token OBJ ARROW 
 %token LPAR RPAR LBRACKET RBRACKET
-%token COMMA COLON EQUAL 
+%token COMMA COLON EQUAL VBAR
 %token <string> IDENT 
 %token EOF
 
@@ -36,11 +37,11 @@ cmd:
     { CellDef (id, tl, ty) }
   | LET id = IDENT tl = tele COLON ty = ty_expr EQUAL tm = tm_expr
     { TermDef (id, tl, ty, tm) }
+  | PRUNE tl = tele VBAR tm = tm_expr
+    { Prune (tl, tm) }
 
   /* | EQNF ctx = var_decl+ VBAR tm_a = tm_expr VBAR tm_b = tm_expr */
   /*   { EqNf (List.rev ctx, tm_a, tm_b) } */
-  /* | PRUNE ctx = var_decl+ VBAR tm = tm_expr */
-  /*   { Prune (List.rev ctx, tm) } */
   /* | RECTIFY ctx = var_decl+ VBAR tm = tm_expr */
   /*   { Rectify (List.rev ctx, tm) } */
   /* | NORMALIZE ctx = var_decl+ VBAR tm = tm_expr */

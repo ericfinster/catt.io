@@ -66,7 +66,7 @@ let last s =
   match s with
   | Emp -> raise Not_found
   | Ext (_,x) -> x
-    
+
 let rec assoc k s =
   match s with
   | Emp -> raise Not_found
@@ -91,10 +91,24 @@ let nth n s =
   let l = length s in
   db_get (l-n-1) s 
 
+let rec grab k s =
+  if (k<=0) then (s,[]) else
+  let (s',r) = grab (k-1) s in
+  match s' with
+  | Emp -> raise Not_found
+  | Ext (s'',x) -> (s'',x::r)
+
+let split_at k s =
+  let d = length s in
+  grab (d-k) s 
+  
 (*****************************************************************************)
 (*                                   Zipper                                  *)
 (*****************************************************************************)
 
+open Cheshire.Err
+let (>>==) = ErrMonad.(>>=)
+               
 type 'a suite_zip = ('a suite * 'a * 'a list)
 
 let rec append_list s l =
@@ -105,41 +119,35 @@ let rec append_list s l =
 let close (l,a,r) =
   append_list (Ext(l,a)) r
 
-let rec grab k s =
-  if (k<=0) then (s,[]) else
-  let (s',r) = grab (k-1) s in
-  match s' with
-  | Emp -> raise Not_found
-  | Ext (s'',x) -> (s'', x::r)
-
 let open_rightmost s =
   match s with
-  | Emp -> raise Not_found
-  | Ext (s',a) -> (s',a,[])
+  | Emp -> Fail "Empty suite on open"
+  | Ext (s',a) -> Ok (s',a,[])
 
 let move_left (l,a,r) =
   match l with
-  | Emp -> raise Not_found
-  | Ext (l',a') -> (l',a',a::r)
+  | Emp -> Fail "No left element"
+  | Ext (l',a') -> Ok (l',a',a::r)
 
 let move_right (l,a,r) =
   match r with
-  | [] -> raise Not_found
-  | a'::r' -> (Ext (l,a),a',r')
+  | [] ->  Fail "No right element"
+  | a'::r' -> Ok (Ext (l,a),a',r')
 
 let rec move_left_n n z =
-  if (n<=0) then z else
-    move_left_n (n-1) (move_left z)
+  if (n<=0) then Ok z else
+    move_left z >>== move_left_n (n-1)
 
 let open_leftmost s =
   let n = length s in
-  move_left_n (n-1) (open_rightmost s)
+  open_rightmost s >>== move_left_n (n-1)
 
 let open_at k s =
   let l = length s in
-  if (k+1>l) then raise Not_found
-  else move_left_n (l-k-1) (open_rightmost s)
-    
+  if (k+1>l) then
+    Fail "Out of range"
+  else open_rightmost s >>== move_left_n (l-k-1)
+      
 (*****************************************************************************)
 (*                                 Instances                                 *)
 (*****************************************************************************)

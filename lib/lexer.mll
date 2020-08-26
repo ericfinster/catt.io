@@ -8,7 +8,8 @@ rule token = parse
 
   | "let"        { LET }
   | "coh"        { COH }
-  | "import"     { IMPORT } 
+  | "import"     { IMPORT }
+  | "prune"      { PRUNE }
   | "->"         { ARROW }
   | "*"          { OBJ }
   | "("          { LPAR }
@@ -18,6 +19,7 @@ rule token = parse
   | ":"          { COLON }
   | ","          { COMMA }
   | "="          { EQUAL }
+  | "|"          { VBAR }
 
   (* Identifiers *)
   | (['a'-'z''A'-'Z''0'-'9']['a'-'z''A'-'Z''0'-'9''_']* as str) { IDENT str }
