@@ -12,14 +12,13 @@ open Cheshire.Err
 open TcMonad.MonadSyntax
 
 let usage = "catt [options] [file]"
-let strict_units = ref false
 
 let enable_strict_units _ =
   printf "Using strictly unital normalization@,";
   norm_opt := StrictlyUnital
     
 let spec_list = [
-  ("-s", Arg.Unit enable_strict_units, "Enable strictly unital normalization")
+  ("-su", Arg.Unit enable_strict_units, "Enable strictly unital normalization")
 ]
 
 let parse s =
