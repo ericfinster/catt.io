@@ -268,6 +268,13 @@ and subst_tm sub tm =
 (*                             Typechecking Monad                            *)
 (*****************************************************************************)
 
+type normalization_type =
+  | None
+  | StrictlyUnital
+
+(* Global option, or part of type checking config? *)
+let norm_opt = ref None
+    
 type tc_def =
   | TCCohDef of tm_term pd * ty_term 
   | TCTermDef of ty_term suite * ty_term * tm_term
@@ -275,7 +282,7 @@ type tc_def =
 type tc_env = {
     gma : ty_term suite;
     rho : (string * tc_def) suite;
-    tau : (string * int) suite; 
+    tau : (string * int) suite;
   }
 
 let empty_env = { gma = Emp ; rho = Emp ; tau = Emp }
@@ -451,7 +458,7 @@ let prune_once pd =
   | Fail _ -> Ok NothingPruned
   | Ok pz ->
 
-    printf "Found a prunable argument: %a@," pp_print_tm (label_of (snd pz));
+    (* printf "Found a prunable argument: %a@," pp_print_tm (label_of (snd pz)); *)
     
     let* (addr,dir) = (
       match addr_of pz with
@@ -465,7 +472,7 @@ let prune_once pd =
     let pd' = pd_close dz in
     let db_pd = pd_to_db pd' in
 
-    printf "New pasting diagram is: %a@," pp_print_term_pd db_pd;
+    (* printf "New pasting diagram is: %a@," pp_print_term_pd db_pd; *)
 
     let* (ctx,fcs) = seek addr (Emp, db_pd) in
 
@@ -490,8 +497,8 @@ let prune_once pd =
     let pi = labels pi_pd in 
     let sigma = labels pd' in
 
-    printf "pi: %a@," pp_print_sub pi;
-    printf "sigma: %a@," pp_print_sub sigma;
+    (* printf "pi: %a@," pp_print_sub pi;
+     * printf "sigma: %a@," pp_print_sub sigma; *)
     
     Ok (PrunedData (db_pd, pi, sigma))
 
@@ -573,10 +580,14 @@ and strict_unit_normalize_tm tm =
 (*****************************************************************************)
 
 let tc_normalize_tm tm =
-  strict_unit_normalize_tm tm 
+  match !norm_opt with
+  | None -> tc_ok tm
+  | StrictlyUnital -> strict_unit_normalize_tm tm 
 
 let tc_normalize_ty ty =
-  strict_unit_normalize_ty ty
+  match !norm_opt with
+  | None -> tc_ok ty
+  | StrictlyUnital -> strict_unit_normalize_ty ty
     
 let tc_eq_nf_ty tya tyb =
   let* tya_nf = tc_normalize_ty tya in

@@ -1,3 +1,5 @@
+{-# OPTION --strict-units #-}
+
 #
 #  prelude.catt - some basic coherences
 #

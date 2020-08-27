@@ -12,6 +12,15 @@ open Cheshire.Err
 open TcMonad.MonadSyntax
 
 let usage = "catt [options] [file]"
+let strict_units = ref false
+
+let enable_strict_units _ =
+  printf "Using strictly unital normalization@,";
+  norm_opt := StrictlyUnital
+    
+let spec_list = [
+  ("-s", Arg.Unit enable_strict_units, "Enable strictly unital normalization")
+]
 
 let parse s =
   let lexbuf = Lexing.from_string s in
@@ -41,7 +50,6 @@ let rec tc_check_all files =
   match files with
   | [] -> tc_env
   | f::fs ->
-     (* let s = Node.Fs.readFileAsUtf8Sync f in *)
      let (impts, cmds) = parse_file f in
      let imprt_nms = List.map (fun fn -> fn ^ ".catt") impts in
      let* env = tc_check_all imprt_nms in
@@ -50,20 +58,20 @@ let rec tc_check_all files =
      printf "Processing input file: %s\n" f;
      let* env' = tc_with_env env (check_cmds cmds) in 
      tc_with_env env' (tc_check_all fs)
-     
+  
 let () =
-  let file_in = ref []
-  in Arg.parse [] (fun s -> file_in := s::!file_in) usage;
-     let files = List.rev (!file_in) in 
-     open_vbox 0;
-     match tc_check_all files empty_env with
-     | Ok _ ->
-       printf "----------------@,Done";
-       print_newline ()
-     | Fail msg ->
-       print_string msg;
-       print_cut ();
-       print_string "----------------";
-       print_newline ()
-     
+  let file_in = ref [] in 
+  open_vbox 0; (* initialize the pretty printer *)
+  Arg.parse spec_list (fun s -> file_in := s::!file_in) usage;
+  let files = List.rev (!file_in) in 
+  match tc_check_all files empty_env with
+  | Ok _ ->
+    printf "----------------@,Done";
+    print_newline ()
+  | Fail msg ->
+    print_string msg;
+    print_cut ();
+    print_string "----------------";
+    print_newline ()
+
 
