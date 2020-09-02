@@ -64,7 +64,30 @@ let expr_tm_to_str tm =
 let expr_tele_to_str tele =
   pp_print_tele str_formatter tele;
   flush_str_formatter ()
-    
+
+(*****************************************************************************)
+(*                            From Internal Terms                            *)
+(*****************************************************************************)
+
+let rec term_to_expr_ty ty =
+  match ty with
+  | ObjT -> ObjE
+  | ArrT (_,src,tgt) ->
+    ArrE (term_to_expr_tm src,
+          term_to_expr_tm tgt)
+
+and term_to_expr_tm tm =
+  let var_no i = Printf.sprintf "x%d" i in 
+  match tm with
+  | VarT i -> VarE (var_no i)
+  | DefAppT (id,args) ->
+    DefAppE (id,map term_to_expr_tm args)
+  | CohT (pd,typ,args) ->
+    CohE (map (fun (i,t) -> (var_no i, term_to_expr_ty t))
+            (zip_with_idx (pd_to_ctx pd)),
+          term_to_expr_ty typ,
+          map term_to_expr_tm args)
+  
 (*****************************************************************************)
 (*                        Typechecking Raw Expressions                       *)
 (*****************************************************************************)
@@ -96,15 +119,26 @@ let rec expr_tc_check_ty typ =
 and expr_tc_check_tm tm ty =
   
   let* (tm', ty') = expr_tc_infer_tm tm in
-  let* _ = catch (tc_eq_nf_ty ty ty')
-
-      (fun _ -> let msg = asprintf "%a =/= %a when inferring the type of %a"
-                    pp_print_ty ty
-                    pp_print_ty ty'
-                    pp_print_expr_tm tm
-        in tc_fail msg) in 
-
-  tc_ok tm'
+  
+  let* ty_nf = tc_normalize_ty ty in
+  let* ty_nf' = tc_normalize_ty ty' in 
+  if (ty_nf = ty_nf') then
+    tc_ok tm'
+  else let msg = asprintf "%a =/= %a (in nf) when inferring the type of %a"
+           pp_print_ty ty_nf
+           pp_print_ty ty_nf'
+           pp_print_expr_tm tm
+        in tc_fail msg
+  
+  (* let* _ = catch (tc_eq_nf_ty ty ty')
+   * 
+   *     (fun _ -> let msg = asprintf "%a =/= %a when inferring the type of %a"
+   *                   pp_print_ty ty
+   *                   pp_print_ty ty'
+   *                   pp_print_expr_tm tm
+   *       in tc_fail msg) in 
+   * 
+   * tc_ok tm' *)
   
 and expr_tc_infer_tm tm = 
 

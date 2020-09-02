@@ -69,7 +69,8 @@ let rec check_cmds cmds =
     let* _ = expr_tc_in_tele tele
         (let* (tm',_) = expr_tc_infer_tm tm in
          let* tm_nf = tc_normalize_tm tm' in
-         printf "Normalized term:@,%a@," pp_print_tm tm_nf;
+         let expr_nf = term_to_expr_tm tm_nf in 
+         printf "Normalized term:@,@[<hov>%a@]@," pp_print_expr_tm expr_nf;
          tc_ok ()) in 
     check_cmds ds
 

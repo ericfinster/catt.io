@@ -560,14 +560,14 @@ and strict_unit_normalize_tm tm =
     | TCTermDef (_, _, tm) -> 
       strict_unit_normalize_tm (subst_tm sub tm)
   )
-  | CohT (pd,typ,sub) -> 
+  | CohT (pd,typ,sub) ->
     let* sub' = ST.traverse strict_unit_normalize_tm sub in
     let* (ppd,ptyp,psub) = 
       if (not (is_identity tm)) then
         tc_lift (prune pd typ sub')
       else tc_ok (pd,typ,sub') in 
-    let* ptyp' = strict_unit_normalize_ty ptyp in 
-    let* dtm = tc_lift (disc_remove ppd ptyp' psub) in
+    let* typ' = strict_unit_normalize_ty ptyp in 
+    let* dtm = tc_lift (disc_remove ppd typ' psub) in
     if (not (is_identity dtm)) then
       let* er = tc_lift (endo_coherence tm) in
       match er with
@@ -611,8 +611,19 @@ let rec tc_check_ty t =
 
 and tc_check_tm tm ty =
   let* (tm', ty') = tc_infer_tm tm in
-  let* _ = catch (tc_eq_nf_ty ty ty')
 
+  (* let* ty_nf = tc_normalize_ty ty in
+   * let* ty_nf' = tc_normalize_ty ty' in 
+   * if (ty_nf = ty_nf') then
+   *   tc_ok tm'
+   * else let msg = asprintf "%a =/= %a (in nf) when inferring the type of %a"
+   *          pp_print_ty ty_nf
+   *          pp_print_ty ty_nf'
+   *          pp_print_tm tm
+   *       in tc_fail msg *)
+  
+  let* _ = catch (tc_eq_nf_ty ty ty')
+  
       (fun _ -> let msg = asprintf "%a =/= %a when inferring the type of %a"
                     pp_print_ty ty
                     pp_print_ty ty'

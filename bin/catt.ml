@@ -68,6 +68,7 @@ let () =
     printf "----------------@,Done";
     print_newline ()
   | Fail msg ->
+    print_string "Failure:@,";
     print_string msg;
     print_cut ();
     print_string "----------------";
