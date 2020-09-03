@@ -1,0 +1,54 @@
+###########################################################
+#
+#  eh-ichg.catt - Eckmann-Hilton using interchangers
+#
+###########################################################
+
+import prelude
+
+coh ichg
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+    (z : *) (i : y -> z)
+            (j : y -> z) (c : i -> j)
+            (k : y -> z) (d : j -> k)
+  : comp221(comp220(a,c),comp220(b,d)) ->
+    comp220(comp221(a,b),comp221(c,d))
+    
+coh ichg_inv
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+    (z : *) (i : y -> z)
+            (j : y -> z) (c : i -> j)
+            (k : y -> z) (d : j -> k)
+  : comp220(comp221(a,b),comp221(c,d)) ->
+    comp221(comp220(a,c),comp220(b,d)) 
+
+let vert_to_horiz
+    (x : *)
+    (a : id(x) -> id(x))
+    (b : id(x) -> id(x))
+  : comp221(a,b) -> comp220(a,b)
+  = ichg(a,id1(id(x)),id1(id(x)),b)
+
+let horiz_to_vert
+    (x : *)
+    (a : id(x) -> id(x))
+    (b : id(x) -> id(x))
+  : comp220(a,b) -> comp221(b,a)
+  = ichg_inv(id1(id(x)),a,b,id1(id(x)))
+  
+let eh
+    (x : *)
+    (a : id(x) -> id(x))
+    (b : id(x) -> id(x))
+  : comp221(a,b) -> comp221(b,a)
+  = comp332(
+      vert_to_horiz(x,a,b),
+      horiz_to_vert(x,a,b)
+    )
+      
