@@ -7,6 +7,12 @@
 open Pd
 open Term
 open Suite
+
+open Format
+
+(*****************************************************************************)
+(*                                Expressions                                *)
+(*****************************************************************************)
     
 type ty_expr =
   | ObjE
@@ -20,11 +26,9 @@ type ty_expr =
  and tele = (string * ty_expr) suite
 
 (*****************************************************************************)
-(*                             Printing Raw Terms                            *)
+(*                            Printing Expressions                           *)
 (*****************************************************************************)
-
-open Format
-
+     
 let rec pp_print_expr_ty ppf ty =
   match ty with
   | ObjE -> fprintf ppf "*"
@@ -92,159 +96,3 @@ and term_to_expr_tm tm =
           term_to_expr_ty typ,
           map term_to_expr_tm args')
   
-(*****************************************************************************)
-(*                        Typechecking Raw Expressions                       *)
-(*****************************************************************************)
-
-open TcMonad
-open TcMonad.MonadSyntax
-
-module ST = SuiteTraverse(TcMonad)
-module SM = SuiteMonad
-  
-let rec expr_tc_check_ty typ = 
-    
-  match typ with
-  | ObjE -> tc_ok ObjT
-  | ArrE (src, tgt) -> 
-    let* (src_tm, src_ty) = expr_tc_infer_tm src in
-    let* (tgt_tm, tgt_ty) = expr_tc_infer_tm tgt in
-
-    let* _ = catch (tc_eq_nf_ty src_ty tgt_ty) 
-
-      (fun _ -> let msg = asprintf "%a =/= %a when checking that %a is a valid type"
-                    pp_print_ty src_ty
-                    pp_print_ty tgt_ty
-                    pp_print_expr_ty typ
-        in tc_fail msg) in 
-    
-    tc_ok (ArrT (src_ty, src_tm, tgt_tm))
-
-and expr_tc_check_tm tm ty =
-  
-  let* (tm', ty') = expr_tc_infer_tm tm in
-  
-  let* ty_nf = tc_normalize_ty ty in
-  let* ty_nf' = tc_normalize_ty ty' in 
-  if (ty_nf = ty_nf') then
-    tc_ok tm'
-  else let msg = asprintf "%a =/= %a (in nf) when inferring the type of %a"
-           pp_print_ty ty_nf
-           pp_print_ty ty_nf'
-           pp_print_expr_tm tm
-        in tc_fail msg
-  
-  (* let* _ = catch (tc_eq_nf_ty ty ty')
-   * 
-   *     (fun _ -> let msg = asprintf "%a =/= %a when inferring the type of %a"
-   *                   pp_print_ty ty
-   *                   pp_print_ty ty'
-   *                   pp_print_expr_tm tm
-   *       in tc_fail msg) in 
-   * 
-   * tc_ok tm' *)
-  
-and expr_tc_infer_tm tm = 
-
-  match tm with
-  
-  | VarE id ->
-    let* l = tc_id_to_level id in
-    let* typ = tc_lookup_var l in
-
-    (* printf "Looking up id: %s@," id;
-     * printf "Result type: %a@," pp_print_ty typ; *)
-    
-    tc_ok (VarT l, typ)
-
-  | DefAppE (id, args) -> (
-    let* def = tc_lookup_def id in
-    match def with
-    | TCCohDef (pd,typ) ->
-
-      (* printf "Extracted defined coherence: %s@," id; *)
-
-      let args_map = zip (leaves pd) args in
-      let* (_, arg_pd) = expr_pd_infer_args pd args_map in 
-      let args' = labels arg_pd in
-
-      (* printf "Inferred arguments:@,%a@," (pp_print_suite pp_print_tm) args'; *)
-
-      let* args'' = tc_check_args args' (pd_to_ctx pd) in 
-      
-      tc_ok (DefAppT (id, args''), subst_ty args'' typ)
-    
-    | TCTermDef (gma, typ, _) -> 
-      let* args' = expr_tc_check_args args gma in
-      tc_ok (DefAppT (id, args'), subst_ty args' typ)
-  )
-
-  | CohE (tele, typ, args) ->
-    let* (gma, pd, typ') = expr_tc_check_coh tele typ in
-    let* args' = expr_tc_check_args args gma in
-    tc_ok (CohT (pd,typ',args'), subst_ty args' typ')
-    
-and expr_tc_check_args sub gma =
-  match (sub,gma) with
-  | (Ext (_,_), Emp) -> tc_fail "Too many arguments!"
-  | (Emp, Ext (_,_)) -> tc_fail "Not enough arguments!"
-  | (Emp, Emp) -> tc_ok Emp
-  | (Ext (sub',tm), Ext (gma',typ)) ->
-    let* rsub = expr_tc_check_args sub' gma' in
-    let typ' = subst_ty rsub typ in
-    let* rtm = expr_tc_check_tm tm typ' in
-    tc_ok (Ext (rsub, rtm))
-
-(* run the computation m in the context given 
- * by the telescope, checking as one goes that
- * the telescope is valid *)
-
-(* because this is only used once in this file, it is not given a
-   general enough type.  But it is used later in the command module.
-   Anyway to fix this? *)
-      
-and expr_tc_in_tele : 'a. tele -> 'a tcm -> 'a tcm = 
-  fun tele m -> 
-  match tele with
-  | Emp ->
-    let* env = tc_env in
-    tc_with_env { gma = Emp ; rho = env.rho ; tau = Emp } m 
-  | Ext (tele',(id,typ)) -> 
-    expr_tc_in_tele tele'
-      (let* typ' = expr_tc_check_ty typ in
-       let* env = tc_env in
-       let* d = tc_depth in 
-       let env' = {
-         gma = Ext (env.gma, typ');
-         rho = env.rho;
-         tau = Ext (env.tau, (id,d))
-       } in 
-       tc_with_env env' m)
-
-and expr_tc_check_coh tele typ = 
-  expr_tc_in_tele tele
-    (let* typ' = expr_tc_check_ty typ in
-     let* gma = tc_ctx in
-     (* printf "Telescope: %a@," pp_print_ctx gma; *)
-     let* pd = tc_lift (ctx_to_pd gma) in
-     let* _ = tc_check_is_full pd typ' in
-     tc_ok (gma, pd, typ'))
-
-and expr_pd_infer_args pd args_map =
-  match pd with
-  | Br (l,Emp) ->
-    let arg = assoc l args_map in
-    let* (arg_tm, arg_typ) = expr_tc_infer_tm arg in 
-    tc_ok (arg_typ, Br (arg_tm,Emp))
-  | Br (_,brs) ->
-    let lcl (_,b) = 
-      let* (arg_typ, arg_br) = expr_pd_infer_args b args_map in
-      (match arg_typ with
-       | ObjT -> tc_fail "something"
-       | ArrT (typ,src,tgt) ->
-         tc_ok (typ,src,(tgt,arg_br))) in 
-    let* branch_results = ST.traverse lcl brs in
-    let (t,s,_) = first branch_results in
-    let branches = SM.map (fun (_,_,b) -> b) branch_results in
-    tc_ok (t, Br(s,branches))
-    

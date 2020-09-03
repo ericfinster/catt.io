@@ -6,7 +6,8 @@
 
 open Expr
 open Term
-
+open Typecheck
+    
 open Format
 
 open TcMonad.MonadSyntax

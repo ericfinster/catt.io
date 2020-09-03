@@ -8,7 +8,6 @@ open Pd
 open Suite
     
 open Cheshire.Err
-open Cheshire.Monad
 
 open Format
 
@@ -74,6 +73,22 @@ let disc_pd ty tm =
 
 let disc_sub ty tm =
   labels (disc_pd ty tm)
+
+(* This is a bit of an orphan and should probably
+   go somewhere else ... *)
+let err_lookup_var i l =
+  try Ok (nth i l)
+  with Not_found -> Fail (sprintf "Unknown index: %d" i)
+
+(* map the given arguments into the 
+   pasting diagram *)
+let args_to_pd pd args =
+  let module PdT = PdTraverse(ErrMonad) in 
+  let get_arg t =
+    match t with
+    | VarT i -> err_lookup_var i args
+    | _ -> Fail "Invalid term in pasting diagram"
+  in PdT.traverse get_arg pd
 
 (*****************************************************************************)
 (*                             Printing Raw Terms                            *)

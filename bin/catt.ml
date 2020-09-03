@@ -4,8 +4,8 @@
 
 open Format
 
-open Catt.Term
 open Catt.Command
+open Catt.Typecheck
        
 open Cheshire.Err
        
