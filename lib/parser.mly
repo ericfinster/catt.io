@@ -7,7 +7,7 @@
 %} 
 
 %token IMPORT
-%token PRUNE NORMALIZE
+%token PRUNE NORMALIZE INFER
 /* %token RECTIFY */
 /* %token EQNF LOCMAX */
 %token LET COH 
@@ -41,6 +41,8 @@ cmd:
     { Prune (tl, tm) }
   | NORMALIZE tl = tele VBAR tm = tm_expr
     { Normalize (tl, tm) }
+  | INFER tl = tele VBAR tm = tm_expr
+    { Infer (tl, tm) }
 
   /* | EQNF ctx = var_decl+ VBAR tm_a = tm_expr VBAR tm_b = tm_expr */
   /*   { EqNf (List.rev ctx, tm_a, tm_b) } */

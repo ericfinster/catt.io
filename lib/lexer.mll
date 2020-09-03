@@ -10,7 +10,8 @@ rule token = parse
   | "coh"        { COH }
   | "import"     { IMPORT }
   | "prune"      { PRUNE }
-  | "normalize"  { NORMALIZE } 
+  | "normalize"  { NORMALIZE }
+  | "infer"      { INFER }
   | "->"         { ARROW }
   | "*"          { OBJ }
   | "("          { LPAR }

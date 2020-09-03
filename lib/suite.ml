@@ -8,6 +8,8 @@ type 'a suite =
   | Emp
   | Ext of 'a suite * 'a 
 
+
+
 let (|>) a b = Ext (a, b)
 
 let rec length s =

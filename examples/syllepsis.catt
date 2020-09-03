@@ -6,6 +6,10 @@
 
 import prelude
 
+#
+#  Eckman-Hilton coherence 3-cell
+#
+
 coh swap3 (x : *)
     	  (y : *) (f : x -> y)
 	       	  (g : x -> y) (a : f -> g)
@@ -21,6 +25,10 @@ coh swap3inv (x : *)
                      (k : y -> z) (b : h -> k)
   : comp221(comp120(f,b),comp210(a,k)) -> 
     comp221(comp210(a,h),comp120(g,b)) 
+
+#
+#  Suspended Eckman-Hilton coherence 4-cell
+#
 
 coh swap4 (u : *)
           (v : *) (x : u -> v)
@@ -40,73 +48,91 @@ coh swap4inv (u : *)
   : comp332(comp231(f,b),comp321(a,k)) ->
     comp332(comp321(a,h),comp231(g,b)) 
 
-let sigma (u : *)
-          (v : *) (x : u -> v)
-	          (y : u -> v) (f : x -> y)
-		               (g : x -> y) (a : f -> g)
-	  (w : *) (s : v -> w)
-	       	  (t : v -> w) (h : s -> t)
-		               (k : s -> t) (b : h -> k)
-  : comp221(comp210(f,s),comp120(y,h)) ->
-    comp221(comp210(g,s),comp120(y,k))
-  = comp331(comp310(a,s),comp130(y,b))
+#
+#  Left vertical coherence
+#
 
-let sigmap (u : *)
-           (v : *) (x : u -> v)
-	           (y : u -> v) (f : x -> y)
-	                        (g : x -> y) (a : f -> g)
-	   (w : *) (s : v -> w)
-	       	   (t : v -> w) (h : s -> t)
-		                (k : s -> t) (b : h -> k)
-  : comp221(comp120(x,h),comp210(f,t)) ->
-    comp221(comp120(x,k),comp210(g,t))
-  = comp331(comp130(x,b),comp310(a,t))
-
-let swap4_sigma (u : *)
-    		(v : *) (x : u -> v)
-	                (y : u -> v) (f : x -> y)
-                                     (g : x -> y) (a : f -> g)
-                (w : *) (s : v -> w)
-                        (t : v -> w) (h : s -> t)
-                                     (k : s -> t) (b : h -> k)
-  : comp332(comp321(comp310(a,s),comp120(y,h)),comp231(comp210(g,s),comp130(y,b))) ->
-    comp332(comp231(comp210(f,s),comp130(y,b)),comp321(comp310(a,s),comp120(y,k)))
-  = swap4(comp310(a,s),comp130(y,b))
-
-let swap4inv_sigmap (u : *)
-                    (v : *) (x : u -> v)
-                            (y : u -> v) (f : x -> y)
-                                         (g : x -> y) (a : f -> g)
-                    (w : *) (s : v -> w)
-                            (t : v -> w) (h : s -> t)
-                                         (k : s -> t) (b : h -> k)
-  : comp332(comp231(comp120(x,h),comp310(a,t)),comp321(comp130(x,b),comp210(g,t))) ->
-    comp332(comp321(comp130(x,b),comp210(f,t)),comp231(comp120(x,k),comp310(a,t))) 
-  = swap4inv(comp130(x,b),comp310(a,t))
-
-let fixup_swap4_sigma (u : *)
-                      (v : *) (x : u -> v)
-	                      (y : u -> v) (f : x -> y)
-		                           (g : x -> y) (a : f -> g)
-	              (w : *) (s : v -> w)
-	       	              (t : v -> w) (h : s -> t)
-		                           (k : s -> t) (b : h -> k)
+let step1l
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
   : comp332(comp332(comp321(comp310(a,s),comp120(y,h)),comp231(comp210(g,s),comp130(y,b))),swap3(g,k)) -> 
-    comp332(comp332(comp231(comp210(f,s),comp130(y,b)),comp321(comp310(a,s),comp120(y,k))),swap3(g,k))
-  = comp432(swap4(comp310(a,s),comp130(y,b)),swap3(g,k))
+    comp332(comp321(comp310(a,s),comp120(y,h)),comp332(comp231(comp210(g,s),comp130(y,b)),swap3(g,k)))
+  = assoc3(comp321(comp310(a,s),comp120(y,h)),comp231(comp210(g,s),comp130(y,b)),swap3(g,k))
 
-let fixup_swap4inv_sigmap (u : *)
-                          (v : *) (x : u -> v)
-	                          (y : u -> v) (f : x -> y)
-		                               (g : x -> y) (a : f -> g)
-	                  (w : *) (s : v -> w)
-	       	                  (t : v -> w) (h : s -> t)
-		                               (k : s -> t) (b : h -> k)
-  : comp332(swap3(f,h),comp332(comp231(comp120(x,h),comp310(a,t)),comp321(comp130(x,b),comp210(g,t)))) -> 
-    comp332(swap3(f,h),comp332(comp321(comp130(x,b),comp210(f,t)),comp231(comp120(x,k),comp310(a,t))))  
-  = comp342(swap3(f,h),swap4inv(comp130(x,b),comp310(a,t)))
+coh step2lcoh
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (g : x -> y) 
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp231(comp210(g,s),comp130(y,b)),swap3(g,k)) -> 
+    comp332(swap3(g,h),comp321(comp130(x,b),comp210(g,t)))
+    
+let step2l
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp321(comp310(a,s),comp120(y,h)),comp332(comp231(comp210(g,s),comp130(y,b)),swap3(g,k))) -> 
+    comp332(comp321(comp310(a,s),comp120(y,h)),comp332(swap3(g,h),comp321(comp130(x,b),comp210(g,t))))
+  = comp342(comp321(comp310(a,s),comp120(y,h)),step2lcoh(g,b))
 
-coh vert_left
+let step3l
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp321(comp310(a,s),comp120(y,h)),comp332(swap3(g,h),comp321(comp130(x,b),comp210(g,t)))) ->
+    comp332(comp332(comp321(comp310(a,s),comp120(y,h)),swap3(g,h)),comp321(comp130(x,b),comp210(g,t)))
+  = assoc3inv(comp321(comp310(a,s),comp120(y,h)),swap3(g,h),comp321(comp130(x,b),comp210(g,t)))
+
+coh step4lcoh
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+  : comp332(comp321(comp310(a,s),comp120(y,h)),swap3(g,h)) ->
+    comp332(swap3(f,h),comp231(comp120(x,h),comp310(a,t)))
+  
+let step4l
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp332(comp321(comp310(a,s),comp120(y,h)),swap3(g,h)),comp321(comp130(x,b),comp210(g,t))) -> 
+    comp332(comp332(swap3(f,h),comp231(comp120(x,h),comp310(a,t))),comp321(comp130(x,b),comp210(g,t)))
+  = comp432(step4lcoh(a,h),comp321(comp130(x,b),comp210(g,t)))
+
+let step5l
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp332(swap3(f,h),comp231(comp120(x,h),comp310(a,t))),comp321(comp130(x,b),comp210(g,t))) ->
+    comp332(swap3(f,h),comp332(comp231(comp120(x,h),comp310(a,t)),comp321(comp130(x,b),comp210(g,t))))
+  = assoc3(swap3(f,h),comp231(comp120(x,h),comp310(a,t)),comp321(comp130(x,b),comp210(g,t)))
+
+let vert_left
   (u : *)
   (v : *) (x : u -> v)
           (y : u -> v) (f : x -> y)
@@ -116,17 +142,119 @@ coh vert_left
                        (k : s -> t) (b : h -> k)
   : comp332(comp332(comp321(comp310(a,s),comp120(y,h)),comp231(comp210(g,s),comp130(y,b))),swap3(g,k)) ->
     comp332(swap3(f,h),comp332(comp231(comp120(x,h),comp310(a,t)),comp321(comp130(x,b),comp210(g,t))))
+  = fivecomp4(
+      step1l(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step2l(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step3l(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step4l(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step5l(u,v,x,y,f,g,a,w,s,t,h,k,b)
+    )
 
-coh vert_right
-  (u : *)
-  (v : *) (x : u -> v)
-          (y : u -> v) (f : x -> y)
-                       (g : x -> y) (a : f -> g)
-  (w : *) (s : v -> w)
-          (t : v -> w) (h : s -> t)
-                       (k : s -> t) (b : h -> k)
+#
+#  Right vertical coherence
+#
+
+let step1r
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp332(comp231(comp210(f,s),comp130(y,b)),comp321(comp310(a,s),comp120(y,k))),swap3(g,k)) ->
+    comp332(comp231(comp210(f,s),comp130(y,b)),comp332(comp321(comp310(a,s),comp120(y,k)),swap3(g,k)))
+  = assoc3(comp231(comp210(f,s),comp130(y,b)),comp321(comp310(a,s),comp120(y,k)),swap3(g,k))
+
+coh step2rcoh
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (k : s -> t) 
+  : comp332(comp321(comp310(a,s),comp120(y,k)),swap3(g,k)) ->
+    comp332(swap3(f,k),comp231(comp120(x,k),comp310(a,t)))
+    
+let step2r
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp231(comp210(f,s),comp130(y,b)),comp332(comp321(comp310(a,s),comp120(y,k)),swap3(g,k))) ->
+    comp332(comp231(comp210(f,s),comp130(y,b)),comp332(swap3(f,k),comp231(comp120(x,k),comp310(a,t))))
+  = comp342(comp231(comp210(f,s),comp130(y,b)),step2rcoh(a,k))
+
+let step3r
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp231(comp210(f,s),comp130(y,b)),comp332(swap3(f,k),comp231(comp120(x,k),comp310(a,t)))) ->
+    comp332(comp332(comp231(comp210(f,s),comp130(y,b)),swap3(f,k)),comp231(comp120(x,k),comp310(a,t)))
+  = assoc3inv(comp231(comp210(f,s),comp130(y,b)),swap3(f,k),comp231(comp120(x,k),comp310(a,t)))
+
+coh step4rcoh
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp231(comp210(f,s),comp130(y,b)),swap3(f,k)) -> 
+    comp332(swap3(f,h),comp321(comp130(x,b),comp210(f,t)))
+  
+let step4r
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp332(comp231(comp210(f,s),comp130(y,b)),swap3(f,k)),comp231(comp120(x,k),comp310(a,t))) ->
+    comp332(comp332(swap3(f,h),comp321(comp130(x,b),comp210(f,t))),comp231(comp120(x,k),comp310(a,t)))
+  = comp432(step4rcoh(f,b),comp231(comp120(x,k),comp310(a,t)))
+
+let step5r
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp332(swap3(f,h),comp321(comp130(x,b),comp210(f,t))),comp231(comp120(x,k),comp310(a,t))) ->
+    comp332(swap3(f,h),comp332(comp321(comp130(x,b),comp210(f,t)),comp231(comp120(x,k),comp310(a,t))))
+  = assoc3(swap3(f,h),comp321(comp130(x,b),comp210(f,t)),comp231(comp120(x,k),comp310(a,t)))
+
+let vert_right
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
   : comp332(comp332(comp231(comp210(f,s),comp130(y,b)),comp321(comp310(a,s),comp120(y,k))),swap3(g,k)) ->
     comp332(swap3(f,h),comp332(comp321(comp130(x,b),comp210(f,t)),comp231(comp120(x,k),comp310(a,t))))
+  = fivecomp4(
+      step1r(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step2r(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step3r(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step4r(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step5r(u,v,x,y,f,g,a,w,s,t,h,k,b)
+    )
+  
+#
+#  The Syllepsis
+#
 
 coh five_cell 
   (u : *)
@@ -136,21 +264,14 @@ coh five_cell
   (w : *) (s : v -> w)
           (t : v -> w) (h : s -> t)
                        (k : s -> t) (b : h -> k)
-  : comp443(comp432(swap4(comp310(a,s),comp130(y,b)),swap3(g,k)),vert_right(a,b)) ->
-    comp443(vert_left(a,b),comp342(swap3(f,h),swap4inv(comp130(x,b),comp310(a,t))))
+  : comp443(comp432(swap4(comp310(a,s),comp130(y,b)),swap3(g,k)),vert_right(u,v,x,y,f,g,a,w,s,t,h,k,b)) ->
+    comp443(vert_left(u,v,x,y,f,g,a,w,s,t,h,k,b),comp342(swap3(f,h),swap4inv(comp130(x,b),comp310(a,t))))
     
-# let syllepsis
-#   (x : *)
-#   (a : id1(id(x)) -> id1(id(x)))
-#   (b : id1(id(x)) -> id1(id(x)))
-#   : swap4(a,b) -> swap4inv(b,a)
-#   = five_cell(a,b)
-
-let syllepsis_with_simple_type
+let syllepsis
   (x : *)
   (a : id1(id(x)) -> id1(id(x)))
   (b : id1(id(x)) -> id1(id(x)))
-  : comp443(swap4(a,b),vert_right(a,b)) ->
-    comp443(vert_left(a,b),swap4inv(b,a))
+  : swap4(a,b) -> swap4inv(b,a)
   = five_cell(a,b)
+
 

@@ -17,6 +17,7 @@ type cmd =
   | TermDef of string * tele * ty_expr * tm_expr
   | Prune of tele * tm_expr
   | Normalize of tele * tm_expr
+  | Infer of tele * tm_expr
 
 let rec check_cmds cmds =
   match cmds with
@@ -72,6 +73,17 @@ let rec check_cmds cmds =
          let* tm_nf = tc_normalize_tm ~debug:true tm' in
          let expr_nf = term_to_expr_tm tm_nf in 
          printf "Normalized term:@,@[<hov>%a@]@," pp_print_expr_tm expr_nf;
+         tc_ok ()) in 
+    check_cmds ds
+
+  | (Infer (tele, tm)) :: ds ->
+    printf "-----------------@,";
+    printf "Inferring@,";
+    printf "Expr: @[<hov>%a@]@," pp_print_expr_tm tm; 
+    let* _ = expr_tc_in_tele tele
+        (let* (_,typ) = expr_tc_infer_tm tm in
+         let typ_expr = term_to_expr_ty typ in 
+         printf "Inferred type:@,@[<hov>%a@]@," pp_print_expr_ty typ_expr;
          tc_ok ()) in 
     check_cmds ds
 
