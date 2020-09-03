@@ -10,19 +10,21 @@ import prelude
 #  Eckman-Hilton coherence 3-cell
 #
 
-coh swap3 (x : *)
-    	  (y : *) (f : x -> y)
-	       	  (g : x -> y) (a : f -> g)
-	  (z : *) (h : y -> z)
-	          (k : y -> z) (b : h -> k)
+coh swap3
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+            (k : y -> z) (b : h -> k)
   : comp221(comp210(a,h),comp120(g,b)) ->
     comp221(comp120(f,b),comp210(a,k))
 
-coh swap3inv (x : *)
-             (y : *) (f : x -> y)
-                     (g : x -> y) (a : f -> g)
-             (z : *) (h : y -> z)
-                     (k : y -> z) (b : h -> k)
+coh swap3inv
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+            (k : y -> z) (b : h -> k)
   : comp221(comp120(f,b),comp210(a,k)) -> 
     comp221(comp210(a,h),comp120(g,b)) 
 
@@ -30,21 +32,23 @@ coh swap3inv (x : *)
 #  Suspended Eckman-Hilton coherence 4-cell
 #
 
-coh swap4 (u : *)
-          (v : *) (x : u -> v)
-    	          (y : u -> v) (f : x -> y)
-	                       (g : x -> y) (a : f -> g)
-	          (z : u -> v) (h : y -> z)
-	                       (k : y -> z) (b : h -> k)
+coh swap4
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                               (g : x -> y) (a : f -> g)
+                  (z : u -> v) (h : y -> z)
+                               (k : y -> z) (b : h -> k)
   : comp332(comp321(a,h),comp231(g,b)) ->
     comp332(comp231(f,b),comp321(a,k))
 
-coh swap4inv (u : *)
-             (v : *) (x : u -> v)
-                     (y : u -> v) (f : x -> y)
-                                  (g : x -> y) (a : f -> g)
-                     (z : u -> v) (h : y -> z)
-                                  (k : y -> z) (b : h -> k)
+coh swap4inv
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+            (z : u -> v) (h : y -> z)
+                         (k : y -> z) (b : h -> k)
   : comp332(comp231(f,b),comp321(a,k)) ->
     comp332(comp321(a,h),comp231(g,b)) 
 
@@ -257,20 +261,20 @@ let vert_right
 #
 
 coh five_cell 
-  (u : *)
-  (v : *) (x : u -> v)
-          (y : u -> v) (f : x -> y)
-                       (g : x -> y) (a : f -> g)
-  (w : *) (s : v -> w)
-          (t : v -> w) (h : s -> t)
-                       (k : s -> t) (b : h -> k)
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
   : comp443(comp432(swap4(comp310(a,s),comp130(y,b)),swap3(g,k)),vert_right(u,v,x,y,f,g,a,w,s,t,h,k,b)) ->
     comp443(vert_left(u,v,x,y,f,g,a,w,s,t,h,k,b),comp342(swap3(f,h),swap4inv(comp130(x,b),comp310(a,t))))
     
 let syllepsis
-  (x : *)
-  (a : id1(id(x)) -> id1(id(x)))
-  (b : id1(id(x)) -> id1(id(x)))
+    (x : *)
+    (a : id1(id(x)) -> id1(id(x)))
+    (b : id1(id(x)) -> id1(id(x)))
   : swap4(a,b) -> swap4inv(b,a)
   = five_cell(a,b)
 
