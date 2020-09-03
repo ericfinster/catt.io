@@ -1,28 +1,36 @@
+############################################
 #
 #  prelude.catt - some basic coherences
+#
+############################################
+
+#
+#  Identities
 #
 
 coh id (x : *)
   : x -> x
 
+coh id1 (x : *) (y : *) (f : x -> y)
+  : f -> f
+
+coh id2 (x : *)
+        (y : *) (f : x -> y)
+                (g : x -> y) (a : f -> g)
+  : a -> a
+
+#
+#  1d compositions
+#
+
 coh comp110 (x : *)
     	    (y : *) (f : x -> y)
 	    (z : *) (g : y -> z)
   : x -> z
-  
-coh unitl (x : *)
-          (y : *) (f : x -> y)
-  : f -> comp110(id(x),f)
 
-coh unitr (x : *)
-          (y : *) (f : x -> y)
-  : comp110(id(x), f) -> f
-  
-coh assoc (x : *)
-          (y : *) (f : x -> y)
-	  (z : *) (g : y -> z)
-	  (w : *) (h : z -> w)
-  : comp110(comp110(f,g),h) -> comp110(f,comp110(g,h))
+#
+#  2d compositions
+#
 
 coh comp221 (x : *)
             (y : *) (f : x -> y)
@@ -49,29 +57,9 @@ coh comp120 (x : *)
 	            (h : y -> z) (a : g -> h)
   : comp110(f,g) -> comp110(f,h)
 
-coh swap3 (x : *)
-    	  (y : *) (f : x -> y)
-	       	  (g : x -> y) (a : f -> g)
-	  (z : *) (h : y -> z)
-	          (k : y -> z) (b : h -> k)
-  : comp221(comp210(a,h),comp120(g,b)) ->
-    comp221(comp120(f,b),comp210(a,k))
-
-let eh (x : *) (a : id(x) -> id(x))
-               (b : id(x) -> id(x))
-  : comp221(comp210(a,id(x)),comp120(id(x),b)) ->
-    comp221(comp120(id(x),b),comp210(a,id(x)))
-  = swap3(a,b)
-
-coh ich (x : *)
-        (y : *) (f : x -> y)
-	        (g : x -> y) (a : f -> g)
-		(h : x -> y) (b : g -> h)
-	(z : *) (i : y -> z)
-	     	(j : y -> z) (c : i -> j)
-		(k : y -> z) (d : j -> k)
-  : comp220(comp221(a,b),comp221(c,d)) ->
-    comp221(comp220(a,c),comp220(b,d))
+#
+#  3d Compositions
+#
 
 coh comp330 (x : *)
             (y : *) (f : x -> y)
@@ -112,13 +100,62 @@ coh comp231 (x : *)
 		                 (d : g -> h) (n : c -> d)
   : comp221(a,c) -> comp221(a,d)
 
-coh swap4 (u : *)
-          (v : *) (x : u -> v)
-    	          (y : u -> v) (f : x -> y)
-	                       (g : x -> y) (a : f -> g)
-	          (z : u -> v) (h : y -> z)
-	                       (k : y -> z) (b : h -> k)
-  : comp332(comp321(a,h),comp231(g,b)) ->
-    comp332(comp231(f,b),comp321(a,k))
+coh comp310 (x : *)
+            (y : *) (f : x -> y)
+	            (g : x -> y) (a : f -> g)
+		                 (b : f -> g) (m : a -> b)
+	    (z : *) (h : y -> z)
+  : comp210(a,h) -> comp210(b,h)
 
+coh comp130 (x : *)
+    	    (y : *) (f : x -> y)
+            (z : *) (h : y -> z)
+	            (k : y -> z) (c : h -> k)
+		                 (d : h -> k) (n : c -> d)
+  : comp120(f,c) -> comp120(f,d)
 
+#
+#  4d compositions
+#
+
+coh comp432 (x : *)
+            (y : *) (f : x -> y)
+	            (g : x -> y) (a : f -> g)
+	   	                 (b : f -> g) (m : a -> b)
+                                              (o : a -> b) (q : m -> o)
+		      		 (c : f -> g) (n : b -> c)
+  : comp332(m,n) -> comp332(o,n)
+
+coh comp342 (x : *)
+            (y : *) (f : x -> y)
+	            (g : x -> y) (a : f -> g)
+	   	                 (b : f -> g) (m : a -> b)
+		      		 (c : f -> g) (n : b -> c)
+                                              (o : b -> c) (q : n -> o)
+  : comp332(m,n) -> comp332(m,o)
+
+coh comp443 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+                                 (b : f -> g) (m : a -> b)
+                                              (n : a -> b) (p : m -> n)
+                                              (o : a -> b) (q : n -> o)
+  : m -> o                                              
+
+#
+#  Simple coherences
+#
+
+coh unitl (x : *)
+          (y : *) (f : x -> y)
+  : f -> comp110(id(x),f)
+
+coh unitr (x : *)
+          (y : *) (f : x -> y)
+  : comp110(id(x), f) -> f
+  
+coh assoc (x : *)
+          (y : *) (f : x -> y)
+	  (z : *) (g : y -> z)
+	  (w : *) (h : z -> w)
+  : comp110(comp110(f,g),h) -> comp110(f,comp110(g,h))

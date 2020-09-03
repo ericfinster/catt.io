@@ -1,2 +1,0 @@
-#!/bin/sh
-../_build/default/bin/catt.exe $1
