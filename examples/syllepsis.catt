@@ -36,9 +36,9 @@ coh swap4
     (u : *)
     (v : *) (x : u -> v)
             (y : u -> v) (f : x -> y)
-                               (g : x -> y) (a : f -> g)
-                  (z : u -> v) (h : y -> z)
-                               (k : y -> z) (b : h -> k)
+                         (g : x -> y) (a : f -> g)
+            (z : u -> v) (h : y -> z)
+                         (k : y -> z) (b : h -> k)
   : comp332(comp321(a,h),comp231(g,b)) ->
     comp332(comp231(f,b),comp321(a,k))
 
