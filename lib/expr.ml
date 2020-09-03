@@ -83,10 +83,14 @@ and term_to_expr_tm tm =
   | DefAppT (id,args) ->
     DefAppE (id,map term_to_expr_tm args)
   | CohT (pd,typ,args) ->
+    let args' =
+      (match args_to_pd pd args with
+       | Ok pd_args -> leaves pd_args
+       | Fail _ -> args) in
     CohE (map (fun (i,t) -> (var_no i, term_to_expr_ty t))
             (zip_with_idx (pd_to_ctx pd)),
           term_to_expr_ty typ,
-          map term_to_expr_tm args)
+          map term_to_expr_tm args')
   
 (*****************************************************************************)
 (*                        Typechecking Raw Expressions                       *)

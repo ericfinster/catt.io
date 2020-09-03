@@ -509,6 +509,7 @@ let rec prune pd typ args =
   match pr with
   | NothingPruned -> Ok (pd,typ,args)
   | PrunedData (pd',pi,args') ->
+    (* printf "Pruned an argument!@,"; *)
     prune pd' (subst_ty pi typ) args'
 
 let disc_cell k =
@@ -528,7 +529,8 @@ type endo_result =
   | EndoReduced of tm_term
 
 let endo_coherence tm =
-  let nored = Ok NoEndoReduction in 
+  let nored = Ok NoEndoReduction in
+  (* printf "In endo coh with: %a@," pp_print_tm tm;  *)
   match tm with
   | VarT _ -> nored
   | CohT (_, ObjT, _) -> nored
@@ -536,6 +538,7 @@ let endo_coherence tm =
     if (src = tgt) then
       let src' = subst_tm sub src in
       let typ' = subst_ty sub btyp in 
+      (* printf "Endo-coherence for: %a@," pp_print_tm src; *)
       Ok (EndoReduced (identity_on typ' src'))
     else nored
   | _ -> Fail "Unfold in endo-coh"
@@ -549,40 +552,50 @@ let rec strict_unit_normalize_ty ty =
     let* tgt' = strict_unit_normalize_tm tgt in 
     tc_ok (ArrT (typ',src',tgt'))
 
-and strict_unit_normalize_tm tm =
+and strict_unit_normalize_tm ?debug:(dbg=false) tm =
+  (* let print_debug s = if dbg then printf "%s" s else () in *)
+  (* print_debug (asprintf "In su normalizer ...@,"); *)
+  if dbg then () else ();
   match tm with
   | VarT i -> tc_ok (VarT i)
   | DefAppT (id, sub) -> (
     let* def = tc_lookup_def id in
     match def with
     | TCCohDef (pd,typ) ->
-      strict_unit_normalize_tm (CohT (pd,typ,sub))
+      (* print_debug (asprintf "Normalizing a defined coherence@,"); *)
+      strict_unit_normalize_tm ~debug:true (CohT (pd,typ,sub))
     | TCTermDef (_, _, tm) -> 
       strict_unit_normalize_tm (subst_tm sub tm)
   )
   | CohT (pd,typ,sub) ->
+    (* print_debug (asprintf "Normalizing a coherence@,"); *)
     let* sub' = ST.traverse strict_unit_normalize_tm sub in
     let* (ppd,ptyp,psub) = 
       if (not (is_identity tm)) then
         tc_lift (prune pd typ sub')
-      else tc_ok (pd,typ,sub') in 
-    let* typ' = strict_unit_normalize_ty ptyp in 
+      else tc_ok (pd,typ,sub') in
+    (* printf "After pruning: %a@," pp_print_tm (CohT (ppd,ptyp,psub)); *)
+    let* typ' = strict_unit_normalize_ty ptyp in
+    (* print_debug (asprintf "Normalized boundary: %a@," pp_print_ty typ'); *)
     let* dtm = tc_lift (disc_remove ppd typ' psub) in
     if (not (is_identity dtm)) then
-      let* er = tc_lift (endo_coherence tm) in
+      let* er = tc_lift (endo_coherence dtm) in
       match er with
       | NoEndoReduction -> tc_ok dtm
-      | EndoReduced tm' -> strict_unit_normalize_tm tm'
+      | EndoReduced tm' ->
+        (* print_debug (asprintf "Reduced an endo-coherence@,"); *)
+        (* printf "Endo coherence resulted in: %a@," pp_print_tm tm'; *)
+        strict_unit_normalize_tm tm'
     else tc_ok dtm 
 
 (*****************************************************************************)
 (*                           Toplevel Normalization                          *)
 (*****************************************************************************)
 
-let tc_normalize_tm tm =
+let tc_normalize_tm ?debug:(dbg=false) tm =
   match !norm_opt with
   | None -> tc_ok tm
-  | StrictlyUnital -> strict_unit_normalize_tm tm 
+  | StrictlyUnital -> strict_unit_normalize_tm ~debug:dbg tm 
 
 let tc_normalize_ty ty =
   match !norm_opt with

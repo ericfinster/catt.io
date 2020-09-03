@@ -307,63 +307,11 @@ coh five_cell
 #   : swap4(a,b) -> swap4inv(b,a)
 #   = five_cell(a,b)
 
-let syllepsis_with_type
+let syllepsis_with_simple_type
   (x : *)
   (a : id1(id(x)) -> id1(id(x)))
   (b : id1(id(x)) -> id1(id(x)))
-  : comp443(comp432(swap4(comp310(a,id(x)),comp130(id(x),b)),swap3(id1(id(x)),id1(id(x)))),vert_right(a,b)) ->
-    comp443(vert_left(a,b),comp342(swap3(id1(id(x)),id1(id(x))),swap4inv(comp130(id(x),b),comp310(a,id(x)))))
+  : comp443(swap4(a,b),vert_right(a,b)) ->
+    comp443(vert_left(a,b),swap4inv(b,a))
   = five_cell(a,b)
-
-# normalize
-#   (x : *)
-#   (a : id1(id(x)) -> id1(id(x)))
-#   (b : id1(id(x)) -> id1(id(x)))
-  # | comp310(a,id(x))
-  # | comp130(id(x),b)
-  # | swap3(id1(id(x)),id1(id(x)))
-  # | comp443(comp432(swap4(comp310(a,id(x)),comp130(id(x),b)),swap3(id1(id(x)),id1(id(x)))),vert_right(a,b))
-
-coh fk_id (x : *) : id(x) -> id(x)
-coh fk_id1 (x : *) : fk_id(x) -> fk_id(x)
-
-coh swap3_nf (x : *)
- : comp221(fk_id(x),fk_id(x)) -> comp221(fk_id(x),fk_id(x))
-
-normalize
-  (x : *)
-  | swap3_nf(x)
-
-normalize
-  (x : *)
-  | id2(fk_id(x))
-
-#
-# Normal form of: swap3(id1(id(x)),id1(id(x)))
-#
-# coh[Br (0, Emp) :
-#   *
-#   | 0 -> 0
-#   |    id(0) 
-#     -> id(0)
-#   |   coh[Br (0, Emp
-#                  |>(1, Br (2, Emp
-#                               |>(3, Br (4, Emp))
-#                               |>(5, Br (6, Emp))))) : * | 0 -> 1 | 2 -> 5]
-#          (0,0,id(0)
-#              ,id(0)
-#              ,coh[Br (0, Emp) : * | 0 -> 0 | id(0) -> id(0)](0)
-#              ,id(0)
-#              ,coh[Br (0, Emp) : * | 0 -> 0 | id(0) -> id(0)](0)) 
-#     -> coh[Br (0, Emp
-#                   |>(1, Br (2, Emp
-#                                |>(3, Br (4, Emp))
-#                                |>(5, Br (6, Emp))))) : * | 0 -> 1 | 2 -> 5]
-#           (0,0,id(0)
-#               ,id(0)
-#               ,coh[Br (0, Emp) : * | 0 -> 0 | id(0) -> id(0)](0)
-#               ,id(0)
-#               ,coh[Br (0, Emp) : * | 0 -> 0 | id(0) -> id(0)](0))]
-#    (0)
-
 
