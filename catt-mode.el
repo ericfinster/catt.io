@@ -22,14 +22,16 @@
   "Syntax table for CATT major mode.")
 
 (defvar catt-tab-width 4)
+(defvar catt-mode-hook nil)
 
 (define-derived-mode catt-mode prog-mode
-  "CATT" "Major mode for CATT files."
+  "Catt" "Major mode for Catt files."
   :syntax-table catt-mode-syntax-table
   (set (make-local-variable 'comment-start) "#")
   (set (make-local-variable 'comment-start-skip) "#+\\s-*")
   (set (make-local-variable 'font-lock-defaults) '(catt-font-lock-keywords))
-  (setq mode-name "CATT")
+  (setq mode-name "Catt")
+  (run-hooks 'catt-mode-hook)
 )
 
 (provide 'catt-mode)
