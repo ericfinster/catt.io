@@ -13,10 +13,12 @@ open TcMonad.MonadSyntax
 
 let usage = "catt [options] [file]"
 
+let global_config = ref default_config
+
 let enable_strict_units _ =
   printf "Using strictly unital normalization@,";
-  norm_opt := StrictlyUnital
-    
+  global_config := { !global_config with norm_type = StrictlyUnital }
+
 let spec_list = [
   ("-su", Arg.Unit enable_strict_units, "Enable strictly unital normalization")
 ]
@@ -62,8 +64,9 @@ let () =
   let file_in = ref [] in 
   open_vbox 0; (* initialize the pretty printer *)
   Arg.parse spec_list (fun s -> file_in := s::!file_in) usage;
-  let files = List.rev (!file_in) in 
-  match tc_check_all files empty_env with
+  let files = List.rev (!file_in) in
+  let env = { empty_env with config = !global_config } in 
+  match tc_check_all files env with
   | Ok _ ->
     printf "----------------@,Done";
     print_newline ()

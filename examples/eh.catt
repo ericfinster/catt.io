@@ -4,21 +4,24 @@
 
 coh id (x : *) : x -> x
 
-coh comp (x : *)
-    	    (y : *) (f : x -> y)
-	    (z : *) (g : y -> z)
+coh comp
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
   : x -> z
 
-coh vert (x : *)
-            (y : *) (f : x -> y)
-	            (g : x -> y) (a : f -> g)
-	            (h : x -> y) (b : g -> h)
+coh vert
+    (x : *)
+    (y : *) (f : x -> y)
+    (g : x -> y) (a : f -> g)
+    (h : x -> y) (b : g -> h)
   : f -> h
 
-coh whisk_r (x : *)
-            (y : *) (f : x -> y)
-	            (g : x -> y) (a : f -> g)
-            (z : *) (h : y -> z)
+coh whisk_r
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
   : comp(f,h) -> comp(g,h)
 
 coh whisk_l (x : *)
@@ -41,4 +44,3 @@ let eh (x : *)
   : vert(a,b) -> vert(b,a)
   = swap3(a,b)
 
-            

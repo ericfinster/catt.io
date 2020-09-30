@@ -12,6 +12,9 @@ rule token = parse
   | "prune"      { PRUNE }
   | "normalize"  { NORMALIZE }
   | "infer"      { INFER }
+  | "section"    { SECTION }
+  | "where"      { WHERE } 
+  | "end"        { END } 
   | "->"         { ARROW }
   | "*"          { OBJ }
   | "("          { LPAR }

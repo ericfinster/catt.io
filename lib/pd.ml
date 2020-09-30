@@ -5,7 +5,8 @@
 (*****************************************************************************)
 
 open Suite
-
+open Cheshire.Main
+       
 type 'a pd =
   | Br of 'a * ('a * 'a pd) suite
 
@@ -35,27 +36,11 @@ let rec truncate dir d pd =
       )
     else Br (a, map (fun (l,b) -> (l,truncate dir (d-1) b)) brs)
 
-(* This could probably be integrated into 
-   the zipper routines below *)
-        
-let rec insert pd d lbl nbr =
-  let open Cheshire.Err in
-  let open ErrMonad.MonadSyntax in 
-  match pd with
-  | Br (a,brs) ->
-    if (d <= 0) then
-      Ok (Br (a, Ext(brs,(lbl,nbr))))
-    else match brs with
-      | Emp -> Fail "Depth overflow"
-      | Ext(bs,(b,br)) ->
-        let* rbr = insert br (d-1) lbl nbr in
-        Ok (Br (a,Ext(bs,(b,rbr))))
-
 let rec append_leaves pd lvs =
   match pd with
   | Br (l,Emp) -> Ext (lvs,l)
   | Br (_,bs) -> 
-    let open Suite.SuiteMonad in
+    let open MonadSyntax(SuiteMnd) in
     bs >>= (fun (_,b) -> leaves b)
 
 and leaves pd = append_leaves pd Emp
@@ -63,7 +48,7 @@ and leaves pd = append_leaves pd Emp
 let rec labels pd =
   match pd with
   | Br (l,brs) ->
-    let open Suite.SuiteMonad in
+    let open MonadSyntax(SuiteMnd) in
     append (singleton l)
       (brs >>= (fun (bl,b) -> append (singleton bl) (labels b)))
 
@@ -91,13 +76,25 @@ let rec zip_with_addr_lcl addr pd =
 let zip_with_addr pd =
   zip_with_addr_lcl Emp pd
 
+module StringErr = ErrMnd(struct type t = string end)
+open MonadSyntax(StringErr)
+let (<||>) = StringErr.(<||>)
+               
+let rec insert pd d lbl nbr =
+  match pd with
+  | Br (a,brs) ->
+    if (d <= 0) then
+      Ok (Br (a, Ext(brs,(lbl,nbr))))
+    else match brs with
+      | Emp -> Fail "Depth overflow"
+      | Ext(bs,(b,br)) ->
+        let* rbr = insert br (d-1) lbl nbr in
+        Ok (Br (a,Ext(bs,(b,rbr))))
+
 (*****************************************************************************)
 (*                                   Zipper                                  *)
 (*****************************************************************************)
 
-open Cheshire.Err
-open ErrMonad.MonadSyntax
-       
 type 'a pd_ctx = 'a * 'a * ('a * 'a pd) suite * ('a * 'a pd) list 
 type 'a pd_zip = 'a pd_ctx suite * 'a pd
 
@@ -137,7 +134,7 @@ let parent (ctx,fcs) =
   | Emp -> Fail "No parent in empty context"
   | Ext(ctx',(s,t,l,r)) ->
     Ok (ctx', Br (s, close (l,(t,fcs),r)))
-    
+
 let sibling_right (ctx,fcs) =
   match ctx with
   | Ext(ctx',(s,t,l,(t',fcs')::rs)) ->
@@ -166,24 +163,20 @@ let rec to_leftmost_leaf (ctx,fcs) =
       (Ext(ctx,(s,t,Emp,r)),b)
 
 let rec parent_sibling_left z =
-  let open ErrMonad in
   sibling_left z <||>
   (parent z >>= parent_sibling_left) <||>
   Fail "No more left siblings"
 
 let rec parent_sibling_right z =
-  let open ErrMonad in
   sibling_right z <||>
   (parent z >>= parent_sibling_right) <||>
   Fail "No more right siblings"
 
 let leaf_right z =
-  let open ErrMonad in 
   parent_sibling_right z >>=
   to_leftmost_leaf
 
 let leaf_left z =
-  let open ErrMonad in 
   parent_sibling_left z >>=
   to_rightmost_leaf
 
@@ -203,21 +196,14 @@ let insert_at addr b pd =
 (*                              Instances                                    *)
 (*****************************************************************************)
 
-open Cheshire.Functor
-open Cheshire.Applicative
-
-module PdFunctor : Functor with type 'a t := 'a pd =
-  MakeFunctor(struct
-
-    type 'a t = 'a pd
-        
-    let rec map f pd =
-      match pd with
-      | Br (a, brs) ->
-        let fm (l, b) = (f l, map f b) in
-        Br (f a, Suite.map fm brs)
-
-  end)
+module PdFunctor = struct
+  type 'a t = 'a pd
+  let rec map f pd =
+    match pd with
+    | Br (a, brs) ->
+      let fm (l, b) = (f l, map f b) in
+      Br (f a, Suite.map fm brs)
+end
 
 let map_pd = PdFunctor.map
 
@@ -225,9 +211,8 @@ module PdTraverse(A : Applicative) = struct
 
   type 'a t = 'a pd
   type 'a m = 'a A.t
-
-  open A.ApplicativeSyntax
-
+  
+  open ApplicativeSyntax(A)
   module ST = SuiteTraverse(A)
 
   let rec traverse f pd =

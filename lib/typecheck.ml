@@ -4,15 +4,14 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open Format
+
 open Pd
 open Suite
 open Term
 open Expr 
 
-open Cheshire.Err
-open Cheshire.Monad
-
-open Format
+open Cheshire.Main
 
 (*****************************************************************************)
 (*                             Typechecking Monad                            *)
@@ -22,57 +21,56 @@ type normalization_type =
   | None
   | StrictlyUnital
 
-(* Global option, or part of type checking config? *)
-let norm_opt = ref None
+type tc_config = {
+  norm_type: normalization_type;
+  debug_streams: (string * int) list;
+}
+
+let default_config = {
+  norm_type = None;
+  debug_streams = [];
+}
     
 type tc_def =
   | TCCohDef of tm_term pd * ty_term 
   | TCTermDef of ty_term suite * ty_term * tm_term
 
 type tc_env = {
-    gma : ty_term suite;
-    rho : (string * tc_def) suite;
-    tau : (string * int) suite;
-  }
+  gma : ty_term suite;
+  rho : (string * tc_def) suite;
+  tau : (string * int) suite;
+  config : tc_config;
+}
 
-let empty_env = { gma = Emp ; rho = Emp ; tau = Emp }
+let empty_env = {
+  gma = Emp ;
+  rho = Emp ;
+  tau = Emp ;
+  config = default_config
+}
 
-type 'a tcm = tc_env -> 'a err
+module StringErr = ErrMnd(struct type t = string end)
+module TcmMnd = ReaderT(struct type t = tc_env end)(StringErr)
 
-module TcMonad = MakeMonadError(struct
+(* Bring syntax into scope *)
+open TcmMnd
+open MonadSyntax(TcmMnd)
 
-    type 'a t = 'a tcm
-        
-    let map f m env =
-      match m env with
-      | Ok a -> Ok (f a)
-      | Fail s -> Fail s
-
-    let pure a _ = Ok a
-        
-    let bind m f env =
-      match m env with
-      | Fail s -> Fail s
-      | Ok a -> f a env
-
-  end)(struct
-
-    type e = string
-
-    let throw s _ = Fail s
-    let catch m h env =
-      match m env with
-      | Ok a -> Ok a
-      | Fail s -> h s env
-        
-  end)
-
-open TcMonad
-open TcMonad.MonadSyntax
-
+type 'a tcm = 'a TcmMnd.m
+    
 let tc_ok = pure
-let tc_fail = throw
+let tc_fail s = lift (Fail s)
 
+(* Not sure how to lift the lower error instance effectively ... *)
+let tc_catch m f env = 
+  match m env with
+    | Ok a -> Ok a
+    | Fail s -> f s env
+
+let ensure b s =
+  if b then tc_ok ()
+  else tc_fail s
+      
 let tc_in_ctx g m env = m { env with gma = g }
 let tc_ctx env = Ok env.gma
 let tc_env env = Ok env
@@ -96,7 +94,11 @@ let tc_id_to_level id env =
   try Ok (assoc id env.tau)
   with Not_found -> Fail (sprintf "Unknown variable identifier: %s" id)
 
-module ST = SuiteTraverse(TcMonad)
+(*****************************************************************************)
+(*                                 Unfolding                                 *)
+(*****************************************************************************)
+                      
+module ST = SuiteTraverse(MndToApp(TcmMnd))
 
 let rec tc_unfold_ty ty =
   match ty with
@@ -117,8 +119,9 @@ and tc_unfold_tm tm =
     | TCCohDef (pd,typ) ->
       let* typ' = tc_unfold_ty typ in 
       tc_ok (CohT (pd,typ',sub'))
-    | TCTermDef (_, _, tm) -> 
-      tc_ok (subst_tm sub' tm)
+    | TCTermDef (_, _, tm) ->
+      let* tm' = tc_unfold_tm tm in 
+      tc_ok (subst_tm sub' tm')
   )
   | CohT (pd,typ,sub) ->
     let* sub' = ST.traverse tc_unfold_tm sub in
@@ -128,7 +131,7 @@ and tc_unfold_tm tm =
 (*****************************************************************************)
 (*                         Strict Unit Normalization                         *)
 (*****************************************************************************)
-
+      
 let rec id_typ k =
   if (k <= 0) then ObjT else
     ArrT (id_typ (k-1), VarT (2*k - 2), VarT (2*k - 1))
@@ -170,8 +173,8 @@ let is_identity tm =
     (pd,typ)=(id_cell (dim_pd pd))
   | _ -> false
 
-let (>>==) = ErrMonad.(>>=)
-let (<||>) = ErrMonad.(<||>)
+let (>>==) = StringErr.bind
+let (<||>) = StringErr.(<||>)
 
 type prune_result =
   | NothingPruned
@@ -187,7 +190,7 @@ let rec next_prunable z =
     next_prunable
 
 let prune_once pd =
-  let open ErrMonad.MonadSyntax in 
+  let open MonadSyntax(StringErr) in 
   let* lz = to_leftmost_leaf (Emp,pd) in
   match next_prunable lz with
   | Fail _ -> Ok NothingPruned
@@ -238,7 +241,7 @@ let prune_once pd =
     Ok (PrunedData (db_pd, pi, sigma))
 
 let rec prune pd typ args =
-  let open ErrMonad.MonadSyntax in 
+  let open MonadSyntax(StringErr) in 
   let* arg_pd = args_to_pd pd args in 
   let* pr = prune_once arg_pd in
   match pr with
@@ -328,13 +331,15 @@ and strict_unit_normalize_tm ?debug:(dbg=false) tm =
 (*****************************************************************************)
 
 let tc_normalize_tm ?debug:(dbg=false) tm =
-  match !norm_opt with
-  | None -> tc_ok tm
+  let* env = tc_env in
+  match env.config.norm_type with 
+  | None -> tc_unfold_tm tm
   | StrictlyUnital -> strict_unit_normalize_tm ~debug:dbg tm 
 
 let tc_normalize_ty ty =
-  match !norm_opt with
-  | None -> tc_ok ty
+  let* env = tc_env in
+  match env.config.norm_type with 
+  | None -> tc_unfold_ty ty
   | StrictlyUnital -> strict_unit_normalize_ty ty
     
 let tc_eq_nf_ty tya tyb =
@@ -370,7 +375,7 @@ and tc_check_tm tm ty =
    *          pp_print_tm tm
    *       in tc_fail msg *)
   
-  let* _ = catch (tc_eq_nf_ty ty ty')
+  let* _ = tc_catch (tc_eq_nf_ty ty ty')
   
       (fun _ -> let msg = asprintf "%a =/= %a when inferring the type of %a"
                     pp_print_ty ty
@@ -471,12 +476,12 @@ and tc_term_pd tm =
     let jres = join_pd 0 ppd in
     (* printf "Result: %a@," (pp_print_pd pp_print_tm) jres; *)
     tc_ok jres 
-    
+
 (*****************************************************************************)
-(*                        Typechecking Raw Expressions                       *)
+(*                          Raw Expression Checking                          *)
 (*****************************************************************************)
 
-module SM = SuiteMonad
+module RawMnd = ReaderT(struct type t = string end)(TcmMnd)
   
 let rec expr_tc_check_ty typ = 
     
@@ -486,7 +491,7 @@ let rec expr_tc_check_ty typ =
     let* (src_tm, src_ty) = expr_tc_infer_tm src in
     let* (tgt_tm, tgt_ty) = expr_tc_infer_tm tgt in
 
-    let* _ = catch (tc_eq_nf_ty src_ty tgt_ty) 
+    let* _ = tc_catch (tc_eq_nf_ty src_ty tgt_ty) 
 
       (fun _ -> let msg = asprintf "%a =/= %a when checking that %a is a valid type"
                     pp_print_ty src_ty
@@ -553,6 +558,7 @@ and expr_tc_infer_tm tm =
     | TCTermDef (gma, typ, _) -> 
       let* args' = expr_tc_check_args args gma in
       tc_ok (DefAppT (id, args'), subst_ty args' typ)
+        
   )
 
   | CohE (tele, typ, args) ->
@@ -571,34 +577,29 @@ and expr_tc_check_args sub gma =
     let* rtm = expr_tc_check_tm tm typ' in
     tc_ok (Ext (rsub, rtm))
 
-(* run the computation m in the context given 
+(* run the computation m in the context extended
  * by the telescope, checking as one goes that
  * the telescope is valid *)
-
-(* because this is only used once in this file, it is not given a
-   general enough type.  But it is used later in the command module.
-   Anyway to fix this? *)
       
-and expr_tc_in_tele : 'a. tele -> 'a tcm -> 'a tcm = 
+and expr_tc_with_tele : 'a. tele -> 'a tcm -> 'a tcm = 
   fun tele m -> 
   match tele with
-  | Emp ->
-    let* env = tc_env in
-    tc_with_env { gma = Emp ; rho = env.rho ; tau = Emp } m 
+  | Emp -> m  (* Don't reset at the top of a new telescope *)
+    (* let* env = tc_env in
+     * tc_with_env { env with gma = Emp ; tau = Emp } m *)
   | Ext (tele',(id,typ)) -> 
-    expr_tc_in_tele tele'
+    expr_tc_with_tele tele'
       (let* typ' = expr_tc_check_ty typ in
        let* env = tc_env in
        let* d = tc_depth in 
-       let env' = {
+       let env' = { env with 
          gma = Ext (env.gma, typ');
-         rho = env.rho;
          tau = Ext (env.tau, (id,d))
        } in 
        tc_with_env env' m)
 
 and expr_tc_check_coh tele typ = 
-  expr_tc_in_tele tele
+  expr_tc_with_tele tele
     (let* typ' = expr_tc_check_ty typ in
      let* gma = tc_ctx in
      (* printf "Telescope: %a@," pp_print_ctx gma; *)
@@ -616,11 +617,25 @@ and expr_pd_infer_args pd args_map =
     let lcl (_,b) = 
       let* (arg_typ, arg_br) = expr_pd_infer_args b args_map in
       (match arg_typ with
-       | ObjT -> tc_fail "something"
+       | ObjT -> tc_fail "argument inference error"
        | ArrT (typ,src,tgt) ->
          tc_ok (typ,src,(tgt,arg_br))) in 
     let* branch_results = ST.traverse lcl brs in
     let (t,s,_) = first branch_results in
-    let branches = SM.map (fun (_,_,b) -> b) branch_results in
+    let branches = Suite.map (fun (_,_,b) -> b) branch_results in
     tc_ok (t, Br(s,branches))
     
+(* let expr_tc_check_decl (id, tele, ty, tm) =
+ *   printf "-----------------@,";
+ *   printf "Checking let definition: %s@," id;
+ *   let* (gma,ty',tm') = expr_tc_with_tele tele
+ *       (\* With this method, the context coming back is the enclosing
+ *          one plus the new telescope.  But that may not be ideal ... *\)
+ *       (let* gma = tc_ctx in
+ *        let* ty' = expr_tc_check_ty ty in
+ *        let* tm' = expr_tc_check_tm tm ty' in
+ *        tc_ok (gma,ty',tm')) in
+ *   printf "Ok!@,";
+ *   (\* And then what to return? *\)
+ *   tc_ok ()  *)
+

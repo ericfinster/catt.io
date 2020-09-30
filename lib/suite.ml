@@ -4,11 +4,11 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open Cheshire.Main
+       
 type 'a suite =
   | Emp
   | Ext of 'a suite * 'a 
-
-
 
 let (|>) a b = Ext (a, b)
 
@@ -103,21 +103,20 @@ let rec grab k s =
 let split_at k s =
   let d = length s in
   grab (d-k) s 
-  
+
 (*****************************************************************************)
 (*                                   Zipper                                  *)
 (*****************************************************************************)
 
-open Cheshire.Err
-let (>>==) = ErrMonad.(>>=)
-               
+open MonadSyntax(ErrMnd(struct type t = string end))
+    
 type 'a suite_zip = ('a suite * 'a * 'a list)
 
 let rec append_list s l =
   match l with
   | [] -> s
   | x::xs -> append_list (Ext (s,x)) xs
-               
+
 let close (l,a,r) =
   append_list (Ext(l,a)) r
 
@@ -138,46 +137,41 @@ let move_right (l,a,r) =
 
 let rec move_left_n n z =
   if (n<=0) then Ok z else
-    move_left z >>== move_left_n (n-1)
+    move_left z >>= move_left_n (n-1)
 
 let open_leftmost s =
   let n = length s in
-  open_rightmost s >>== move_left_n (n-1)
+  open_rightmost s >>= move_left_n (n-1)
 
 let open_at k s =
   let l = length s in
   if (k+1>l) then
     Fail "Out of range"
-  else open_rightmost s >>== move_left_n (l-k-1)
-      
+  else open_rightmost s >>= move_left_n (l-k-1)
+
 (*****************************************************************************)
-(*                                 Instances                                 *)
+(*                               Instances                                   *)
 (*****************************************************************************)
 
-open Cheshire.Monad
-open Cheshire.Applicative
+module SuiteMnd = struct
 
-module SuiteMonad = MakeMonad(struct
+  type 'a m = 'a suite
 
-    type 'a t = 'a suite
+  let pure = singleton
 
-    let map = map
+  let rec bind s f =
+    match s with
+    | Emp -> Emp
+    | Ext (s',x) -> append (bind s' f) (f x)
+  
+end
 
-    let pure = singleton 
-
-    let rec bind s f =
-      match s with
-      | Emp -> Emp
-      | Ext (s',x) -> append (bind s' f) (f x)
-      
-  end)
-
-module SuiteTraverse(A : Applicative) = struct
+module SuiteTraverse(A: Applicative) = struct
 
   type 'a t = 'a suite
   type 'a m = 'a A.t
 
-  open A.ApplicativeSyntax
+  open ApplicativeSyntax(A)
 
   let rec traverse f s =
     match s with
@@ -186,8 +180,8 @@ module SuiteTraverse(A : Applicative) = struct
       let+ y = f x
       and+ t = traverse f s' in
       Ext (t,y)
-        
-  end
+    
+end
 
 (*****************************************************************************)
 (*                              Pretty Printing                              *)

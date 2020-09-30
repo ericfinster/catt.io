@@ -1,0 +1,330 @@
+#
+#  cyl-2.catt - Another cylinder example
+#
+
+import base
+
+#
+# 1d Source Coherence
+#
+
+let src_coh
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+  : x -> z    
+  = comp3(f,id(y),g)
+
+coh src_coh_z
+    (x : *) 
+    (y : *) (f : x -> y)
+    (z0 : *) (g : y -> z0)
+    (z1 : *) (z : z0 -> z1)
+  : comp(src_coh(x,y,f,z0,g),z) ->
+    src_coh(x,y,f,z1,comp(g,z)) 
+
+coh src_coh_g
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g0 : y -> z)
+            (g1 : y -> z) (g : g0 -> g1)
+  : src_coh(x,y,f,z,g0) ->
+    src_coh(x,y,f,z,g1)
+  
+coh src_coh_y
+    (x : *) 
+    (y0 : *) (f : x -> y0)
+    (y1 : *) (y : y0 -> y1)
+    (z : *) (g : y1 -> z)
+  : src_coh(x,y0,f,z,comp(y,g)) ->
+    src_coh(x,y1,comp(f,y),z,g) 
+
+coh src_coh_f
+    (x : *)
+    (y : *) (f0 : x -> y)
+            (f1 : x -> y) (f : f0 -> f1)
+    (z : *) (g : y -> z)
+  : src_coh(x,y,f0,z,g) ->
+    src_coh(x,y,f1,z,g)
+            
+coh src_coh_x
+    (x0 : *)
+    (x1 : *) (x : x0 -> x1)
+    (y : *) (f : x1 -> y)
+    (z : *) (g : y -> z)
+  : src_coh(x0,y,comp(x,f),z,g) ->
+    comp(x,src_coh(x1,y,f,z,g)) 
+
+#
+#  1d Target Coherence
+#
+
+let tgt_coh
+    (x : *)
+    (y : *) (g : x -> y)
+    (z : *) (k : y -> z)
+  : x -> z
+  = comp(g,k)
+
+coh tgt_coh_z
+    (x : *) 
+    (y : *) (f : x -> y)
+    (z0 : *) (g : y -> z0)
+    (z1 : *) (z : z0 -> z1)
+  : comp(tgt_coh(x,y,f,z0,g),z) ->
+    tgt_coh(x,y,f,z1,comp(g,z)) 
+
+coh tgt_coh_g
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g0 : y -> z)
+            (g1 : y -> z) (g : g0 -> g1)
+  : tgt_coh(x,y,f,z,g0) ->
+    tgt_coh(x,y,f,z,g1)
+  
+coh tgt_coh_y
+    (x : *) 
+    (y0 : *) (f : x -> y0)
+    (y1 : *) (y : y0 -> y1)
+    (z : *) (g : y1 -> z)
+  : tgt_coh(x,y0,f,z,comp(y,g)) ->
+    tgt_coh(x,y1,comp(f,y),z,g) 
+
+coh tgt_coh_f
+    (x : *)
+    (y : *) (f0 : x -> y)
+            (f1 : x -> y) (f : f0 -> f1)
+    (z : *) (g : y -> z)
+  : tgt_coh(x,y,f0,z,g) ->
+    tgt_coh(x,y,f1,z,g)
+            
+coh tgt_coh_x
+    (x0 : *)
+    (x1 : *) (x : x0 -> x1)
+    (y : *) (f : x1 -> y)
+    (z : *) (g : y -> z)
+  : tgt_coh(x0,y,comp(x,f),z,g) ->
+    comp(x,tgt_coh(x1,y,f,z,g)) 
+
+#
+#  2d Coherence
+#
+
+coh thecoh
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+            (k : y -> z) (b : h -> k)
+  : src_coh(x,y,f,z,h) ->
+    tgt_coh(x,y,g,z,k)
+
+# coh thecoh_src_x
+#     (x0 : *)
+#     (x1 : *) (x : x0 -> x1)
+#     (y : *) (f : x1 -> y)
+#     (z : *) (h : y -> z)
+#   : comp(x,thecoh_src(x1,y,f,z,h)) ->
+#     thecoh_src(x0,y,comp(x,f),z,h)
+
+# coh thecoh_tgt_x
+#     (x0 : *)
+#     (x1 : *) (x : x0 -> x1)
+#     (y : *) (g : x1 -> y)
+#     (z : *) (k : y -> z)
+#   : comp(x,thecoh_tgt(x1,y,g,z,k)) ->
+#     thecoh_tgt(x0,y,comp(x,g),z,k)
+
+# # Interesting! I guess the pattern seems pretty clear.  But you should
+# # keep going ...
+# coh thecoh_x
+#     (x0 : *)
+#     (x1 : *) (x : x0 -> x1)
+#     (y : *) (f : x1 -> y)
+#             (g : x1 -> y) (a : f -> g)
+#     (z : *) (h : y -> z)
+#             (k : y -> z) (b : h -> k)
+#   : vert(whisk_l(x,thecoh(a,b)),thecoh_tgt_x(x,g,k)) ->
+#     vert(thecoh_src_x(x,f,h),thecoh(whisk_l(x,a),b))
+
+# coh thecoh_src_f
+#     (x : *)
+#     (y : *) (f0 : x -> y)
+#             (f1 : x -> y) (f : f0 -> f1)
+#     (z : *) (h : y -> z)
+#   : thecoh_src(x,y,f0,z,h) -> thecoh_src(x,y,f1,z,h)
+
+# # Hmmm.  This one surprised me a bit ... 
+# coh thecoh_f
+#     (x : *)
+#     (y : *) (f0 : x -> y)
+#             (f1 : x -> y) (f : f0 -> f1)
+#             (g : x -> y) (a : f1 -> g)
+#     (z : *) (h : y -> z)
+#             (k : y -> z) (b : h -> k)
+#   : vert(thecoh_src_f(f,h),thecoh(a,b)) ->
+#     thecoh(vert(f,a),b)
+
+#
+#  Here is the complete type of the cylinder we are trying to describe:
+#
+#      ** || x -> z || src_coh(f,h) -> tgt_coh(g,k) || thecoh(a,b)
+
+#
+# 0d source cylinder
+#
+
+let thecoh_cyl_x0
+    (x0 : *) (x1 : *) (x : x0 -> x1)
+    (y0 : *) (y1 : *) (y : y0 -> y1)
+    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
+    (g0 : x0 -> y0) (g1 : x1 -> y1) (g : comp(g0,y) -> comp(x,g1))
+    (a0 : f0 -> g0) (a1 : f1 -> g1) (a : vert(whisk_r(a0,y),g) -> vert(f,whisk_l(x,a1)))
+    (z0 : *) (z1 : *) (z : z0 -> z1)
+    (h0 : y0 -> z0) (h1 : y1 -> z1) (h : comp(h0,z) -> comp(y,h1))
+    (k0 : y0 -> z0) (k1 : y1 -> z1) (k : comp(k0,z) -> comp(y,k1))
+    (b0 : h0 -> k0) (b1 : h1 -> k1) (b : vert(whisk_r(b0,z),k) -> vert(h,whisk_l(y,b1)))
+  : *
+  = x0
+
+let thecoh_cyl_x1 
+    (x0 : *) (x1 : *) (x : x0 -> x1)
+    (y0 : *) (y1 : *) (y : y0 -> y1)
+    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
+    (g0 : x0 -> y0) (g1 : x1 -> y1) (g : comp(g0,y) -> comp(x,g1))
+    (a0 : f0 -> g0) (a1 : f1 -> g1) (a : vert(whisk_r(a0,y),g) -> vert(f,whisk_l(x,a1)))
+    (z0 : *) (z1 : *) (z : z0 -> z1)
+    (h0 : y0 -> z0) (h1 : y1 -> z1) (h : comp(h0,z) -> comp(y,h1))
+    (k0 : y0 -> z0) (k1 : y1 -> z1) (k : comp(k0,z) -> comp(y,k1))
+    (b0 : h0 -> k0) (b1 : h1 -> k1) (b : vert(whisk_r(b0,z),k) -> vert(h,whisk_l(y,b1)))
+  : *
+  = x1
+  
+let thecoh_cyl_x  
+    (x0 : *) (x1 : *) (x : x0 -> x1)
+    (y0 : *) (y1 : *) (y : y0 -> y1)
+    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
+    (g0 : x0 -> y0) (g1 : x1 -> y1) (g : comp(g0,y) -> comp(x,g1))
+    (a0 : f0 -> g0) (a1 : f1 -> g1) (a : vert(whisk_r(a0,y),g) -> vert(f,whisk_l(x,a1)))
+    (z0 : *) (z1 : *) (z : z0 -> z1)
+    (h0 : y0 -> z0) (h1 : y1 -> z1) (h : comp(h0,z) -> comp(y,h1))
+    (k0 : y0 -> z0) (k1 : y1 -> z1) (k : comp(k0,z) -> comp(y,k1))
+    (b0 : h0 -> k0) (b1 : h1 -> k1) (b : vert(whisk_r(b0,z),k) -> vert(h,whisk_l(y,b1)))
+  : thecoh_cyl_x0(x0,x1,x,y0,y1,y,f0,f1,f,g0,g1,g,a0,a1,a,z0,z1,z,h0,h1,h,k0,k1,k,b0,b1,b) ->
+    thecoh_cyl_x1(x0,x1,x,y0,y1,y,f0,f1,f,g0,g1,g,a0,a1,a,z0,z1,z,h0,h1,h,k0,k1,k,b0,b1,b)
+  = x
+
+#
+# 0d target cylinder
+#
+
+let thecoh_cyl_z0
+    (x0 : *) (x1 : *) (x : x0 -> x1)
+    (y0 : *) (y1 : *) (y : y0 -> y1)
+    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
+    (g0 : x0 -> y0) (g1 : x1 -> y1) (g : comp(g0,y) -> comp(x,g1))
+    (a0 : f0 -> g0) (a1 : f1 -> g1) (a : vert(whisk_r(a0,y),g) -> vert(f,whisk_l(x,a1)))
+    (z0 : *) (z1 : *) (z : z0 -> z1)
+    (h0 : y0 -> z0) (h1 : y1 -> z1) (h : comp(h0,z) -> comp(y,h1))
+    (k0 : y0 -> z0) (k1 : y1 -> z1) (k : comp(k0,z) -> comp(y,k1))
+    (b0 : h0 -> k0) (b1 : h1 -> k1) (b : vert(whisk_r(b0,z),k) -> vert(h,whisk_l(y,b1)))
+  : *
+  = z0 
+
+let thecoh_cyl_z1
+    (x0 : *) (x1 : *) (x : x0 -> x1)
+    (y0 : *) (y1 : *) (y : y0 -> y1)
+    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
+    (g0 : x0 -> y0) (g1 : x1 -> y1) (g : comp(g0,y) -> comp(x,g1))
+    (a0 : f0 -> g0) (a1 : f1 -> g1) (a : vert(whisk_r(a0,y),g) -> vert(f,whisk_l(x,a1)))
+    (z0 : *) (z1 : *) (z : z0 -> z1)
+    (h0 : y0 -> z0) (h1 : y1 -> z1) (h : comp(h0,z) -> comp(y,h1))
+    (k0 : y0 -> z0) (k1 : y1 -> z1) (k : comp(k0,z) -> comp(y,k1))
+    (b0 : h0 -> k0) (b1 : h1 -> k1) (b : vert(whisk_r(b0,z),k) -> vert(h,whisk_l(y,b1)))
+  : *
+  = z1
+  
+let thecoh_cyl_z 
+    (x0 : *) (x1 : *) (x : x0 -> x1)
+    (y0 : *) (y1 : *) (y : y0 -> y1)
+    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
+    (g0 : x0 -> y0) (g1 : x1 -> y1) (g : comp(g0,y) -> comp(x,g1))
+    (a0 : f0 -> g0) (a1 : f1 -> g1) (a : vert(whisk_r(a0,y),g) -> vert(f,whisk_l(x,a1)))
+    (z0 : *) (z1 : *) (z : z0 -> z1)
+    (h0 : y0 -> z0) (h1 : y1 -> z1) (h : comp(h0,z) -> comp(y,h1))
+    (k0 : y0 -> z0) (k1 : y1 -> z1) (k : comp(k0,z) -> comp(y,k1))
+    (b0 : h0 -> k0) (b1 : h1 -> k1) (b : vert(whisk_r(b0,z),k) -> vert(h,whisk_l(y,b1)))
+  : thecoh_cyl_z0(x0,x1,x,y0,y1,y,f0,f1,f,g0,g1,g,a0,a1,a,z0,z1,z,h0,h1,h,k0,k1,k,b0,b1,b) ->
+    thecoh_cyl_z1(x0,x1,x,y0,y1,y,f0,f1,f,g0,g1,g,a0,a1,a,z0,z1,z,h0,h1,h,k0,k1,k,b0,b1,b)
+  = z
+
+#
+# 1d Source Cylinder
+#
+
+let thecoh_cyl_src0
+    (x0 : *) (x1 : *) (x : x0 -> x1)
+    (y0 : *) (y1 : *) (y : y0 -> y1)
+    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
+    (g0 : x0 -> y0) (g1 : x1 -> y1) (g : comp(g0,y) -> comp(x,g1))
+    (a0 : f0 -> g0) (a1 : f1 -> g1) (a : vert(whisk_r(a0,y),g) -> vert(f,whisk_l(x,a1)))
+    (z0 : *) (z1 : *) (z : z0 -> z1)
+    (h0 : y0 -> z0) (h1 : y1 -> z1) (h : comp(h0,z) -> comp(y,h1))
+    (k0 : y0 -> z0) (k1 : y1 -> z1) (k : comp(k0,z) -> comp(y,k1))
+    (b0 : h0 -> k0) (b1 : h1 -> k1) (b : vert(whisk_r(b0,z),k) -> vert(h,whisk_l(y,b1)))
+  : thecoh_cyl_x0(x0,x1,x,y0,y1,y,f0,f1,f,g0,g1,g,a0,a1,a,z0,z1,z,h0,h1,h,k0,k1,k,b0,b1,b) ->
+    thecoh_cyl_z0(x0,x1,x,y0,y1,y,f0,f1,f,g0,g1,g,a0,a1,a,z0,z1,z,h0,h1,h,k0,k1,k,b0,b1,b)
+  = src_coh(x0,y0,f0,z0,h0)
+  
+let thecoh_cyl_src1
+    (x0 : *) (x1 : *) (x : x0 -> x1)
+    (y0 : *) (y1 : *) (y : y0 -> y1)
+    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
+    (g0 : x0 -> y0) (g1 : x1 -> y1) (g : comp(g0,y) -> comp(x,g1))
+    (a0 : f0 -> g0) (a1 : f1 -> g1) (a : vert(whisk_r(a0,y),g) -> vert(f,whisk_l(x,a1)))
+    (z0 : *) (z1 : *) (z : z0 -> z1)
+    (h0 : y0 -> z0) (h1 : y1 -> z1) (h : comp(h0,z) -> comp(y,h1))
+    (k0 : y0 -> z0) (k1 : y1 -> z1) (k : comp(k0,z) -> comp(y,k1))
+    (b0 : h0 -> k0) (b1 : h1 -> k1) (b : vert(whisk_r(b0,z),k) -> vert(h,whisk_l(y,b1)))
+  : thecoh_cyl_x1(x0,x1,x,y0,y1,y,f0,f1,f,g0,g1,g,a0,a1,a,z0,z1,z,h0,h1,h,k0,k1,k,b0,b1,b) ->
+    thecoh_cyl_z1(x0,x1,x,y0,y1,y,f0,f1,f,g0,g1,g,a0,a1,a,z0,z1,z,h0,h1,h,k0,k1,k,b0,b1,b)
+  = src_coh(x1,y1,f1,z1,h1)
+  
+let thecoh_cyl_src 
+    (x0 : *) (x1 : *) (x : x0 -> x1)
+    (y0 : *) (y1 : *) (y : y0 -> y1)
+    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
+    (g0 : x0 -> y0) (g1 : x1 -> y1) (g : comp(g0,y) -> comp(x,g1))
+    (a0 : f0 -> g0) (a1 : f1 -> g1) (a : vert(whisk_r(a0,y),g) -> vert(f,whisk_l(x,a1)))
+    (z0 : *) (z1 : *) (z : z0 -> z1)
+    (h0 : y0 -> z0) (h1 : y1 -> z1) (h : comp(h0,z) -> comp(y,h1))
+    (k0 : y0 -> z0) (k1 : y1 -> z1) (k : comp(k0,z) -> comp(y,k1))
+    (b0 : h0 -> k0) (b1 : h1 -> k1) (b : vert(whisk_r(b0,z),k) -> vert(h,whisk_l(y,b1)))
+  : comp(thecoh_cyl_src0(x0,x1,x,y0,y1,y,f0,f1,f,g0,g1,g,a0,a1,a,z0,z1,z,h0,h1,h,k0,k1,k,b0,b1,b),
+         thecoh_cyl_z(x0,x1,x,y0,y1,y,f0,f1,f,g0,g1,g,a0,a1,a,z0,z1,z,h0,h1,h,k0,k1,k,b0,b1,b)) ->
+    comp(thecoh_cyl_x(x0,x1,x,y0,y1,y,f0,f1,f,g0,g1,g,a0,a1,a,z0,z1,z,h0,h1,h,k0,k1,k,b0,b1,b),
+         thecoh_cyl_src1(x0,x1,x,y0,y1,y,f0,f1,f,g0,g1,g,a0,a1,a,z0,z1,z,h0,h1,h,k0,k1,k,b0,b1,b))
+  = vert5(
+      src_coh_z(f0,h0,z),
+      src_coh_f(f0,h),
+      src_coh_y(f0,y,h1),
+      src_coh_g(f,h1),
+      src_coh_x(x,f1,h1) 
+    ) 
+
+  # = vert5(
+  #     excoh_coh_z(f0,g0,z),
+  #     excoh_coh_g(f0,g),
+  #     excoh_coh_y(f0,y,g1),
+  #     excoh_coh_f(f,g1),
+  #     excoh_coh_x(x,f1,g1)
+  #   )
+
+# let thecoh_cyl_tgt0
+# let thecoh_cyl_tgt1
+# let thecoh_cyl_tgt 
+
+# let thecoh_cyl0 
+# let thecoh_cyl1 
+# let thecoh_cyl 
+

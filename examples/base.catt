@@ -1,0 +1,112 @@
+#####################################################
+#
+#  base.catt - named versions of basic coherences
+#
+#####################################################
+
+#
+#  Identities
+#
+
+coh id
+    (x : *)
+  : x -> x
+
+coh id1
+    (x : *)
+    (y : *) (f : x -> y)
+  : f -> f
+
+coh id2
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+  : a -> a
+
+
+#
+#  1d compositions
+#
+
+coh comp
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+  : x -> z
+
+coh comp3
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+  : x -> w
+
+coh comp4
+    (a : *)
+    (b : *) (m : a -> b)
+    (c : *) (n : b -> c)
+    (d : *) (o : c -> d)
+    (e : *) (p : d -> e)
+  : a -> e
+
+coh comp5
+    (a : *)
+    (b : *) (m : a -> b)
+    (c : *) (n : b -> c)
+    (d : *) (o : c -> d)
+    (e : *) (p : d -> e)
+    (f : *) (q : e -> f)
+  : a -> f
+
+#
+#  2d compositions
+#
+
+coh vert
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+  : f -> h
+
+coh vert3
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+  : f -> i
+
+coh vert5
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+            (j : x -> y) (d : i -> j)
+            (k : x -> y) (e : j -> k)
+  : f -> k 
+
+coh horiz
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+            (k : y -> z) (b : h -> k)
+  : comp(f,h) -> comp(g,k)
+
+coh whisk_r
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+  : comp(f,h) -> comp(g,h)
+
+coh whisk_l
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+            (h : y -> z) (a : g -> h)
+  : comp(f,g) -> comp(f,h)
+
+            

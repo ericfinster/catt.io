@@ -8,8 +8,7 @@
 
 %token IMPORT
 %token PRUNE NORMALIZE INFER
-/* %token RECTIFY */
-/* %token EQNF LOCMAX */
+%token SECTION WHERE END
 %token LET COH 
 %token OBJ ARROW 
 %token LPAR RPAR LBRACKET RBRACKET
@@ -31,27 +30,24 @@ prog:
 import:
   | IMPORT id = IDENT
     { id }
-    
+
+decl:
+  | LET id = IDENT tl = tele COLON ty = ty_expr EQUAL tm = tm_expr
+    { (id, tl, ty, tm) }
+
 cmd:
   | COH id = IDENT tl = tele COLON ty = ty_expr
     { CellDef (id, tl, ty) }
   | LET id = IDENT tl = tele COLON ty = ty_expr EQUAL tm = tm_expr
     { TermDef (id, tl, ty, tm) }
+  | SECTION tl = tele WHERE decls = list(decl) END
+    { Section (tl, decls) } 
   | PRUNE tl = tele VBAR tm = tm_expr
     { Prune (tl, tm) }
   | NORMALIZE tl = tele VBAR tm = tm_expr
     { Normalize (tl, tm) }
   | INFER tl = tele VBAR tm = tm_expr
     { Infer (tl, tm) }
-
-  /* | EQNF ctx = var_decl+ VBAR tm_a = tm_expr VBAR tm_b = tm_expr */
-  /*   { EqNf (List.rev ctx, tm_a, tm_b) } */
-  /* | RECTIFY ctx = var_decl+ VBAR tm = tm_expr */
-  /*   { Rectify (List.rev ctx, tm) } */
-  /* | NORMALIZE ctx = var_decl+ VBAR tm = tm_expr */
-  /*   { Normalize (List.rev ctx, tm) } */
-  /* | LOCMAX ctx = var_decl+ */
-  /*   { LocMax (List.rev ctx) } */
 
 tele:
   | v = var_decl

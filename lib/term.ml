@@ -4,12 +4,17 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open Format
+
 open Pd
 open Suite
-    
-open Cheshire.Err
 
-open Format
+open Cheshire.Main
+
+module StringErr =
+  ErrMnd(struct type t = string end)
+
+open MonadSyntax(StringErr) 
 
 (*****************************************************************************)
 (*                                   Terms                                   *)
@@ -83,7 +88,7 @@ let err_lookup_var i l =
 (* map the given arguments into the 
    pasting diagram *)
 let args_to_pd pd args =
-  let module PdT = PdTraverse(ErrMonad) in 
+  let module PdT = PdTraverse(MndToApp(StringErr)) in 
   let get_arg t =
     match t with
     | VarT i -> err_lookup_var i args
@@ -194,7 +199,6 @@ let pd_to_ctx pd = let (rpd,_,_,_) = pd_to_ctx_br Emp ObjT 0 pd in rpd
 
 (* Try to convert a context to a pasting diagram *)
 let rec ctx_to_unit_pd gma =
-  let open ErrMonad.MonadSyntax in
   match gma with
   | Emp -> Fail "Empty context is not a pasting diagram"
   | Ext (Emp, ObjT) -> Ok (Br (VarT 0,Emp), ObjT, VarT 0, 0, 0)
@@ -249,14 +253,8 @@ let rec ctx_to_unit_pd gma =
         Ok (rpd, ftyp, VarT (k+2), k+2, tdim+1)
 
 let ctx_to_pd gma =
-  let open ErrMonad.MonadSyntax in
   let* (unit_pd,_,_,_,_) = ctx_to_unit_pd gma in
   Ok (pd_to_db unit_pd)
-
-(* let run_ctx_to_pd gma = 
- *   match ctx_to_unit_pd gma with
- *   | Ok (pd,_,_,_,_) -> printf "Well-formed!@,%a" (pp_print_pd pp_print_tm) pd
- *   | Fail msg -> printf "Error: %s" msg *)
 
 (*****************************************************************************)
 (*                                Substitution                               *)
