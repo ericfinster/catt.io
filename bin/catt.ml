@@ -70,7 +70,7 @@ let () =
   let tenv = { empty_env with config = !global_config } in 
   match raw_check_all files empty_raw_env tenv with
   | Ok _ ->
-    printf "----------------@,Done";
+    printf "----------------@,Success!";
     print_newline ()
   | Fail msg ->
     printf "Failure:@,%s" msg;

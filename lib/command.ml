@@ -52,6 +52,7 @@ let rec check_cmds cmds =
         (raw_check_section_decls (List.rev decls)) in
     let* (renv, tenv) = raw_complete_env in 
     let tenv' = { tenv with rho = Suite.append_list tenv.rho defs } in 
+    printf "-----------------@,";
     printf "Finished section@,";
     raw_with_env renv tenv' (check_cmds ds)
 

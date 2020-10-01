@@ -4,7 +4,6 @@
 
 import base
 
-
 # Our example coherence.  
 let excoh
     (x : *)
@@ -13,99 +12,7 @@ let excoh
   : x -> z
   = comp3(f,g,id(z))
 
-#  Our cylinder context: a composite of two 1-cylinders
-let cylcomp
-    (x0 : *) (x1 : *) (x : x0 -> x1)
-    (y0 : *) (y1 : *) (y : y0 -> y1)
-    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-    (z0 : *) (z1 : *) (z : z0 -> z1)
-    (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-  : *
-  = x0 
-
-# Source 0-cylinder
-let excoh_cylcomp_src_0 
-    (x0 : *) (x1 : *) (x : x0 -> x1)
-    (y0 : *) (y1 : *) (y : y0 -> y1)
-    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-    (z0 : *) (z1 : *) (z : z0 -> z1)
-    (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-  : *
-  = x0
-  
-let excoh_cylcomp_src_1 
-    (x0 : *) (x1 : *) (x : x0 -> x1)
-    (y0 : *) (y1 : *) (y : y0 -> y1)
-    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-    (z0 : *) (z1 : *) (z : z0 -> z1)
-    (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-  : *
-  = x1
-  
-let excoh_cylcomp_src 
-    (x0 : *) (x1 : *) (x : x0 -> x1)
-    (y0 : *) (y1 : *) (y : y0 -> y1)
-    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-    (z0 : *) (z1 : *) (z : z0 -> z1)
-    (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-  : excoh_cylcomp_src_0(x0,x1,x,y0,y1,y,f0,f1,f,z0,z1,z,g0,g1,g) ->
-    excoh_cylcomp_src_1(x0,x1,x,y0,y1,y,f0,f1,f,z0,z1,z,g0,g1,g)
-  = x
-
-# Target 0-cylinder
-let excoh_cylcomp_tgt_0 
-    (x0 : *) (x1 : *) (x : x0 -> x1)
-    (y0 : *) (y1 : *) (y : y0 -> y1)
-    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-    (z0 : *) (z1 : *) (z : z0 -> z1)
-    (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-  : *
-  = z0
-  
-let excoh_cylcomp_tgt_1 
-    (x0 : *) (x1 : *) (x : x0 -> x1)
-    (y0 : *) (y1 : *) (y : y0 -> y1)
-    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-    (z0 : *) (z1 : *) (z : z0 -> z1)
-    (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-  : *
-  = z1
-  
-let excoh_cylcomp_tgt 
-    (x0 : *) (x1 : *) (x : x0 -> x1)
-    (y0 : *) (y1 : *) (y : y0 -> y1)
-    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-    (z0 : *) (z1 : *) (z : z0 -> z1)
-    (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-  : excoh_cylcomp_tgt_0(x0,x1,x,y0,y1,y,f0,f1,f,z0,z1,z,g0,g1,g) ->
-    excoh_cylcomp_tgt_1(x0,x1,x,y0,y1,y,f0,f1,f,z0,z1,z,g0,g1,g)
-  = z
-
-# The resulting 1-cylinder
-let excoh_cylcomp_0
-    (x0 : *) (x1 : *) (x : x0 -> x1)
-    (y0 : *) (y1 : *) (y : y0 -> y1)
-    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-    (z0 : *) (z1 : *) (z : z0 -> z1)
-    (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-  : excoh_cylcomp_src_0(x0,x1,x,y0,y1,y,f0,f1,f,z0,z1,z,g0,g1,g) ->
-    excoh_cylcomp_tgt_0(x0,x1,x,y0,y1,y,f0,f1,f,z0,z1,z,g0,g1,g)
-  = excoh(x0,y0,f0,z0,g0)
-  
-let excoh_cylcomp_1 
-    (x0 : *) (x1 : *) (x : x0 -> x1)
-    (y0 : *) (y1 : *) (y : y0 -> y1)
-    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-    (z0 : *) (z1 : *) (z : z0 -> z1)
-    (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-  : excoh_cylcomp_src_1(x0,x1,x,y0,y1,y,f0,f1,f,z0,z1,z,g0,g1,g) ->
-    excoh_cylcomp_tgt_1(x0,x1,x,y0,y1,y,f0,f1,f,z0,z1,z,g0,g1,g)
-  = excoh(x1,y1,f1,z1,g1)
-
-#
-#  The coherences required for the filling 2-cell
-#
-
+#  The generated coherences
 coh excoh_coh_z
     (x : *) 
     (y : *) (f : x -> y)
@@ -146,78 +53,43 @@ coh excoh_coh_x
   : excoh(x0,y,comp(x,f),z,g) ->
     comp(x,excoh(x1,y,f,z,g)) 
 
-# This should be it, but it looks like we have some kind of
-# typechecking bug which is preventing this from working...
-let excoh_cyclcomp 
-    (x0 : *) (x1 : *) (x : x0 -> x1)
-    (y0 : *) (y1 : *) (y : y0 -> y1)
-    (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-    (z0 : *) (z1 : *) (z : z0 -> z1)
-    (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-  : comp(excoh_cylcomp_0(x0,x1,x,y0,y1,y,f0,f1,f,z0,z1,z,g0,g1,g),
-         excoh_cylcomp_tgt(x0,x1,x,y0,y1,y,f0,f1,f,z0,z1,z,g0,g1,g)) ->
-    comp(excoh_cylcomp_src(x0,x1,x,y0,y1,y,f0,f1,f,z0,z1,z,g0,g1,g),
-         excoh_cylcomp_1(x0,x1,x,y0,y1,y,f0,f1,f,z0,z1,z,g0,g1,g))
-  # : comp(excoh(x0,y0,f0,z0,g0),z) -> 
-  #   comp(x,excoh(x1,y1,f1,z1,g1))
-  = vert5(
-      excoh_coh_z(f0,g0,z),
-      excoh_coh_g(f0,g),
-      excoh_coh_y(f0,y,g1),
-      excoh_coh_f(f,g1),
-      excoh_coh_x(x,f1,g1)
-    )
+# Defining the cylinder ...
+section
+  (x0 : *) (x1 : *) (x : x0 -> x1)
+  (y0 : *) (y1 : *) (y : y0 -> y1)
+  (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
+  (z0 : *) (z1 : *) (z : z0 -> z1)
+  (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1)) where
 
-#
-#  Some more explicit typings ...
-#
+  # Source 0-cylinder
+  let cohcyl_src_0 : * = x0
+  let cohcyl_src_1 : * = x1
+  let cohcyl_src : cohcyl_src_0() -> cohcyl_src_1() = x
 
-# # excoh_coh_z(f0,g0,z) : comp(excoh(f0,g0),z) -> excoh(f0,comp(g0,z))
-# let one
-#     (x0 : *) (x1 : *) (x : x0 -> x1)
-#     (y0 : *) (y1 : *) (y : y0 -> y1)
-#     (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-#     (z0 : *) (z1 : *) (z : z0 -> z1)
-#     (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-#   : comp(excoh(x0,y0,f0,z0,g0),z) -> excoh(x0,y0,f0,z1,comp(g0,z))
-#   = excoh_coh_z(f0,g0,z)
+  # Target 0-cylinder
+  let cohcyl_tgt_0 : * = z0
+  let cohcyl_tgt_1 : * = z1
+  let cohcyl_tgt : cohcyl_tgt_0() -> cohcyl_tgt_1() = z
 
-# # excoh_coh_g(g0,g)    : excoh(f0,comp(g0,z)) -> excoh(f0,comp(y,g1))
-# let two 
-#     (x0 : *) (x1 : *) (x : x0 -> x1)
-#     (y0 : *) (y1 : *) (y : y0 -> y1)
-#     (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-#     (z0 : *) (z1 : *) (z : z0 -> z1)
-#     (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-#   : excoh(x0,y0,f0,z1,comp(g0,z)) -> excoh(x0,y0,f0,z1,comp(y,g1))
-#   = excoh_coh_g(f0,g)
-
-# # excoh_coh_y(f0,y,g1) : excoh(f0,comp(y,g1)) -> excoh(comp(f0,y),g1)
-# let three
-#     (x0 : *) (x1 : *) (x : x0 -> x1)
-#     (y0 : *) (y1 : *) (y : y0 -> y1)
-#     (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-#     (z0 : *) (z1 : *) (z : z0 -> z1)
-#     (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-#   : excoh(x0,y0,f0,z1,comp(y,g1)) -> excoh(x0,y1,comp(f0,y),z1,g1)
-#   = excoh_coh_y(f0,y,g1)
+  # The resulting 1-cylinder
   
-# # excoh_coh_f(f,g1)    : excoh(comp(f0,y),g1) -> excoh(comp(x,f1),g1)
-# let four
-#     (x0 : *) (x1 : *) (x : x0 -> x1)
-#     (y0 : *) (y1 : *) (y : y0 -> y1)
-#     (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-#     (z0 : *) (z1 : *) (z : z0 -> z1)
-#     (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-#   : excoh(x0,y1,comp(f0,y),z1,g1) -> excoh(x0,y1,comp(x,f1),z1,g1)
-#   = excoh_coh_f(f,g1)
+  let cohcyl_0
+    : cohcyl_src_0() -> cohcyl_tgt_0()
+    = excoh(x0,y0,f0,z0,g0)
 
-# # excoh_coh_x(x,f1,g1) : excoh(comp(x,f1),g1) -> comp(x,excoh(f1,g1))
-# let five
-#     (x0 : *) (x1 : *) (x : x0 -> x1)
-#     (y0 : *) (y1 : *) (y : y0 -> y1)
-#     (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
-#     (z0 : *) (z1 : *) (z : z0 -> z1)
-#     (g0 : y0 -> z0) (g1 : y1 -> z1) (g : comp(g0,z) -> comp(y,g1))
-#   : excoh(x0,y1,comp(x,f1),z1,g1) -> comp(x,excoh(x1,y1,f1,z1,g1))
-#   = excoh_coh_x(x,f1,g1)
+  let cohcyl_1
+    : cohcyl_src_1() -> cohcyl_tgt_1()
+    = excoh(x1,y1,f1,z1,g1)
+
+  let cohcyl
+    : comp(cohcyl_0(),cohcyl_tgt()) ->
+      comp(cohcyl_src(),cohcyl_1())
+    = vert5(
+        excoh_coh_z(f0,g0,z),
+        excoh_coh_g(f0,g),
+        excoh_coh_y(f0,y,g1),
+        excoh_coh_f(f,g1),
+        excoh_coh_x(x,f1,g1)
+      )
+
+end
