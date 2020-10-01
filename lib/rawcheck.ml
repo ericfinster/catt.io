@@ -231,6 +231,16 @@ let raw_in_section tele m =
     raw_with_env renv' tenv m 
   )
 
+let raw_check_decl_dbg (tele, ty, tm) =
+  (* printf "In declaration check@,";
+   * let* _ = lift (tc_dump_rho) in  *)
+  let* (gma,ty',tm') = raw_with_tele tele 
+      (let* gma = lift (tc_ctx) in
+       let* ty' = raw_check_ty ty in
+       let* tm' = raw_check_tm tm ty' in
+       raw_ok (gma,ty',tm')) in
+  raw_ok (gma, ty', tm')
+
 (* Check the list of declarations in the current section, adding
    each to the list of active section ids *)
 let rec raw_check_section_decls decls =
@@ -240,9 +250,10 @@ let rec raw_check_section_decls decls =
     raw_ok (renv, tenv, [])
   | (id,tele,ty,tm)::ds ->
     let* (renv, tenv, defs) = raw_check_section_decls ds in
-    let* (gma, ty', tm') = raw_check_decl (tele,ty,tm) in
+    printf "-----------------@,";
+    printf "Checking section declaration %s@," id;
+    let* (gma, ty', tm') = raw_with_env renv tenv (raw_check_decl_dbg (tele,ty,tm)) in
     let tenv' = { tenv with rho = Ext (tenv.rho, (id, TCTermDef (gma,ty',tm'))) } in
     let renv' = { renv with section_ids = id::renv.section_ids } in
+    printf "Ok!@,";
     raw_ok (renv', tenv', (id,TCTermDef (gma,ty',tm'))::defs)
-
-

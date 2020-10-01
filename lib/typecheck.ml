@@ -88,6 +88,16 @@ let tc_lookup_def id env =
   with Not_found -> Fail (sprintf "Unknown cell identifier: %s" id)
 
 (*****************************************************************************)
+(*                             Debugging routines                            *)
+(*****************************************************************************)
+
+let tc_dump_rho =
+  let* env = tc_env in
+  fprintf std_formatter "Environment: %a@,"
+    (pp_print_suite_horiz (fun ppf (id,_) -> fprintf ppf "%s" id)) env.rho; 
+  tc_ok ()
+
+(*****************************************************************************)
 (*                                 Unfolding                                 *)
 (*****************************************************************************)
                       

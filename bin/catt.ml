@@ -73,8 +73,7 @@ let () =
     printf "----------------@,Done";
     print_newline ()
   | Fail msg ->
-    print_string "Failure:@,";
-    print_string msg;
+    printf "Failure:@,%s" msg;
     print_cut ();
     print_string "----------------";
     print_newline ()

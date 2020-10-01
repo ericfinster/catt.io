@@ -50,8 +50,8 @@ cmd:
     { Infer (tl, tm) }
 
 tele:
-  | v = var_decl
-    { Ext (Emp, v) }
+  |
+    { Emp }
   | t = tele v = var_decl
     { Ext (t, v) }
 
@@ -66,6 +66,7 @@ ty_expr:
     { ArrE (e1, e2) }
 
 arg_list:
+    { Emp }
   | tm = tm_expr
     { Ext (Emp, tm) }
   | tms = arg_list COMMA tm = tm_expr

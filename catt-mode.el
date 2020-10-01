@@ -3,7 +3,7 @@
 (defvar catt-font-lock-keywords
  '(
    ("#.*" . 'font-lock-comment-face)
-   ("\\<\\(let\\|eqnf\\|locmax\\|prune\\|normalize\\|import\\|rectify\\|check\\|set\\|coh\\|hyp\\|eval\\|env\\)\\>\\|:\\|=" . font-lock-keyword-face)
+   ("\\<\\(let\\|section\\|where\\|end\\|eqnf\\|locmax\\|prune\\|normalize\\|import\\|rectify\\|check\\|set\\|coh\\|hyp\\|eval\\|env\\)\\>\\|:\\|=" . font-lock-keyword-face)
    ("\\<\\(Hom\\|Type\\)\\>\\|->" . font-lock-builtin-face)
    ;; ("\\<\\(\\)\\>" . font-lock-constant-face)
    ("\\<let[ \t]+\\([^ (=]*\\)" 1 'font-lock-function-name-face)

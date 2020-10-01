@@ -46,10 +46,13 @@ let rec check_cmds cmds =
     raw_with_let id gma ty' tm' (check_cmds ds)
       
   | (Section (tele, decls)) :: ds ->
+    printf "-----------------@,";
+    printf "Entering section ...@,";
     let* (_, _, defs) = raw_in_section tele
-        (raw_check_section_decls decls) in
+        (raw_check_section_decls (List.rev decls)) in
     let* (renv, tenv) = raw_complete_env in 
     let tenv' = { tenv with rho = Suite.append_list tenv.rho defs } in 
+    printf "Finished section@,";
     raw_with_env renv tenv' (check_cmds ds)
 
   (* | (Prune (_, _)) :: _ -> raw_fail "help" *)
