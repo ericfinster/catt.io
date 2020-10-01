@@ -240,13 +240,10 @@ section
   let cyl_1src_1 : cyl_0src_1() -> cyl_0tgt_1()
     = src_coh(x1,y1,f1,z1,h1)
   let cyl_1src : comp(cyl_1src_0(),cyl_0tgt()) -> comp(cyl_0src(),cyl_1src_1())
-    = vert5(
-        src_coh_z(f0,h0,z),
-        src_coh_g(f0,h),
-        src_coh_y(f0,y,h1),
-        src_coh_f(f,h1),
-        src_coh_x(x,f1,h1)
-      )
+    = vert(src_coh_z(f0,h0,z),
+      vert(src_coh_g(f0,h),
+      vert(src_coh_y(f0,y,h1),
+      vert(src_coh_f(f,h1),src_coh_x(x,f1,h1)))))
 
   # 1d Target Cylinder
   let cyl_1tgt_0 : cyl_0src_0() -> cyl_0tgt_0()
@@ -254,13 +251,10 @@ section
   let cyl_1tgt_1 : cyl_0src_1() -> cyl_0tgt_1()
     = tgt_coh(x1,y1,g1,z1,k1)
   let cyl_1tgt : comp(cyl_1tgt_0(),cyl_0tgt()) -> comp(cyl_0src(),cyl_1tgt_1())
-    = vert5(
-        tgt_coh_z(g0,k0,z),
-        tgt_coh_g(g0,k),
-        tgt_coh_y(g0,y,k1),
-        tgt_coh_f(g,k1),
-        tgt_coh_x(x,g1,k1)
-      )
+    = vert(tgt_coh_z(g0,k0,z),
+      vert(tgt_coh_g(g0,k),
+      vert(tgt_coh_y(g0,y,k1),
+      vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))))
 
   # 2d Cylinder
   let cyl_0 : cyl_1src_0() -> cyl_1tgt_0()
@@ -269,71 +263,136 @@ section
     = thecoh(a1,b1)
 
   # assoc
-  sig first : vert(whisk_r(thecoh(a0,b0),z),vert5(tgt_coh_z(g0,k0,z),tgt_coh_g(g0,k),tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) -> 
-              vert(vert(whisk_r(thecoh(a0,b0),z),tgt_coh_z(g0,k0,z)),vert4(tgt_coh_g(g0,k),tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
+  sig coh1 : vert(whisk_r(thecoh(a0,b0),z),vert(tgt_coh_z(g0,k0,z),vert(tgt_coh_g(g0,k),vert(tgt_coh_y(g0,y,k1),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))))) ->
+             vert(vert(whisk_r(thecoh(a0,b0),z),tgt_coh_z(g0,k0,z)),vert(tgt_coh_g(g0,k),vert(tgt_coh_y(g0,y,k1),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))))
 
-  # using thecoh_z
-  sig second : vert(vert(whisk_r(thecoh(a0,b0),z),tgt_coh_z(g0,k0,z)),vert4(tgt_coh_g(g0,k),tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
-               vert(vert(src_coh_z(f0,h0,z),thecoh(a0,whisk_r(b0,z))),vert4(tgt_coh_g(g0,k),tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
-
-  # assoc
-  sig third : vert(vert(src_coh_z(f0,h0,z),thecoh(a0,whisk_r(b0,z))),vert4(tgt_coh_g(g0,k),tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
-              vert3(src_coh_z(f0,h0,z),vert(thecoh(a0,whisk_r(b0,z)),tgt_coh_g(g0,k)),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))  
-
-  # using thecoh_k
-  sig fouth : vert3(src_coh_z(f0,h0,z),vert(thecoh(a0,whisk_r(b0,z)),tgt_coh_g(g0,k)),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
-              vert3(src_coh_z(f0,h0,z),thecoh(a0,vert(whisk_r(b0,z),k)),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
-
-  # using thecoh_b
-  sig fifth : vert3(src_coh_z(f0,h0,z),thecoh(a0,vert(whisk_r(b0,z),k)),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
-              vert3(src_coh_z(f0,h0,z),thecoh(a0,vert(h,whisk_l(y,b1))),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
-
-  # using thecoh_h 
-  sig sixth : vert3(src_coh_z(f0,h0,z),thecoh(a0,vert(h,whisk_l(y,b1))),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
-              vert3(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),thecoh(a0,whisk_l(y,b1))),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
-
-  # assoc
-  sig seventh : vert3(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),thecoh(a0,whisk_l(y,b1))),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) -> 
-                vert3(vert(src_coh_z(f0,h0,z),src_coh_g(f0,h)),vert(thecoh(a0,whisk_l(y,b1)),tgt_coh_y(g0,y,k1)),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
-
-  # using thecoh_y 
-  sig eighth : vert3(vert(src_coh_z(f0,h0,z),src_coh_g(f0,h)),vert(thecoh(a0,whisk_l(y,b1)),tgt_coh_y(g0,y,k1)),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
-               vert3(vert(src_coh_z(f0,h0,z),src_coh_g(f0,h)),vert(src_coh_y(f0,y,h1),thecoh(whisk_r(a0,y),b1)),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
+  # z
+  sig coh2 : vert(vert(whisk_r(thecoh(a0,b0),z),tgt_coh_z(g0,k0,z)),vert(tgt_coh_g(g0,k),vert(tgt_coh_y(g0,y,k1),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))))) ->
+             vert(vert(src_coh_z(f0,h0,z),thecoh(a0,whisk_r(b0,z))),vert(tgt_coh_g(g0,k),vert(tgt_coh_y(g0,y,k1),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))))) 
 
   # assoc 
-  sig ninth : vert3(vert(src_coh_z(f0,h0,z),src_coh_g(f0,h)),vert(src_coh_y(f0,y,h1),thecoh(whisk_r(a0,y),b1)),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
-              vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),vert(thecoh(whisk_r(a0,y),b1),tgt_coh_f(g,k1)),tgt_coh_x(x,g1,k1))
+  sig coh3 : vert(vert(src_coh_z(f0,h0,z),thecoh(a0,whisk_r(b0,z))),vert(tgt_coh_g(g0,k),vert(tgt_coh_y(g0,y,k1),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))))) ->
+             vert(src_coh_z(f0,h0,z),vert(vert(thecoh(a0,whisk_r(b0,z)),tgt_coh_g(g0,k)),vert(tgt_coh_y(g0,y,k1),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))))) 
 
-  # using thecoh_g
-  sig tenth : vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),vert(thecoh(whisk_r(a0,y),b1),tgt_coh_f(g,k1)),tgt_coh_x(x,g1,k1)) ->
-              vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),thecoh(vert(whisk_r(a0,y),g),b1),tgt_coh_x(x,g1,k1))
+  # k
+  sig coh4 : vert(src_coh_z(f0,h0,z),vert(vert(thecoh(a0,whisk_r(b0,z)),tgt_coh_g(g0,k)),vert(tgt_coh_y(g0,y,k1),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))))) ->
+             vert(src_coh_z(f0,h0,z),vert(thecoh(a0,vert(whisk_r(b0,z),k)),vert(tgt_coh_y(g0,y,k1),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))))) 
 
-  # using thecoh_a
-  sig eleventh : vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),thecoh(vert(whisk_r(a0,y),g),b1),tgt_coh_x(x,g1,k1)) ->
-                 vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),thecoh(vert(f,whisk_l(x,a1)),b1),tgt_coh_x(x,g1,k1))
+  # b
+  sig coh5 : vert(src_coh_z(f0,h0,z),vert(thecoh(a0,vert(whisk_r(b0,z),k)),vert(tgt_coh_y(g0,y,k1),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))))) ->
+             vert(src_coh_z(f0,h0,z),vert(thecoh(a0,vert(h,whisk_l(y,b1))),vert(tgt_coh_y(g0,y,k1),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))))
 
-  # using thecoh_f
-  sig twelfth : vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),thecoh(vert(f,whisk_l(x,a1)),b1),tgt_coh_x(x,g1,k1)) ->
-                vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),vert(src_coh_f(f,h1),thecoh(whisk_l(x,a1),b1)),tgt_coh_x(x,g1,k1))
-
-  # assoc 
-  sig thirteenth : vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),vert(src_coh_f(f,h1),thecoh(whisk_l(x,a1),b1)),tgt_coh_x(x,g1,k1)) ->
-                   vert(vert4(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1),src_coh_f(f,h1)),vert(thecoh(whisk_l(x,a1),b1),tgt_coh_x(x,g1,k1)))
-
-  # using thecoh_x
-  sig fourteenth : vert(vert4(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1),src_coh_f(f,h1)),vert(thecoh(whisk_l(x,a1),b1),tgt_coh_x(x,g1,k1))) ->
-                   vert(vert4(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1),src_coh_f(f,h1)),vert(src_coh_x(x,f1,h1),whisk_l(x,thecoh(a1,b1))))
+  # h 
+  sig coh6 : vert(src_coh_z(f0,h0,z),vert(thecoh(a0,vert(h,whisk_l(y,b1))),vert(tgt_coh_y(g0,y,k1),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))))) ->
+             vert(src_coh_z(f0,h0,z),vert(vert(src_coh_g(f0,h),thecoh(a0,whisk_l(y,b1))),vert(tgt_coh_y(g0,y,k1),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))))
 
   # assoc
-  sig fifteenth : vert(vert4(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1),src_coh_f(f,h1)),vert(src_coh_x(x,f1,h1),whisk_l(x,thecoh(a1,b1)))) ->
-                  vert(vert5(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1),src_coh_f(f,h1),src_coh_x(x,f1,h1)),whisk_l(x,thecoh(a1,b1)))
+  sig coh7 : vert(src_coh_z(f0,h0,z),vert(vert(src_coh_g(f0,h),thecoh(a0,whisk_l(y,b1))),vert(tgt_coh_y(g0,y,k1),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))))) ->
+             vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(vert(thecoh(a0,whisk_l(y,b1)),tgt_coh_y(g0,y,k1)),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))))
 
-  #
-  #  And we're done.
-  #
+  # y
+  sig coh8 : vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(vert(thecoh(a0,whisk_l(y,b1)),tgt_coh_y(g0,y,k1)),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))))) ->
+             vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(vert(src_coh_y(f0,y,h1),thecoh(whisk_r(a0,y),b1)),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))))) 
 
-  # Ok! So the here's the final goal!
+  # assoc
+  sig coh9 : vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(vert(src_coh_y(f0,y,h1),thecoh(whisk_r(a0,y),b1)),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))))) -> 
+             vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(src_coh_y(f0,y,h1),vert(vert(thecoh(whisk_r(a0,y),b1),tgt_coh_f(g,k1)),tgt_coh_x(x,g1,k1))))) 
+
+  # g
+  sig coh10 : vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(src_coh_y(f0,y,h1),vert(vert(thecoh(whisk_r(a0,y),b1),tgt_coh_f(g,k1)),tgt_coh_x(x,g1,k1))))) ->
+              vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(src_coh_y(f0,y,h1),vert(thecoh(vert(whisk_r(a0,y),g),b1),tgt_coh_x(x,g1,k1)))))
+              
+  # a
+  sig coh11 : vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(src_coh_y(f0,y,h1),vert(thecoh(vert(whisk_r(a0,y),g),b1),tgt_coh_x(x,g1,k1))))) ->
+              vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(src_coh_y(f0,y,h1),vert(thecoh(vert(f,whisk_l(x,a1)),b1),tgt_coh_x(x,g1,k1)))))
+
+  # f
+  sig coh12 : vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(src_coh_y(f0,y,h1),vert(thecoh(vert(f,whisk_l(x,a1)),b1),tgt_coh_x(x,g1,k1))))) ->
+              vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(src_coh_y(f0,y,h1),vert(vert(src_coh_f(f,h1),thecoh(whisk_l(x,a1),b1)),tgt_coh_x(x,g1,k1)))))
+              
+  # assoc
+  sig coh13 : vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(src_coh_y(f0,y,h1),vert(vert(src_coh_f(f,h1),thecoh(whisk_l(x,a1),b1)),tgt_coh_x(x,g1,k1))))) ->
+              vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(src_coh_y(f0,y,h1),vert(src_coh_f(f,h1),vert(thecoh(whisk_l(x,a1),b1),tgt_coh_x(x,g1,k1))))))
+              
+  # x
+  sig coh14 : vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(src_coh_y(f0,y,h1),vert(src_coh_f(f,h1),vert(thecoh(whisk_l(x,a1),b1),tgt_coh_x(x,g1,k1)))))) ->
+              vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(src_coh_y(f0,y,h1),vert(src_coh_f(f,h1),vert(src_coh_x(x,f1,h1),whisk_l(x,thecoh(a1,b1)))))))
+              
+  # assoc
+  sig coh15 : vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(src_coh_y(f0,y,h1),vert(src_coh_f(f,h1),vert(src_coh_x(x,f1,h1),whisk_l(x,thecoh(a1,b1))))))) ->
+              vert(vert(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),vert(src_coh_y(f0,y,h1),vert(src_coh_f(f,h1),src_coh_x(x,f1,h1))))),whisk_l(x,thecoh(a1,b1)))
+
+  # And the final result ...
   sig cyl : vert(whisk_r(cyl_0(),cyl_0tgt()),cyl_1tgt()) ->
             vert(cyl_1src(),whisk_l(cyl_0src(),cyl_1()))
             
 end
+
+
+#
+#  An earlier attempt
+#
+
+# # assoc
+# sig first : vert(whisk_r(thecoh(a0,b0),z),vert5(tgt_coh_z(g0,k0,z),tgt_coh_g(g0,k),tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) -> 
+#             vert(vert(whisk_r(thecoh(a0,b0),z),tgt_coh_z(g0,k0,z)),vert4(tgt_coh_g(g0,k),tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
+
+# # using thecoh_z
+# sig second : vert(vert(whisk_r(thecoh(a0,b0),z),tgt_coh_z(g0,k0,z)),vert4(tgt_coh_g(g0,k),tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
+#              vert(vert(src_coh_z(f0,h0,z),thecoh(a0,whisk_r(b0,z))),vert4(tgt_coh_g(g0,k),tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
+
+# # assoc
+# sig third : vert(vert(src_coh_z(f0,h0,z),thecoh(a0,whisk_r(b0,z))),vert4(tgt_coh_g(g0,k),tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
+#             vert3(src_coh_z(f0,h0,z),vert(thecoh(a0,whisk_r(b0,z)),tgt_coh_g(g0,k)),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))  
+
+# # using thecoh_k
+# sig fouth : vert3(src_coh_z(f0,h0,z),vert(thecoh(a0,whisk_r(b0,z)),tgt_coh_g(g0,k)),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
+#             vert3(src_coh_z(f0,h0,z),thecoh(a0,vert(whisk_r(b0,z),k)),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
+
+# # using thecoh_b
+# sig fifth : vert3(src_coh_z(f0,h0,z),thecoh(a0,vert(whisk_r(b0,z),k)),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
+#             vert3(src_coh_z(f0,h0,z),thecoh(a0,vert(h,whisk_l(y,b1))),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
+
+# # using thecoh_h 
+# sig sixth : vert3(src_coh_z(f0,h0,z),thecoh(a0,vert(h,whisk_l(y,b1))),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
+#             vert3(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),thecoh(a0,whisk_l(y,b1))),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
+
+# # assoc
+# sig seventh : vert3(src_coh_z(f0,h0,z),vert(src_coh_g(f0,h),thecoh(a0,whisk_l(y,b1))),vert3(tgt_coh_y(g0,y,k1),tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) -> 
+#               vert3(vert(src_coh_z(f0,h0,z),src_coh_g(f0,h)),vert(thecoh(a0,whisk_l(y,b1)),tgt_coh_y(g0,y,k1)),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
+
+# # using thecoh_y 
+# sig eighth : vert3(vert(src_coh_z(f0,h0,z),src_coh_g(f0,h)),vert(thecoh(a0,whisk_l(y,b1)),tgt_coh_y(g0,y,k1)),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
+#              vert3(vert(src_coh_z(f0,h0,z),src_coh_g(f0,h)),vert(src_coh_y(f0,y,h1),thecoh(whisk_r(a0,y),b1)),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1)))
+
+# # assoc 
+# sig ninth : vert3(vert(src_coh_z(f0,h0,z),src_coh_g(f0,h)),vert(src_coh_y(f0,y,h1),thecoh(whisk_r(a0,y),b1)),vert(tgt_coh_f(g,k1),tgt_coh_x(x,g1,k1))) ->
+#             vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),vert(thecoh(whisk_r(a0,y),b1),tgt_coh_f(g,k1)),tgt_coh_x(x,g1,k1))
+
+# # using thecoh_g
+# sig tenth : vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),vert(thecoh(whisk_r(a0,y),b1),tgt_coh_f(g,k1)),tgt_coh_x(x,g1,k1)) ->
+#             vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),thecoh(vert(whisk_r(a0,y),g),b1),tgt_coh_x(x,g1,k1))
+
+# # using thecoh_a
+# sig eleventh : vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),thecoh(vert(whisk_r(a0,y),g),b1),tgt_coh_x(x,g1,k1)) ->
+#                vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),thecoh(vert(f,whisk_l(x,a1)),b1),tgt_coh_x(x,g1,k1))
+
+# # using thecoh_f
+# sig twelfth : vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),thecoh(vert(f,whisk_l(x,a1)),b1),tgt_coh_x(x,g1,k1)) ->
+#               vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),vert(src_coh_f(f,h1),thecoh(whisk_l(x,a1),b1)),tgt_coh_x(x,g1,k1))
+
+# # assoc 
+# sig thirteenth : vert3(vert3(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1)),vert(src_coh_f(f,h1),thecoh(whisk_l(x,a1),b1)),tgt_coh_x(x,g1,k1)) ->
+#                  vert(vert4(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1),src_coh_f(f,h1)),vert(thecoh(whisk_l(x,a1),b1),tgt_coh_x(x,g1,k1)))
+
+# # using thecoh_x
+# sig fourteenth : vert(vert4(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1),src_coh_f(f,h1)),vert(thecoh(whisk_l(x,a1),b1),tgt_coh_x(x,g1,k1))) ->
+#                  vert(vert4(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1),src_coh_f(f,h1)),vert(src_coh_x(x,f1,h1),whisk_l(x,thecoh(a1,b1))))
+
+# # assoc
+# sig fifteenth : vert(vert4(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1),src_coh_f(f,h1)),vert(src_coh_x(x,f1,h1),whisk_l(x,thecoh(a1,b1)))) ->
+#                 vert(vert5(src_coh_z(f0,h0,z),src_coh_g(f0,h),src_coh_y(f0,y,h1),src_coh_f(f,h1),src_coh_x(x,f1,h1)),whisk_l(x,thecoh(a1,b1)))
+
+#
+#  And we're done.
+#
