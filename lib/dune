@@ -1,12 +1,18 @@
-(menhir
-  (infer false)
-  (modules parser))
-
 (ocamllex
   (modules lexer))
+
+(menhir
+  (infer false)
+  (flags --table)
+  (modules parser))
+
+(rule
+ (targets parser_messages.ml)
+ (deps parser.messages parser.mly)
+ (action  (with-stdout-to %{targets} (run menhir --compile-errors %{deps}))))
 
 (library
  (name catt)
  (public_name catt)
  (synopsis "Core routines and typechecker for catt.io")
- (libraries cheshire))
+ (libraries cheshire menhirLib))
