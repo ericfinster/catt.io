@@ -41,19 +41,16 @@ let rec check_cmds cmds =
   | (TermDef (id, tele, ty, tm)) :: ds -> 
     printf "-----------------@,";
     printf "Checking let definition: %s@," id;
-    let* (gma,ty',tm') = raw_with_tele tele 
-        (let* gma = lift (tc_ctx) in
-         let* ty' = raw_check_ty ty in
-         let* tm' = raw_check_tm tm ty' in
-         raw_ok (gma,ty',tm')) in
+    let* (gma,ty',tm') = raw_check_decl (tele,ty,tm) in
     printf "Ok!@,";
     raw_with_let id gma ty' tm' (check_cmds ds)
       
-  | (Section (_, _)) :: ds ->
-    (* let* _ expr_tc_with_tele tele
-     *     () *)
-         
-    check_cmds ds
+  | (Section (tele, decls)) :: ds ->
+    let* (_, _, defs) = raw_in_section tele
+        (raw_check_section_decls decls) in
+    let* (renv, tenv) = raw_complete_env in 
+    let tenv' = { tenv with rho = Suite.append_list tenv.rho defs } in 
+    raw_with_env renv tenv' (check_cmds ds)
 
   (* | (Prune (_, _)) :: _ -> raw_fail "help" *)
   | (Prune (tele, tm)) :: ds -> 

@@ -78,6 +78,14 @@ let rec assoc k s =
 
 let singleton a = Ext (Emp, a)
 
+let rec append_list s l =
+  match l with
+  | [] -> s
+  | x::xs -> append_list (Ext (s,x)) xs
+
+let from_list l =
+  append_list Emp l 
+
 (* Extract de Brujin index from a suite *)
 let rec db_get i s =
   match s with
@@ -111,11 +119,6 @@ let split_at k s =
 open MonadSyntax(ErrMnd(struct type t = string end))
     
 type 'a suite_zip = ('a suite * 'a * 'a list)
-
-let rec append_list s l =
-  match l with
-  | [] -> s
-  | x::xs -> append_list (Ext (s,x)) xs
 
 let close (l,a,r) =
   append_list (Ext(l,a)) r

@@ -22,9 +22,16 @@ type decl = (string * tele * ty_expr * tm_expr)
             
 type raw_env = {
   tau : (string * int) suite;
-  section_decls: (string * decl) list
+  section_ids : string list;
+  section_args : tm_expr suite; 
 }
-    
+
+let empty_raw_env = { 
+  tau = Emp ;
+  section_ids = [] ;
+  section_args = Emp
+}
+
 module RawMnd = ReaderT(struct type t = raw_env end)(TcmMnd)
 
 open RawMnd
@@ -57,6 +64,9 @@ let raw_with_let id gma ty tm m =
   let* (renv, tenv) = raw_complete_env in
   let tenv' = { tenv with rho = Ext (tenv.rho, (id, TCTermDef (gma,ty,tm))) } in
   raw_with_env renv tenv' m 
+
+let raw_is_section_decl id renv _ =
+  Ok (List.mem id renv.section_ids)
 
 (*****************************************************************************)
 (*                              Raw Typechecking                             *)
@@ -123,10 +133,15 @@ and raw_infer_tm tm =
       
       raw_ok (DefAppT (id, args''), subst_ty args'' typ)
     
-    | TCTermDef (gma, typ, _) -> 
-      let* args' = raw_check_args args gma in
-      raw_ok (DefAppT (id, args'), subst_ty args' typ)
-        
+    | TCTermDef (gma, typ, _) ->
+      let* is_sec_decl = raw_is_section_decl id in
+      let* args' =
+        if (is_sec_decl) then
+          let* renv = raw_env in 
+          raw_ok (append renv.section_args args)
+        else raw_ok args in 
+      let* args'' = raw_check_args args' gma in
+      raw_ok (DefAppT (id, args''), subst_ty args'' typ)
   )
 
   | CohE (tele, typ, args) ->
@@ -195,16 +210,39 @@ and raw_pd_infer_args pd args_map =
     let branches = Suite.map (fun (_,_,b) -> b) branch_results in
     raw_ok (t, Br(s,branches))
     
-(* let raw_check_decl (id, tele, ty, tm) =
- *   printf "-----------------@,";
- *   printf "Checking let definition: %s@," id;
- *   let* (gma,ty',tm') = expr_tc_with_tele tele
- *       (\* With this method, the context coming back is the enclosing
- *          one plus the new telescope.  But that may not be ideal ... *\)
- *       (let* gma = tc_ctx in
- *        let* ty' = expr_tc_check_ty ty in
- *        let* tm' = expr_tc_check_tm tm ty' in
- *        tc_ok (gma,ty',tm')) in
- *   printf "Ok!@,";
- *   (\* And then what to return? *\)
- *   tc_ok ()  *)
+let raw_check_decl (tele, ty, tm) =
+  let* (gma,ty',tm') = raw_with_tele tele 
+      (let* gma = lift (tc_ctx) in
+       let* ty' = raw_check_ty ty in
+       let* tm' = raw_check_tm tm ty' in
+       raw_ok (gma,ty',tm')) in
+  raw_ok (gma, ty', tm')
+
+(*****************************************************************************)
+(*                            Sectioning Mechanism                           *)
+(*****************************************************************************)
+    
+(* Enter the section given by the telescope *)
+let raw_in_section tele m =
+  raw_with_tele tele (
+    let* (renv, tenv) = raw_complete_env in
+    let sec_args = Suite.map (fun (v,_) -> VarE v) renv.tau in
+    let renv' = { renv with section_ids = [] ; section_args = sec_args } in 
+    raw_with_env renv' tenv m 
+  )
+
+(* Check the list of declarations in the current section, adding
+   each to the list of active section ids *)
+let rec raw_check_section_decls decls =
+  match decls with
+  | [] ->
+    let* (renv, tenv) = raw_complete_env in
+    raw_ok (renv, tenv, [])
+  | (id,tele,ty,tm)::ds ->
+    let* (renv, tenv, defs) = raw_check_section_decls ds in
+    let* (gma, ty', tm') = raw_check_decl (tele,ty,tm) in
+    let tenv' = { tenv with rho = Ext (tenv.rho, (id, TCTermDef (gma,ty',tm'))) } in
+    let renv' = { renv with section_ids = id::renv.section_ids } in
+    raw_ok (renv', tenv', (id,TCTermDef (gma,ty',tm'))::defs)
+
+
