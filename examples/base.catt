@@ -77,6 +77,15 @@ coh vert3
             (i : x -> y) (c : h -> i)
   : f -> i
 
+coh vert4
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+            (j : x -> y) (d : i -> j)
+  : f -> j
+
 coh vert5
     (x : *)
     (y : *) (f : x -> y)
