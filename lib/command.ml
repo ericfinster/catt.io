@@ -6,16 +6,16 @@
 
 open Format
 
-open Expr
 open Term
-open Typecheck
-
+open Expr
+open Typecheck    
+open Rawcheck
+    
 open Cheshire.Main
        
-open MonadSyntax(TcmMnd)
+open RawMnd
+open MonadSyntax(RawMnd)
 
-type decl = (string * tele * ty_expr * tm_expr)
-                
 type cmd =
   | CellDef of string * tele * ty_expr
   | TermDef of decl
@@ -26,89 +26,77 @@ type cmd =
 
 let rec check_cmds cmds =
   match cmds with
-  | [] -> tc_env
+  | [] -> raw_complete_env
 
+  (* | (CellDef (_, _, _)) :: _ -> raw_fail "help" *)
   | (CellDef (id, tele, typ)) :: ds -> 
     printf "-----------------@,";
     printf "Checking coh definition: %s@," id;
     printf "@[<hov>%a : %a@]@," pp_print_tele tele pp_print_expr_ty typ;
-    let* (_,pd,typ') = expr_tc_check_coh tele typ in 
+    let* (_,pd,typ') = raw_check_coh tele typ in 
     printf "Ok!@,";
-    tc_with_coh id pd typ' (check_cmds ds)
+    raw_with_coh id pd typ' (check_cmds ds)
 
+  (* | (TermDef (_, _, _, _)) :: _ -> raw_fail "help" *)
   | (TermDef (id, tele, ty, tm)) :: ds -> 
     printf "-----------------@,";
     printf "Checking let definition: %s@," id;
-    let* (gma,ty',tm') = expr_tc_with_tele tele 
-        (let* gma = tc_ctx in
-         let* ty' = expr_tc_check_ty ty in
-         let* tm' = expr_tc_check_tm tm ty' in
-         tc_ok (gma,ty',tm')) in
+    let* (gma,ty',tm') = raw_with_tele tele 
+        (let* gma = lift (tc_ctx) in
+         let* ty' = raw_check_ty ty in
+         let* tm' = raw_check_tm tm ty' in
+         raw_ok (gma,ty',tm')) in
     printf "Ok!@,";
-    tc_with_let id gma ty' tm' (check_cmds ds)
-
+    raw_with_let id gma ty' tm' (check_cmds ds)
+      
   | (Section (_, _)) :: ds ->
     (* let* _ expr_tc_with_tele tele
      *     () *)
          
     check_cmds ds
 
-
-
-    (* printf "-----------------@,";
-     * printf "Checking let definition: %s@," id;
-     * let* (gma,ty',tm') = expr_tc_with_tele tele 
-     *     (let* gma = tc_ctx in
-     *      let* ty' = expr_tc_check_ty ty in
-     *      let* tm' = expr_tc_check_tm tm ty' in
-     *      tc_ok (gma,ty',tm')) in
-     * printf "Ok!@,";
-     * tc_with_let id gma ty' tm' (check_cmds ds) *)
-
-
-
-
-
-  | (Prune (tele, tm)) :: ds ->
+  (* | (Prune (_, _)) :: _ -> raw_fail "help" *)
+  | (Prune (tele, tm)) :: ds -> 
     printf "-----------------@,";
     printf "Pruning@,";
-    let* _ = expr_tc_with_tele tele
-        (let* (tm',_) = expr_tc_infer_tm tm in
-         let* tm_nf = tc_unfold_tm tm' in
+    let* _ = raw_with_tele tele
+        (let* (tm',_) = raw_infer_tm tm in
+         let* tm_nf = lift (tc_unfold_tm tm') in
          printf "Unfolded term:@,%a@," pp_print_tm tm_nf;
          match tm_nf with
          | CohT (pd,typ,args) ->
-           let* (pd',typ',args') = tc_lift (prune pd typ args) in
+           let* (pd',typ',args') = lift (tc_lift (prune pd typ args)) in
            printf "Result:@,%a@," pp_print_tm (CohT (pd',typ',args'));
-           tc_ok ()
+           raw_ok ()
          | _ ->
            printf "Normal form was not a coherence@,";
-           tc_ok ()) in 
+           raw_ok ()) in 
     
     check_cmds ds
 
-
+  (* | (Normalize (_, _)) :: _ -> raw_fail "help" *)
   | (Normalize (tele, tm)) :: ds ->
     printf "-----------------@,";
     printf "Normalizing@,";
     printf "Expr: @[<hov>%a@]@," pp_print_expr_tm tm; 
-    let* _ = expr_tc_with_tele tele
-        (let* (tm',_) = expr_tc_infer_tm tm in
-         let* tm_nf = tc_normalize_tm ~debug:true tm' in
+    let* _ = raw_with_tele tele
+        (let* (tm',_) = raw_infer_tm tm in
+         let* tm_nf = lift (tc_normalize_tm ~debug:true tm') in
          let expr_nf = term_to_expr_tm tm_nf in 
          printf "Normalized term:@,@[<hov>%a@]@," pp_print_expr_tm expr_nf;
-         tc_ok ()) in 
+         raw_ok ()) in 
     check_cmds ds
 
+  (* | (Infer (_, _)) :: _ -> raw_fail "help" *)
   | (Infer (tele, tm)) :: ds ->
     printf "-----------------@,";
     printf "Inferring@,";
     printf "Expr: @[<hov>%a@]@," pp_print_expr_tm tm; 
-    let* _ = expr_tc_with_tele tele
-        (let* (_,typ) = expr_tc_infer_tm tm in
+    let* _ = raw_with_tele tele
+        (let* (_,typ) = raw_infer_tm tm in
          let typ_expr = term_to_expr_ty typ in 
          printf "Inferred type:@,@[<hov>%a@]@," pp_print_expr_ty typ_expr;
-         tc_ok ()) in 
+         raw_ok ()) in 
     check_cmds ds
 
 

@@ -46,19 +46,20 @@ let parse_file f =
     close_in fi;
     buf
   in parse (Bytes.to_string sin)
-                           
+
+(* There has got to be a better way to pass the environment around ... *)
 let rec tc_check_all files =
   match files with
-  | [] -> tc_env
+  | [] -> raw_complete_env
   | f::fs ->
      let (impts, cmds) = parse_file f in
      let imprt_nms = List.map (fun fn -> fn ^ ".catt") impts in
-     let* env = tc_check_all imprt_nms in
+     let* (renv, tenv) = tc_check_all imprt_nms in
      print_string "-----------------";
      print_cut ();
      printf "Processing input file: %s\n" f;
-     let* env' = tc_with_env env (check_cmds cmds) in 
-     tc_with_env env' (tc_check_all fs)
+     let* (renv', tenv') = raw_with_env renv tenv (check_cmds cmds) in 
+     raw_with_env renv' tenv' (tc_check_all fs)
   
 let () =
   let file_in = ref [] in 
