@@ -14,8 +14,6 @@ open Typecheck
     
 open Cheshire.Main
 
-type decl = (string * tele * ty_expr * tm_expr)
-
 (*****************************************************************************)
 (*                                 Raw Monad                                 *)
 (*****************************************************************************)
@@ -210,18 +208,27 @@ and raw_pd_infer_args pd args_map =
     let branches = Suite.map (fun (_,_,b) -> b) branch_results in
     raw_ok (t, Br(s,branches))
     
-let raw_check_decl (tele, ty, tm) =
-  let* (gma,ty',tm') = raw_with_tele tele 
-      (let* gma = lift (tc_ctx) in
-       let* ty' = raw_check_ty ty in
-       let* tm' = raw_check_tm tm ty' in
-       raw_ok (gma,ty',tm')) in
-  raw_ok (gma, ty', tm')
+let raw_check_term_decl tele ty tm =
+  raw_with_tele tele 
+    (let* gma = lift (tc_ctx) in
+     let* ty' = raw_check_ty ty in
+     let* tm' = raw_check_tm tm ty' in
+     raw_ok (gma,ty',tm'))
+
+let raw_check_sig_decl tele ty =
+  raw_with_tele tele
+    (let* gma = lift (tc_ctx) in
+     let* ty' = raw_check_ty ty in
+     raw_ok (gma, ty'))
 
 (*****************************************************************************)
 (*                            Sectioning Mechanism                           *)
 (*****************************************************************************)
-    
+
+type decl =
+  | TermDecl of (string * tele * ty_expr * tm_expr)
+  | SigDecl of (string * tele * ty_expr)
+
 (* Enter the section given by the telescope *)
 let raw_in_section tele m =
   raw_with_tele tele (
@@ -231,16 +238,6 @@ let raw_in_section tele m =
     raw_with_env renv' tenv m 
   )
 
-let raw_check_decl_dbg (tele, ty, tm) =
-  (* printf "In declaration check@,";
-   * let* _ = lift (tc_dump_rho) in  *)
-  let* (gma,ty',tm') = raw_with_tele tele 
-      (let* gma = lift (tc_ctx) in
-       let* ty' = raw_check_ty ty in
-       let* tm' = raw_check_tm tm ty' in
-       raw_ok (gma,ty',tm')) in
-  raw_ok (gma, ty', tm')
-
 (* Check the list of declarations in the current section, adding
    each to the list of active section ids *)
 let rec raw_check_section_decls decls =
@@ -248,12 +245,20 @@ let rec raw_check_section_decls decls =
   | [] ->
     let* (renv, tenv) = raw_complete_env in
     raw_ok (renv, tenv, [])
-  | (id,tele,ty,tm)::ds ->
+  | TermDecl(id,tele,ty,tm)::ds ->
     let* (renv, tenv, defs) = raw_check_section_decls ds in
     printf "-----------------@,";
-    printf "Checking section declaration %s@," id;
-    let* (gma, ty', tm') = raw_with_env renv tenv (raw_check_decl_dbg (tele,ty,tm)) in
+    printf "Checking section term declaration %s@," id;
+    let* (gma, ty', tm') = raw_with_env renv tenv (raw_check_term_decl tele ty tm) in
     let tenv' = { tenv with rho = Ext (tenv.rho, (id, TCTermDef (gma,ty',tm'))) } in
     let renv' = { renv with section_ids = id::renv.section_ids } in
     printf "Ok!@,";
     raw_ok (renv', tenv', (id,TCTermDef (gma,ty',tm'))::defs)
+  | SigDecl(id,tele,ty)::ds ->
+    let* (renv, tenv, defs) = raw_check_section_decls ds in
+    printf "-----------------@,";
+    printf "Checking section signature declaration %s@," id;
+    let* (_, _) = raw_with_env renv tenv (raw_check_sig_decl tele ty) in
+    printf "Ok!@,";
+    raw_ok (renv, tenv, defs)
+    

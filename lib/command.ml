@@ -15,10 +15,10 @@ open Cheshire.Main
        
 open RawMnd
 open MonadSyntax(RawMnd)
-
+              
 type cmd =
-  | CellDef of string * tele * ty_expr
-  | TermDef of decl
+  | CohDef of string * tele * ty_expr
+  | Decl of decl 
   | Section of tele * decl list
   | Prune of tele * tm_expr
   | Normalize of tele * tm_expr
@@ -28,8 +28,7 @@ let rec check_cmds cmds =
   match cmds with
   | [] -> raw_complete_env
 
-  (* | (CellDef (_, _, _)) :: _ -> raw_fail "help" *)
-  | (CellDef (id, tele, typ)) :: ds -> 
+  | (CohDef (id, tele, typ)) :: ds -> 
     printf "-----------------@,";
     printf "Checking coh definition: %s@," id;
     printf "@[<hov>%a : %a@]@," pp_print_tele tele pp_print_expr_ty typ;
@@ -37,14 +36,19 @@ let rec check_cmds cmds =
     printf "Ok!@,";
     raw_with_coh id pd typ' (check_cmds ds)
 
-  (* | (TermDef (_, _, _, _)) :: _ -> raw_fail "help" *)
-  | (TermDef (id, tele, ty, tm)) :: ds -> 
+  | (Decl (TermDecl (id, tele, ty, tm))) :: ds -> 
     printf "-----------------@,";
-    printf "Checking let definition: %s@," id;
-    let* (gma,ty',tm') = raw_check_decl (tele,ty,tm) in
+    printf "Checking term declaration: %s@," id;
+    let* (gma,ty',tm') = raw_check_term_decl tele ty tm in
     printf "Ok!@,";
     raw_with_let id gma ty' tm' (check_cmds ds)
-      
+
+  | (Decl (SigDecl (id, tele, ty))) :: ds ->
+    printf "-----------------@,";
+    printf "Checking signature declaration: %s@," id;
+    let* (_,_) = raw_check_sig_decl tele ty in
+    check_cmds ds
+
   | (Section (tele, decls)) :: ds ->
     printf "-----------------@,";
     printf "Entering section ...@,";

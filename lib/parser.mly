@@ -9,7 +9,7 @@
 %token IMPORT
 %token PRUNE NORMALIZE INFER
 %token SECTION WHERE END
-%token LET COH 
+%token LET COH SIG
 %token OBJ ARROW 
 %token LPAR RPAR LBRACKET RBRACKET
 %token COMMA COLON EQUAL VBAR
@@ -33,13 +33,15 @@ import:
 
 decl:
   | LET id = IDENT tl = tele COLON ty = ty_expr EQUAL tm = tm_expr
-    { (id, tl, ty, tm) }
+    { TermDecl (id, tl, ty, tm) }
+  | SIG id = IDENT tl = tele COLON ty = ty_expr
+    { SigDecl (id, tl, ty) } 
 
 cmd:
   | COH id = IDENT tl = tele COLON ty = ty_expr
-    { CellDef (id, tl, ty) }
-  | LET id = IDENT tl = tele COLON ty = ty_expr EQUAL tm = tm_expr
-    { TermDef (id, tl, ty, tm) }
+    { CohDef (id, tl, ty) }
+  | d = decl
+    { Decl d } 
   | SECTION tl = tele WHERE decls = list(decl) END
     { Section (tl, decls) } 
   | PRUNE tl = tele VBAR tm = tm_expr

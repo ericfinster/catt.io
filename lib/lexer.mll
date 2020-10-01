@@ -14,7 +14,8 @@ rule token = parse
   | "infer"      { INFER }
   | "section"    { SECTION }
   | "where"      { WHERE } 
-  | "end"        { END } 
+  | "end"        { END }
+  | "sig"        { SIG }
   | "->"         { ARROW }
   | "*"          { OBJ }
   | "("          { LPAR }
