@@ -69,26 +69,6 @@ let raw_is_section_decl id =
   let* renv = raw_env in
   raw_ok (List.mem id renv.section_ids)
 
-(* let raw_catch m f renv tenv =
- *   match m renv tenv with
- *   | Ok (Ok a) -> Ok (Ok a)
- *   | Ok (Fail s) -> f s renv tenv
- *   | Fail (TypeMismatch (tm,ety,ity)) ->
- *     let rev_var_map = map (fun (x,y) -> (y,x)) renv.tau in
- *     (\* printf "Var map: %a@," (pp_print_suite (fun ppf (i,s) -> fprintf ppf "%d -> %s" i s)) rev_var_map; *\)
- *     let var_lookup i =
- *       try VarE (Suite.assoc i rev_var_map)
- *       with Not_found -> VarE (sprintf "_x%d" i)
- *     in let the_tm = term_to_expr_tm var_lookup tm in
- *     let expected_ty = term_to_expr_ty var_lookup ety in
- *     let inferred_ty = term_to_expr_ty var_lookup ity in
- *     let msg = asprintf "@[<v>The term@,@,%a@,@,was expected to have type@,@,%a@,@,but was inferred to have type@,@,%a@]"
- *       pp_print_expr_tm the_tm
- *       pp_print_expr_ty expected_ty
- *       pp_print_expr_ty inferred_ty
- *     in f msg renv tenv
- *   | Fail terr -> f (print_tc_err terr) renv tenv *)
-
 (* Just catch the raw errors ... *)
 let raw_catch m f renv tenv =
   match m renv tenv with
@@ -96,7 +76,9 @@ let raw_catch m f renv tenv =
   | Ok (Fail s) -> f s renv tenv
   | Fail terr -> Fail terr
 
-(* let raw_run_tc m = RawMnd.lift (RawErrMnd.lift m) *)
+(* Run a typechecking computation, catching errors and using
+ * raw typechecking information to be more explicit.
+ *)
 let raw_run_tc m renv tenv =
   match m tenv with
   | Ok a -> Ok (Ok a)
@@ -152,9 +134,11 @@ let rec raw_check_ty typ =
     let* tgt_ty_nf = raw_run_tc (tc_normalize_ty tgt_ty) in
 
     if (src_ty_nf <> tgt_ty_nf) then
-      let msg = asprintf "%a =/= %a when checking that %a is a valid type"
-          pp_print_ty src_ty
-          pp_print_ty tgt_ty
+      let* rb_src_ty = raw_readback_ty src_ty in 
+      let* rb_tgt_ty = raw_readback_ty tgt_ty in 
+      let msg = asprintf "@[<v>%a@,  =/=@,%a@,@,when checking that %a is a valid type"
+          pp_print_expr_ty rb_src_ty
+          pp_print_expr_ty rb_tgt_ty
           pp_print_expr_ty typ
       in raw_fail msg
     else raw_ok (ArrT (src_ty, src_tm, tgt_tm))

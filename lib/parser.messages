@@ -118,7 +118,7 @@ prog: LET IDENT COLON WHERE
 ## LET IDENT tele COLON
 ##
 
-Invalide type in let definition
+Invalid type in let definition
 
 prog: LET IDENT WHERE
 ##
@@ -417,7 +417,7 @@ prog: SECTION WHERE END WHERE
 ## cmd
 ##
 
-Invalide command
+Invalid command
 
 prog: SECTION WHERE SIG IDENT COLON OBJ WHERE
 ##
@@ -429,7 +429,7 @@ prog: SECTION WHERE SIG IDENT COLON OBJ WHERE
 ## decl
 ##
 
-Invalid declaration
+Expected a declaration
 
 prog: SECTION WHERE WHERE
 ##

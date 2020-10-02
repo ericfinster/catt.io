@@ -118,4 +118,23 @@ coh whisk_l
             (h : y -> z) (a : g -> h)
   : comp(f,g) -> comp(f,h)
 
+#
+#  Basic coherences
+#
+
+coh assoc_r
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+  : comp(comp(f,g),h) -> comp(f,comp(g,h))
+
+coh assoc_l
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+  : comp(f,comp(g,h)) -> comp(comp(f,g),h) 
+
+
             
