@@ -9,7 +9,8 @@ open Format
 open Pd
 open Suite
 open Term
-
+open Expr
+    
 open Cheshire.Main
 
 (*****************************************************************************)
@@ -29,7 +30,32 @@ let default_config = {
   norm_type = None;
   debug_streams = [];
 }
-    
+
+type tc_err =
+  | TypeMismatch of (tm_term * ty_term * ty_term)
+  | InvalidIndex of int 
+  | UnknownIdentifier of string
+  | NonFullSource of (tm_term pd * tm_term pd)
+  | NonFullTarget of (tm_term pd * tm_term pd)
+  | UnderApplication
+  | OverApplication
+  | InternalError of string 
+
+let print_tc_err terr =
+  match terr with
+  | TypeMismatch (tm,ex_ty,in_ty) ->
+    asprintf "@[<v>The term@,@,%a@,@,was expected to have type@,@,%a@,@,but was inferred to have type@,@,%a@]"
+      pp_print_expr_tm (term_to_expr_tm_default tm)
+      pp_print_expr_ty (term_to_expr_ty_default ex_ty)
+      pp_print_expr_ty (term_to_expr_ty_default in_ty)
+  | InvalidIndex i -> sprintf "Unknown variable index %d" i 
+  | UnknownIdentifier s -> sprintf "Unknown identifier %s" s
+  | NonFullSource (_, _) -> "Non-full source"
+  | NonFullTarget (_, _) -> "Non-full target"
+  | UnderApplication -> "Not enough arguments"
+  | OverApplication -> "Too many arguments"
+  | InternalError s -> s
+
 type tc_def =
   | TCCohDef of tm_term pd * ty_term 
   | TCTermDef of ty_term suite * ty_term * tm_term
@@ -46,8 +72,9 @@ let empty_env = {
   config = default_config
 }
 
-module StringErr = ErrMnd(struct type t = string end)
-module TcmMnd = ReaderT(struct type t = tc_env end)(StringErr)
+(* module StringErr = ErrMnd(struct type t = string end) *)
+module TcErrMnd = ErrMnd(struct type t = tc_err end)
+module TcmMnd = ReaderT(struct type t = tc_env end)(TcErrMnd)
 
 (* Bring syntax into scope *)
 open TcmMnd
@@ -55,8 +82,8 @@ open MonadSyntax(TcmMnd)
 
 type 'a tcm = 'a TcmMnd.m
     
-let tc_ok = pure
-let tc_fail s = lift (Fail s)
+let tc_ok a = pure a
+let tc_fail e = lift (Fail e)
 
 (* Not sure how to lift the lower error instance effectively ... *)
 let tc_catch m f env = 
@@ -64,9 +91,9 @@ let tc_catch m f env =
     | Ok a -> Ok a
     | Fail s -> f s env
 
-let ensure b s =
+let ensure b e =
   if b then tc_ok ()
-  else tc_fail s
+  else tc_fail e
       
 let tc_in_ctx g m env = m { env with gma = g }
 let tc_ctx env = Ok env.gma
@@ -74,18 +101,23 @@ let tc_env env = Ok env
 let tc_with_env e m _ = m e
 let tc_lift m _ = m
 let tc_depth env = Ok (length env.gma)
-    
+let tc_from_str_err m _ =
+  match m with
+  | Ok a -> Ok a
+  | Fail s -> Fail (InternalError s)
+
 let tc_with_coh id pd typ m env =
   m { env with rho = Ext (env.rho, (id, TCCohDef (pd,typ))) }
 let tc_with_let id gma ty tm m env =
   m { env with rho = Ext (env.rho, (id, TCTermDef (gma,ty,tm))) }
                       
 let tc_lookup_var i env =
-  err_lookup_var i env.gma
+  try Ok (nth i env.gma)
+  with Not_found -> Fail (InvalidIndex i)
 
 let tc_lookup_def id env =
   try Ok (assoc id env.rho)
-  with Not_found -> Fail (sprintf "Unknown cell identifier: %s" id)
+  with Not_found -> Fail (UnknownIdentifier id)
 
 (*****************************************************************************)
 (*                             Debugging routines                            *)
@@ -313,14 +345,14 @@ and strict_unit_normalize_tm ?debug:(dbg=false) tm =
     let* sub' = ST.traverse strict_unit_normalize_tm sub in
     let* (ppd,ptyp,psub) = 
       if (not (is_identity tm)) then
-        tc_lift (prune pd typ sub')
+        tc_from_str_err (prune pd typ sub')
       else tc_ok (pd,typ,sub') in
     (* printf "After pruning: %a@," pp_print_tm (CohT (ppd,ptyp,psub)); *)
     let* typ' = strict_unit_normalize_ty ptyp in
     (* print_debug (asprintf "Normalized boundary: %a@," pp_print_ty typ'); *)
     let* dtm = tc_lift (disc_remove ppd typ' psub) in
     if (not (is_identity dtm)) then
-      let* er = tc_lift (endo_coherence dtm) in
+      let* er = tc_from_str_err (endo_coherence dtm) in
       match er with
       | NoEndoReduction -> tc_ok dtm
       | EndoReduced tm' ->
@@ -345,13 +377,6 @@ let tc_normalize_ty ty =
   | None -> tc_unfold_ty ty
   | StrictlyUnital -> strict_unit_normalize_ty ty
     
-let tc_eq_nf_ty tya tyb =
-  let* tya_nf = tc_normalize_ty tya in
-  let* tyb_nf = tc_normalize_ty tyb in
-  if (tya_nf = tyb_nf)
-  then tc_ok ()
-  else tc_fail "Type mismatch"
-
 (*****************************************************************************)
 (*                                Typing Rules                               *)
 (*****************************************************************************)
@@ -367,26 +392,22 @@ let rec tc_check_ty t =
 
 and tc_check_tm tm ty =
   let* (tm', ty') = tc_infer_tm tm in
-
-  (* let* ty_nf = tc_normalize_ty ty in
-   * let* ty_nf' = tc_normalize_ty ty' in 
-   * if (ty_nf = ty_nf') then
-   *   tc_ok tm'
-   * else let msg = asprintf "%a =/= %a (in nf) when inferring the type of %a"
-   *          pp_print_ty ty_nf
-   *          pp_print_ty ty_nf'
-   *          pp_print_tm tm
-   *       in tc_fail msg *)
+  let* ty_nf = tc_normalize_ty ty in
+  let* ty_nf' = tc_normalize_ty ty' in 
+  if (ty_nf = ty_nf') then
+    tc_ok tm'
+  else
+    tc_fail (TypeMismatch (tm,ty,ty'))
   
-  let* _ = tc_catch (tc_eq_nf_ty ty ty')
-  
-      (fun _ -> let msg = asprintf "%a =/= %a when inferring the type of %a"
-                    pp_print_ty ty
-                    pp_print_ty ty'
-                    pp_print_tm tm
-        in tc_fail msg) in 
-  
-  tc_ok tm'
+  (* let* _ = tc_catch (tc_eq_nf_ty ty ty')
+   * 
+   *     (fun _ -> let msg = asprintf "@[<v>The term@,@,%a@,@,was expected to have type@,@,%a@,@,but was inferred to have type@,@,%a@]"
+   *                   pp_print_expr_tm (term_to_expr_tm tm)
+   *                   pp_print_expr_ty (term_to_expr_ty ty)
+   *                   pp_print_expr_ty (term_to_expr_ty ty')
+   *       in tc_fail msg) in 
+   * 
+   * tc_ok tm' *)
 
 and tc_infer_tm tm =
   match tm with
@@ -418,36 +439,36 @@ and tc_infer_tm tm =
 
 and tc_check_is_full pd typ =
   let pd_dim = dim_pd pd in
-  printf "Checking fullness...";
+  (* printf "Checking fullness..."; *)
   (* printf "Pd: %a@," (pp_print_pd pp_print_tm) pd;
    * printf "Type: @[<hov>%a@]@," pp_print_ty typ; *)
   match typ with
-  | ObjT -> tc_fail "No coherences have object type."
+  | ObjT -> tc_fail (InternalError "Coherence cannot have object type")
   | ArrT (btyp,src,tgt) -> 
     let* src_pd = tc_term_pd src in
     let* tgt_pd = tc_term_pd tgt in
     let typ_dim = dim_typ btyp in
     if (typ_dim >= pd_dim) then
-      let _ = () in printf "Checking coherence@,";
-      let* _ = ensure (src_pd = pd) ("Non-full source in coherence") in
-      let* _ = ensure (tgt_pd = pd) ("Non-full target in coherence") in
+      (* let _ = () in printf "Checking coherence@,"; *)
+      let* _ = ensure (src_pd = pd) (NonFullSource (src_pd, pd)) in
+      let* _ = ensure (tgt_pd = pd) (NonFullTarget (tgt_pd, pd)) in
       tc_ok typ
     else
-      let _ = () in printf "Checking composite@,";
+      (* let _ = () in printf "Checking composite@,"; *)
       let pd_src = truncate true (pd_dim - 1) pd in
       let pd_tgt = truncate false (pd_dim - 1) pd in
       (* printf "Expected source pd: %a@," (pp_print_pd pp_print_tm) pd_src;
        * printf "Provided source pd: %a@," (pp_print_pd pp_print_tm) src_pd;
        * printf "Expected target pd: %a@," (pp_print_pd pp_print_tm) pd_tgt;
        * printf "Provided target pd: %a@," (pp_print_pd pp_print_tm) tgt_pd; *)
-      let* _ = ensure (src_pd = pd_src) ("Non-full source in composite") in
-      let* _ = ensure (tgt_pd = pd_tgt) ("Non-full target in composite") in 
+      let* _ = ensure (src_pd = pd_src) (NonFullSource (src_pd, pd)) in
+      let* _ = ensure (tgt_pd = pd_tgt) (NonFullTarget (tgt_pd, pd)) in 
       tc_ok typ
     
 and tc_check_args sub gma =
   match (sub,gma) with
-  | (Ext (_,_), Emp) -> tc_fail "Too many arguments!"
-  | (Emp, Ext (_,_)) -> tc_fail "Not enough arguments!"
+  | (Ext (_,_), Emp) -> tc_fail UnderApplication
+  | (Emp, Ext (_,_)) -> tc_fail OverApplication 
   | (Emp, Emp) -> tc_ok Emp
   | (Ext (sub',tm), Ext (gma',typ)) ->
     let* rsub = tc_check_args sub' gma' in
@@ -474,7 +495,7 @@ and tc_term_pd tm =
   )    
   | CohT (pd, _, sub) -> 
     let* pd_sub = ST.traverse tc_term_pd sub in
-    let* ppd = tc_lift (args_to_pd pd pd_sub) in
+    let* ppd = tc_from_str_err (args_to_pd pd pd_sub) in
     (* printf "To Join: %a@," (pp_print_pd (pp_print_pd pp_print_tm)) ppd; *)
     let jres = join_pd 0 ppd in
     (* printf "Result: %a@," (pp_print_pd pp_print_tm) jres; *)

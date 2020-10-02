@@ -79,10 +79,10 @@ let parse_file f =
     printf "Parse error: %s" err;
     exit (-1)
   | Catt.Lexer.Lexing_error (Some (line,pos), err) ->
-    printf "Lexing error: %sLine: %d, Pos: %d@," err line pos;
+    printf "Lexing error: %s@,Line: %d, Pos: %d@," err line pos;
     exit (-1)
   | Catt.Lexer.Lexing_error (None, err) -> 
-    printf "Lexing error: %s" err;
+    printf "Lexing error: %s@," err;
     exit (-1)
 
 (* There has got to be a better way to pass the environment around ... *)
@@ -110,13 +110,19 @@ let () =
   let files = List.rev (!file_in) in
   let tenv = { empty_env with config = !global_config } in
   match raw_check_all files empty_raw_env tenv with
-  | Ok _ ->
+  | Ok (Ok _) ->
     printf "----------------@,Success!";
+    print_newline ();
     print_newline ()
-  | Fail msg ->
-    printf "Failure:@,%s" msg;
+  | Fail terr ->
+    printf "----------------@,Typing error:@,@,%s" (print_tc_err terr);
     print_cut ();
-    print_string "----------------";
+    print_newline ();
+    print_newline ()
+  | Ok (Fail s) ->
+    printf "----------------@,Typing error:@,@,%s" s;
+    print_cut ();
+    print_newline ();
     print_newline ()
 
 

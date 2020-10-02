@@ -30,27 +30,29 @@ let empty_raw_env = {
   section_args = Emp
 }
 
-module RawMnd = ReaderT(struct type t = raw_env end)(TcmMnd)
+module RawErrMnd = ErrT(struct type t = string end)(TcmMnd)
+module RawMnd = ReaderT(struct type t = raw_env end)(RawErrMnd)
+
+(*
+ * The ultimate type of the monad is therefore:
+ * 'a m = raw_env -> tc_env -> (('a, string) err, tc_err) err  
+ *)
 
 open RawMnd
 open MonadSyntax(RawMnd)
     
 let raw_ok a = pure a
-let raw_fail s = lift (TcmMnd.lift (Fail s))
-
-let raw_catch m f renv tenv =
-  match m renv tenv with
-  | Ok a -> Ok a
-  | Fail s -> f s renv tenv
-
-let raw_id_to_level id renv _ =
-  try Ok (assoc id renv.tau)
-  with Not_found -> Fail (sprintf "Unknown variable identifier: %s" id)
-
-let raw_env renv _ = Ok renv
-let raw_complete_env renv tenv = Ok (renv, tenv)
+let raw_fail s = RawMnd.lift (RawErrMnd.throw s)
+  
+let raw_env = RawMnd.ask 
+let raw_complete_env renv tenv = Ok (Ok (renv, tenv))
 let raw_with_env renv tenv m _ _ =
   m renv tenv
+
+let raw_id_to_level id =
+  let* renv = raw_env in
+  try raw_ok (assoc id renv.tau)
+  with Not_found -> raw_fail (sprintf "Unknown variable identifier: %s" id)
 
 (* Again, this is messy.  Is there something better? *)
 let raw_with_coh id pd typ m =
@@ -63,8 +65,71 @@ let raw_with_let id gma ty tm m =
   let tenv' = { tenv with rho = Ext (tenv.rho, (id, TCTermDef (gma,ty,tm))) } in
   raw_with_env renv tenv' m 
 
-let raw_is_section_decl id renv _ =
-  Ok (List.mem id renv.section_ids)
+let raw_is_section_decl id =
+  let* renv = raw_env in
+  raw_ok (List.mem id renv.section_ids)
+
+(* Clearly there's a bunch of duplication here.  Needs to be cleaned up ... *)
+let raw_catch m f renv tenv =
+  match m renv tenv with
+  | Ok (Ok a) -> Ok (Ok a)
+  | Ok (Fail s) -> f s renv tenv
+  | Fail (TypeMismatch (tm,ety,ity)) ->
+    let rev_var_map = map (fun (x,y) -> (y,x)) renv.tau in
+    printf "Var map: %a@," (pp_print_suite (fun ppf (i,s) -> fprintf ppf "%d -> %s" i s)) rev_var_map;
+    let var_lookup i =
+      try VarE (Suite.assoc i rev_var_map)
+      with Not_found -> VarE (sprintf "_x%d" i)
+    in let the_tm = term_to_expr_tm var_lookup tm in
+    let expected_ty = term_to_expr_ty var_lookup ety in
+    let inferred_ty = term_to_expr_ty var_lookup ity in
+    let msg = asprintf "@[<v>The term@,@,%a@,@,was expected to have type@,@,%a@,@,but was inferred to have type@,@,%a@]"
+      pp_print_expr_tm the_tm
+      pp_print_expr_ty expected_ty
+      pp_print_expr_ty inferred_ty
+    in f msg renv tenv
+  | Fail terr -> f (print_tc_err terr) renv tenv
+                   
+(* let raw_run_tc m = RawMnd.lift (RawErrMnd.lift m) *)
+let raw_run_tc m renv tenv =
+  match m tenv with
+  | Ok a -> Ok (Ok a)
+  | Fail (TypeMismatch (tm,ety,ity)) ->
+    let rev_var_map = map (fun (x,y) -> (y,x)) renv.tau in
+    printf "Var map: %a@," (pp_print_suite (fun ppf (i,s) -> fprintf ppf "%d -> %s" i s)) rev_var_map;
+    let var_lookup i =
+      try VarE (Suite.assoc i rev_var_map)
+      with Not_found -> VarE (sprintf "_x%d" i)
+    in let the_tm = term_to_expr_tm var_lookup tm in
+    let expected_ty = term_to_expr_ty var_lookup ety in
+    let inferred_ty = term_to_expr_ty var_lookup ity in
+    let msg = asprintf "@[<v>The term@,@,%a@,@,was expected to have type@,@,%a@,@,but was inferred to have type@,@,%a@]"
+      pp_print_expr_tm the_tm
+      pp_print_expr_ty expected_ty
+      pp_print_expr_ty inferred_ty
+    in Ok (Fail msg)
+  | Fail terr -> Ok (Fail (print_tc_err terr))
+
+(*****************************************************************************)
+(*                             Readback Utilities                            *)
+(*****************************************************************************)
+                   
+let raw_rev_var_map =
+  let* renv = raw_env in
+  raw_ok (map (fun (x,y) -> (y,x)) renv.tau)
+
+let raw_readback_ty ty =
+  let* var_map = raw_rev_var_map in 
+  let var_lookup i = try VarE (Suite.assoc i var_map)
+    with Not_found -> VarE (sprintf "_x%d" i) in
+  raw_ok (term_to_expr_ty var_lookup ty)
+
+let raw_readback_tm tm =
+  let* var_map = raw_rev_var_map in 
+  let var_lookup i = try VarE (Suite.assoc i var_map)
+    with Not_found -> VarE (sprintf "_x%d" i) in
+  raw_ok (term_to_expr_tm var_lookup tm)
+
 
 (*****************************************************************************)
 (*                              Raw Typechecking                             *)
@@ -73,33 +138,34 @@ let raw_is_section_decl id renv _ =
 let rec raw_check_ty typ =
   match typ with
   | ObjE -> raw_ok ObjT
-  | ArrE (src, tgt) -> 
+  | ArrE (src, tgt) ->
+    
     let* (src_tm, src_ty) = raw_infer_tm src in
     let* (tgt_tm, tgt_ty) = raw_infer_tm tgt in
-  
-    let* _ = raw_catch (lift (tc_eq_nf_ty src_ty tgt_ty))
-  
-      (fun _ -> let msg = asprintf "%a =/= %a when checking that %a is a valid type"
-                    pp_print_ty src_ty
-                    pp_print_ty tgt_ty
-                    pp_print_expr_ty typ
-        in raw_fail msg) in 
-    
-    raw_ok (ArrT (src_ty, src_tm, tgt_tm))
+    let* src_ty_nf = raw_run_tc (tc_normalize_ty src_ty) in 
+    let* tgt_ty_nf = raw_run_tc (tc_normalize_ty tgt_ty) in
+
+    if (src_ty_nf <> tgt_ty_nf) then
+      let msg = asprintf "%a =/= %a when checking that %a is a valid type"
+          pp_print_ty src_ty
+          pp_print_ty tgt_ty
+          pp_print_expr_ty typ
+      in raw_fail msg
+    else raw_ok (ArrT (src_ty, src_tm, tgt_tm))
       
 and raw_check_tm tm ty =
-
   let* (tm', ty') = raw_infer_tm tm in
-  
-  let* ty_nf = lift (tc_normalize_ty ty) in
-  let* ty_nf' = lift (tc_normalize_ty ty') in 
-  if (ty_nf = ty_nf') then
-    raw_ok tm'
-  else let msg = asprintf "%a =/= %a (in nf) when inferring the type of %a"
-           pp_print_ty ty_nf
-           pp_print_ty ty_nf'
+  let* ty_nf = raw_run_tc (tc_normalize_ty ty) in
+  let* ty_nf' = raw_run_tc (tc_normalize_ty ty') in 
+  if (ty_nf = ty_nf') then raw_ok tm'
+  else 
+    let* rb_expected_ty = raw_readback_ty ty in
+    let* rb_inferred_ty = raw_readback_ty ty' in 
+    let msg = asprintf "@[<v>The term@,@,%a@,@,was expected to have type@,@,%a@,@,but was inferred to have type@,@,%a@]"
            pp_print_expr_tm tm
-        in raw_fail msg
+           pp_print_expr_ty rb_expected_ty
+           pp_print_expr_ty rb_inferred_ty
+    in raw_fail msg
 
 and raw_infer_tm tm = 
 
@@ -107,7 +173,7 @@ and raw_infer_tm tm =
   
   | VarE id ->
     let* l = raw_id_to_level id in
-    let* typ = lift (tc_lookup_var l) in
+    let* typ = raw_run_tc (tc_lookup_var l) in
 
     (* printf "Looking up id: %s@," id;
      * printf "Result type: %a@," pp_print_ty typ; *)
@@ -115,7 +181,7 @@ and raw_infer_tm tm =
     raw_ok (VarT l, typ)
 
   | DefAppE (id, args) -> (
-    let* def = lift (tc_lookup_def id) in
+    let* def = raw_run_tc (tc_lookup_def id) in
     match def with
     | TCCohDef (pd,typ) ->
 
@@ -127,7 +193,7 @@ and raw_infer_tm tm =
 
       (* printf "Inferred arguments:@,%a@," (pp_print_suite pp_print_tm) args'; *)
 
-      let* args'' = lift (tc_check_args args' (pd_to_ctx pd)) in 
+      let* args'' = raw_run_tc (tc_check_args args' (pd_to_ctx pd)) in 
       
       raw_ok (DefAppT (id, args''), subst_ty args'' typ)
     
@@ -172,7 +238,7 @@ and raw_with_tele : 'a. tele -> 'a RawMnd.m -> 'a RawMnd.m =
   | Ext (tele',(id,typ)) -> 
     raw_with_tele tele'
       (let* typ' = raw_check_ty typ in
-       let* d = lift (tc_depth) in
+       let* d = raw_run_tc (tc_depth) in
        let* (renv, tenv) = raw_complete_env in 
        let tenv' = { tenv with gma = Ext (tenv.gma, typ') } in
        let renv' = { renv with tau = Ext (renv.tau, (id,d)) } in
@@ -181,10 +247,10 @@ and raw_with_tele : 'a. tele -> 'a RawMnd.m -> 'a RawMnd.m =
 and raw_check_coh tele typ = 
   raw_with_tele tele
     (let* typ' = raw_check_ty typ in
-     let* gma = lift (tc_ctx) in
+     let* gma = raw_run_tc (tc_ctx) in
      (* printf "Telescope: %a@," pp_print_ctx gma; *)
-     let* pd = lift (tc_lift (ctx_to_pd gma)) in
-     let* _ = lift (tc_check_is_full pd typ') in
+     let* pd = raw_run_tc (tc_from_str_err (ctx_to_pd gma)) in
+     let* _ = raw_run_tc (tc_check_is_full pd typ') in
      raw_ok (gma, pd, typ'))
 
 and raw_pd_infer_args pd args_map =
@@ -210,14 +276,14 @@ and raw_pd_infer_args pd args_map =
     
 let raw_check_term_decl tele ty tm =
   raw_with_tele tele 
-    (let* gma = lift (tc_ctx) in
+    (let* gma = raw_run_tc (tc_ctx) in
      let* ty' = raw_check_ty ty in
      let* tm' = raw_check_tm tm ty' in
      raw_ok (gma,ty',tm'))
 
 let raw_check_sig_decl tele ty =
   raw_with_tele tele
-    (let* gma = lift (tc_ctx) in
+    (let* gma = raw_run_tc (tc_ctx) in
      let* ty' = raw_check_ty ty in
      raw_ok (gma, ty'))
 
@@ -247,18 +313,20 @@ let rec raw_check_section_decls decls =
     raw_ok (renv, tenv, [])
   | TermDecl(id,tele,ty,tm)::ds ->
     let* (renv, tenv, defs) = raw_check_section_decls ds in
-    printf "-----------------@,";
-    printf "Checking section term declaration %s@," id;
-    let* (gma, ty', tm') = raw_with_env renv tenv (raw_check_term_decl tele ty tm) in
+    (* printf "-----------------@,";
+     * printf "Checking section term declaration %s@," id; *)
+    let* (gma, ty', tm') = raw_catch (raw_with_env renv tenv (raw_check_term_decl tele ty tm))
+        (fun s -> raw_fail (sprintf "%s@,@,while checking the declaration %s" s id)) in 
     let tenv' = { tenv with rho = Ext (tenv.rho, (id, TCTermDef (gma,ty',tm'))) } in
     let renv' = { renv with section_ids = id::renv.section_ids } in
-    printf "Ok!@,";
+    (* printf "Ok!@,"; *)
     raw_ok (renv', tenv', (id,TCTermDef (gma,ty',tm'))::defs)
   | SigDecl(id,tele,ty)::ds ->
     let* (renv, tenv, defs) = raw_check_section_decls ds in
-    printf "-----------------@,";
-    printf "Checking section signature declaration %s@," id;
-    let* (_, _) = raw_with_env renv tenv (raw_check_sig_decl tele ty) in
-    printf "Ok!@,";
+    (* printf "-----------------@,";
+     * printf "Checking section signature declaration %s@," id; *)
+    let* (_, _) = raw_catch (raw_with_env renv tenv (raw_check_sig_decl tele ty))
+        (fun s -> raw_fail (sprintf "%s@,@,while checking the signature %s" s id)) in
+    (* printf "Ok!@,"; *)
     raw_ok (renv, tenv, defs)
     
