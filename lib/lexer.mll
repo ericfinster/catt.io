@@ -22,7 +22,7 @@ rule token = parse
 
   | "let"        { LET }
   | "coh"        { COH }
-  | "import"     { IMPORT }
+  | "import"     { IMPRT }
   | "prune"      { PRUNE }
   | "normalize"  { NORMALIZE }
   | "infer"      { INFER }

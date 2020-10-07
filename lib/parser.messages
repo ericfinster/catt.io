@@ -35,7 +35,7 @@ prog: COH WHERE
 
 Expected identifier in coherence definition
 
-prog: IMPORT IDENT WHERE
+prog: IMPRT IDENT WHERE
 ##
 ## Ends in an error in state: 73.
 ##
@@ -45,19 +45,19 @@ prog: IMPORT IDENT WHERE
 ## import
 ##
 
-Invalid import
+Expected import 
 
-prog: IMPORT WHERE
+prog: IMPRT WHERE
 ##
 ## Ends in an error in state: 1.
 ##
-## import -> IMPORT . IDENT [ SIG SECTION PRUNE NORMALIZE LET INFER IMPORT COH ]
+## import -> IMPRT . IDENT [ SIG SECTION PRUNE NORMALIZE LET INFER IMPRT COH ]
 ##
 ## The known suffix of the stack is as follows:
-## IMPORT
+## IMPRT
 ##
 
-Invalid import
+Expected identifier in import 
 
 prog: INFER VBAR WHERE
 ##

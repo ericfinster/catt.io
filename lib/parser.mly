@@ -6,7 +6,7 @@
      
 %} 
 
-%token IMPORT
+%token IMPRT
 %token PRUNE NORMALIZE INFER
 %token SECTION WHERE END
 %token LET COH SIG
@@ -24,11 +24,11 @@
 prog:
   | EOF
     { ([],[]) }
-  | imprts = import* cmds = nonempty_list(cmd) EOF
+  | imprts = imprt* cmds = nonempty_list(cmd) EOF
     { (imprts, cmds) }
   
-import:
-  | IMPORT id = IDENT
+imprt:
+  | IMPRT id = IDENT 
     { id }
 
 decl:

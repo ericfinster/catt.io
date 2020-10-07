@@ -86,18 +86,23 @@ let parse_file f =
     exit (-1)
 
 (* There has got to be a better way to pass the environment around ... *)
+(* Actually, maybe the module list belongs with the raw checker!! *)
 let rec raw_check_all files =
   match files with
   | [] -> raw_complete_env
-  | f::fs ->
-    let (impts, cmds) = parse_file f in 
-    let imprt_nms = List.map (fun fn -> fn ^ ".catt") impts in
-    let* (renv, tenv) = raw_check_all imprt_nms in
+  | f::fs -> 
     print_string "-----------------";
     print_cut ();
     printf "Processing input file: %s\n" f;
-    let* (renv', tenv') = raw_with_env renv tenv (check_cmds cmds) in 
-    raw_with_env renv' tenv' (raw_check_all fs)
+    let (impts, cmds) = parse_file f in
+    let imprt_nms = List.map (fun fn -> fn ^ ".catt") impts in
+    let* (renv, tenv) = raw_check_all imprt_nms in
+    if (List.mem f tenv.modules) then
+      let _ = printf "Skipping repeated import: %s@," f in
+      raw_with_env renv tenv (raw_check_all fs)
+    else let* (renv', tenv') = raw_with_env renv tenv (check_cmds cmds) in
+      let tenv'' = { tenv' with modules = f::tenv'.modules } in 
+      raw_with_env renv' tenv'' (raw_check_all fs)
 
 (*****************************************************************************)
 (*                                    Main                                   *)

@@ -64,12 +64,14 @@ type tc_env = {
   gma : ty_term suite;
   rho : (string * tc_def) suite;
   config : tc_config;
+  modules : string list;
 }
 
 let empty_env = {
   gma = Emp ;
   rho = Emp ;
-  config = default_config
+  config = default_config;
+  modules = [];
 }
 
 (* module StringErr = ErrMnd(struct type t = string end) *)
