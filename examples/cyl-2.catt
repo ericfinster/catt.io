@@ -20,6 +20,45 @@ section
   (k0 : y0 -> z0) (k1 : y1 -> z1) (k : comp(k0,z) -> comp(y,k1))
   (b0 : h0 -> k0) (b1 : h1 -> k1) (b : vert(whisk_r(b0,z),k) -> vert(h,whisk_l(y,b1))) where
 
+  # Okay, the idea is to write this as a sequence of suspended guys.
+  # Let's try to see how that might go....
+  # So it's going to be a sequence of what kinds of cylinders? 
+  # Well, 2-cylinders,
+  
+  let cyl1_0src_0 : * = x0
+  let cyl1_0src_1 : * = x0
+  let cyl1_0src : cyl1_0src_0() -> cyl1_0src_1() = id(x0)
+
+  let cyl1_0tgt_0 : * = z0
+  let cyl1_0tgt_1 : * = z1
+  let cyl1_0tgt : cyl1_0tgt_0() -> cyl1_0tgt_1() = z
+
+  let cyl1_1src_0 : cyl1_0src_0() -> cyl1_0tgt_0()
+    = src_coh(x0,y0,f0,z0,h0)
+  let cyl1_1src_1 : cyl1_0src_1() -> cyl1_0tgt_1()
+    = src_coh(x0,y0,f0,z1,comp(h0,z))
+  # Exactly, here we have to insert a unit in order to have a real cylinder ....
+  let cyl1_1src : comp(cyl1_1src_0(),cyl1_0tgt()) -> comp(cyl1_0src(),cyl1_1src_1())
+    = vert(src_coh_z(f0,h0,z),unit_l(src_coh(x0,y0,f0,z1,comp(h0,z))))
+
+  let cyl1_1tgt_0 : cyl1_0src_0() -> cyl1_0tgt_0()
+    = tgt_coh(x0,y0,f0,z0,h0)
+  let cyl1_1tgt_1 : cyl1_0src_1() -> cyl1_0tgt_1()
+    = tgt_coh(x0,y0,f0,z1,comp(h0,z))
+
+end
+
+section
+  (x0 : *) (x1 : *) (x : x0 -> x1)
+  (y0 : *) (y1 : *) (y : y0 -> y1)
+  (f0 : x0 -> y0) (f1 : x1 -> y1) (f : comp(f0,y) -> comp(x,f1))
+  (g0 : x0 -> y0) (g1 : x1 -> y1) (g : comp(g0,y) -> comp(x,g1))
+  (a0 : f0 -> g0) (a1 : f1 -> g1) (a : vert(whisk_r(a0,y),g) -> vert(f,whisk_l(x,a1)))
+  (z0 : *) (z1 : *) (z : z0 -> z1)
+  (h0 : y0 -> z0) (h1 : y1 -> z1) (h : comp(h0,z) -> comp(y,h1))
+  (k0 : y0 -> z0) (k1 : y1 -> z1) (k : comp(k0,z) -> comp(y,k1))
+  (b0 : h0 -> k0) (b1 : h1 -> k1) (b : vert(whisk_r(b0,z),k) -> vert(h,whisk_l(y,b1))) where
+
   # 0d Source Cylinder
   let cyl_0src_0 : * = x0
   let cyl_0src_1 : * = x1

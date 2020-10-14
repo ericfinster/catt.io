@@ -158,6 +158,16 @@ coh assoc_l
     (w : *) (h : z -> w)
   : comp(f,comp(g,h)) -> comp(comp(f,g),h) 
 
+coh unit_l
+    (x : *)
+    (y : *) (f : x -> y)
+  : f -> comp(id(x),f)
+
+coh unit_r
+    (x : *)
+    (y : *) (f : x -> y)
+  : f -> comp(f,id(y))
+  
 #
 #  Some coherences used in cylinders
 #

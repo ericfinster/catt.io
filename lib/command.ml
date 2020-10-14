@@ -29,17 +29,17 @@ let rec check_cmds cmds =
   | [] -> raw_complete_env
 
   | (CohDef (id, tele, typ)) :: ds ->
-    (* printf "-----------------@,";
-     * printf "Checking coh definition: %s@," id;
-     * printf "@[<hov>%a : %a@]@," pp_print_tele tele pp_print_expr_ty typ; *)
+    (* printf "-----------------@,"; *)
+    (* printf "Checking coh definition: %s@," id; *)
+    (* printf "@[<hov>%a : %a@]@," pp_print_tele tele pp_print_expr_ty typ; *)
     let* (_,pd,typ') = raw_catch (raw_check_coh tele typ)
         (fun s -> raw_fail (sprintf "%s@,@,while checking coherence %s" s id)) in
     (* printf "Ok!@,"; *)
     raw_with_coh id pd typ' (check_cmds ds)
 
   | (Decl (TermDecl (id, tele, ty, tm))) :: ds -> 
-    (* printf "-----------------@,";
-     * printf "Checking term declaration: %s@," id; *)
+    (* printf "-----------------@,"; *)
+    (* printf "Checking definition: %s@," id; *)
     let* (gma,ty',tm') = raw_catch (raw_check_term_decl tele ty tm) 
         (fun s -> raw_fail (sprintf "%s@,@,while checking the declaration %s" s id)) in
     (* printf "Ok!@,"; *)
@@ -90,7 +90,12 @@ let rec check_cmds cmds =
     let* _ = raw_with_tele tele
         (let* (tm',_) = raw_infer_tm tm in
          let* tm_nf = raw_run_tc (tc_normalize_tm ~debug:true tm') in
-         let expr_nf = term_to_expr_tm_default tm_nf in 
+         let* renv = raw_env in 
+         let rev_var_map = Suite.map (fun (x,y) -> (y,x)) renv.tau in
+         let var_lookup i =
+           try VarE (Suite.assoc i rev_var_map)
+           with Not_found -> VarE (sprintf "_x%d" i) in 
+         let expr_nf = term_to_expr_tm var_lookup tm_nf in
          printf "Normalized term:@,@[<hov>%a@]@," pp_print_expr_tm expr_nf;
          raw_ok ()) in 
     check_cmds ds
