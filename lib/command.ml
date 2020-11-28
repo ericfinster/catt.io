@@ -23,6 +23,7 @@ type cmd =
   | Prune of tele * tm_expr
   | Normalize of tele * tm_expr
   | Infer of tele * tm_expr
+  | Eqnf of tele * tm_expr * tm_expr
 
 let rec check_cmds cmds =
   match cmds with
@@ -112,4 +113,19 @@ let rec check_cmds cmds =
          raw_ok ()) in 
     check_cmds ds
 
-
+  | (Eqnf (tele, tm_a, tm_b)) :: ds ->
+    printf "-----------------@,";
+    printf "Checking normal form equality between:@,";
+    printf "Expr A: @[<hov>%a@]@," pp_print_expr_tm tm_a;
+    printf "Expr B: @[<hov>%a@]@," pp_print_expr_tm tm_b;
+    let* _ = raw_with_tele tele
+        (let* (tm_a_tm, _) = raw_infer_tm tm_a in
+         let* (tm_b_tm, _) = raw_infer_tm tm_b in
+         let* tm_a_nf = raw_run_tc (tc_normalize_tm tm_a_tm) in
+         let* tm_b_nf = raw_run_tc (tc_normalize_tm tm_b_tm) in
+         if (tm_a_nf = tm_b_nf) then
+           (printf "Terms have equal normal forms.@,"; raw_ok ())
+         else
+           (printf "Terms have different normal forms.@,"; raw_ok ())
+        )
+    in check_cmds ds

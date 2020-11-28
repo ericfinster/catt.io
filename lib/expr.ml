@@ -26,6 +26,22 @@ type ty_expr =
  and tele = (string * ty_expr) suite
 
 (*****************************************************************************)
+(*                                   AST Pd                                  *)
+(*****************************************************************************)
+
+let rec ast_as_pd : tm_expr -> unit pd =
+  fun tm -> match tm with
+    | VarE _ -> Br ((),Emp)
+    | CohE (_,ObjE,args) -> Br ((),Suite.map (fun arg -> ((),ast_as_pd arg)) args)
+    | CohE (_,ArrE (s,t),args) ->
+      let spd = ast_as_pd s in
+      let tpd = ast_as_pd t in 
+      Br ((), Ext (Ext (Suite.map (fun arg -> ((),ast_as_pd arg)) args,((),spd)),((),tpd)))
+    | _ -> Br ((),Emp)
+
+
+
+(*****************************************************************************)
 (*                            Printing Expressions                           *)
 (*****************************************************************************)
      

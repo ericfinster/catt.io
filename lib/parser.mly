@@ -7,7 +7,7 @@
 %} 
 
 %token IMPRT
-%token PRUNE NORMALIZE INFER
+%token PRUNE NORMALIZE INFER EQNF
 %token SECTION WHERE END
 %token LET COH SIG
 %token OBJ ARROW 
@@ -50,6 +50,8 @@ cmd:
     { Normalize (tl, tm) }
   | INFER tl = tele VBAR tm = tm_expr
     { Infer (tl, tm) }
+  | EQNF tl = tele VBAR atm = tm_expr VBAR btm = tm_expr
+    { Eqnf (tl,atm,btm) }
 
 tele:
   |

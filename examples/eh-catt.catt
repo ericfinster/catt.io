@@ -340,3 +340,7 @@ section (x : *) (a : id(x) -> id(x)) (b : id(x) -> id(x)) where
            3vert(step10(),step11()))))))))))
 
 end
+
+eqnf (x : *) (a : id(x) -> id(x)) (b : id(x) -> id(x))
+  | eh(x,a,b)
+  | swap(a,b)

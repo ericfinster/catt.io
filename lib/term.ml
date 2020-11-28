@@ -95,6 +95,7 @@ let args_to_pd pd args =
     | _ -> Fail "Invalid term in pasting diagram"
   in PdT.traverse get_arg pd
 
+      
 (*****************************************************************************)
 (*                             Printing Raw Terms                            *)
 (*****************************************************************************)

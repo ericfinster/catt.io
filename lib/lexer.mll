@@ -26,6 +26,7 @@ rule token = parse
   | "prune"      { PRUNE }
   | "normalize"  { NORMALIZE }
   | "infer"      { INFER }
+  | "eqnf"       { EQNF }
   | "section"    { SECTION }
   | "where"      { WHERE } 
   | "end"        { END }
