@@ -38,6 +38,23 @@ coh comp221 (x : *)
                     (h : x -> y) (b : g -> h)
   : f -> h
 
+coh comp22211
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+  : f -> i
+
+coh comp2222111
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+            (j : x -> y) (d : i -> j)
+  : f -> j
+
 coh comp220 (x : *)
             (y : *) (f : x -> y)
                     (g : x -> y) (a : f -> g)
@@ -92,6 +109,24 @@ coh comp321 (x : *)
                     (h : x -> y) (c : g -> h)
   : comp221(a,c) -> comp221(b,c)                                 
 
+coh comp32211
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (b : f -> g) (m : a -> b)
+            (h : x -> y) (c : g -> h)
+            (i : x -> y) (d : h -> i)
+  : comp22211(a,c,d) -> comp22211(b,c,d)                                 
+
+coh comp2322111
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+                         (c : g -> h) (m : b -> c)
+            (i : x -> y) (d : h -> i)
+            (j : x -> y) (e : i -> j)
+  : comp2222111(a,b,d,e) -> comp2222111(a,c,d,e)                                 
 
 coh comp231 (x : *)
             (y : *) (f : x -> y)
@@ -186,8 +221,16 @@ coh unitr (x : *)
           (y : *) (f : x -> y)
   : comp110(id(x), f) -> f
   
-coh assoc (x : *)
-          (y : *) (f : x -> y)
-          (z : *) (g : y -> z)
-          (w : *) (h : z -> w)
+coh assoc_r
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
   : comp110(comp110(f,g),h) -> comp110(f,comp110(g,h))
+
+coh assoc_l
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+  : comp110(f,comp110(g,h)) -> comp110(comp110(f,g),h) 

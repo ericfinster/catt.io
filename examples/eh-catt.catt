@@ -341,6 +341,13 @@ section (x : *) (a : id(x) -> id(x)) (b : id(x) -> id(x)) where
 
 end
 
+#
+#  These terms indeed have the same normal form in CattSu
+#
+
 eqnf (x : *) (a : id(x) -> id(x)) (b : id(x) -> id(x))
   | eh(x,a,b)
   | swap(a,b)
+
+normalize (x : *) (a : id(x) -> id(x)) (b : id(x) -> id(x))
+  | eh(x,a,b)

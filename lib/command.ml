@@ -97,7 +97,9 @@ let rec check_cmds cmds =
            try VarE (Suite.assoc i rev_var_map)
            with Not_found -> VarE (sprintf "_x%d" i) in 
          let expr_nf = term_to_expr_tm var_lookup tm_nf in
-         printf "Normalized term:@,@[<hov>%a@]@," pp_print_expr_tm expr_nf;
+         (* printf "Normalized term:@,@[<hov>%a@]@," pp_print_expr_tm expr_nf; *)
+         let expr_ast = ast_as_pd expr_nf in
+         printf "Normalized ast:@,%a@," pp_print_ast expr_ast;
          raw_ok ()) in 
     check_cmds ds
 

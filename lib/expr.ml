@@ -39,8 +39,12 @@ let rec ast_as_pd : tm_expr -> unit pd =
       Br ((), Ext (Ext (Suite.map (fun arg -> ((),ast_as_pd arg)) args,((),spd)),((),tpd)))
     | _ -> Br ((),Emp)
 
-
-
+let rec pp_print_ast ppf pd =
+  match pd with
+  | Br ((),brs) ->
+    fprintf ppf "[%a]"
+      (pp_print_suite_plain (fun ppf (_,b) -> pp_print_ast ppf b)) brs
+      
 (*****************************************************************************)
 (*                            Printing Expressions                           *)
 (*****************************************************************************)
@@ -106,15 +110,15 @@ and term_to_expr_tm f tm =
       (match args_to_pd pd args with
        | Ok pd_args -> leaves pd_args
        | Fail _ -> args) in
-    CohE (map (fun (i,t) -> (Printf.sprintf "x%d" i, term_to_expr_ty f t))
+    CohE (map (fun (i,t) -> (Printf.sprintf "x%d" i, term_to_expr_ty_default t))
             (zip_with_idx (pd_to_ctx pd)),
-          term_to_expr_ty f typ,
+          term_to_expr_ty_default typ,
           map (term_to_expr_tm f) args')
 
-let term_to_expr_ty_default ty =
+and term_to_expr_ty_default ty =
   term_to_expr_ty
     (fun i -> VarE (Printf.sprintf "x%d" i)) ty
   
-let term_to_expr_tm_default tm =
+and term_to_expr_tm_default tm =
   term_to_expr_tm
     (fun i -> VarE (Printf.sprintf "x%d" i)) tm

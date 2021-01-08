@@ -279,3 +279,11 @@ let syllepsis
   = five_cell(a,b)
 
 
+normalize
+    (x : *) 
+    (a : id1(id(x)) -> id1(id(x)))
+    (b : id1(id(x)) -> id1(id(x)))
+  | syllepsis(x,a,b)
+
+
+

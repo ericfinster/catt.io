@@ -210,3 +210,8 @@ let pp_print_suite f ppf s =
 let pp_print_suite_horiz f ppf s =
   pp_print_suite_custom "" false "," f ppf s
     
+let rec pp_print_suite_plain f ppf s =
+  match s with
+  | Emp -> ()
+  | Ext (s',a) ->
+    fprintf ppf "%a%a" (pp_print_suite_plain f) s' f a
