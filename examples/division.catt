@@ -31,6 +31,24 @@ coh ichg21_inv
   : comp221(comp120(f,b),comp210(a,k)) -> 
     comp221(comp210(a,h),comp120(g,b)) 
 
+coh big_coh
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+            (k : z -> w) (a : h -> k)
+  : comp120(comp110(f,g),a) ->
+    comp221(assoc_r(f,g,h),comp221(comp120(f,comp120(g,a)),assoc_l(f,g,k)))
+
+coh big_coh_inv
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+            (k : z -> w) (a : h -> k)
+  : comp221(assoc_r(f,g,h),comp221(comp120(f,comp120(g,a)),assoc_l(f,g,k))) ->
+    comp120(comp110(f,g),a) 
+
 section
   (x : *) (y : *) (z : *)
   
@@ -44,49 +62,21 @@ section
   (w : comp120(u,s) -> comp120(u,t))
   where   
 
-  # the composite we want.
+  let bigstep : comp221(comp120(comp110(ui,u),s),comp210(r0,v1)) ->
+                comp221(comp221(assoc_r(ui,u,v0),comp221(comp120(ui,comp120(u,s)),assoc_l(ui,u,v1))),comp210(r0,v1))
+              = comp321(big_coh(ui,u,s),comp210(r0,v1))
+              
+  let using_w : comp221(comp221(assoc_r(ui,u,v0),comp221(comp120(ui,comp120(u,s)),assoc_l(ui,u,v1))),comp210(r0,v1)) ->
+                comp221(comp221(assoc_r(ui,u,v0),comp221(comp120(ui,comp120(u,t)),assoc_l(ui,u,v1))),comp210(r0,v1))
+              = comp321(comp231(assoc_r(ui,u,v0),comp321(comp130(ui,w),assoc_l(ui,u,v1))),comp210(r0,v1))
 
-  # insert id
-  sig step1 : comp221(comp120(comp110(ui,u),s),comp210(r0,v1)) ->
-              comp22211(id1(comp110(comp110(ui,u),v0)),comp120(comp110(ui,u),s),comp210(r0,v1))
+  let bigstep_inv : comp221(comp221(assoc_r(ui,u,v0),comp221(comp120(ui,comp120(u,t)),assoc_l(ui,u,v1))),comp210(r0,v1)) ->
+                    comp221(comp120(comp110(ui,u),t),comp210(r0,v1))
+                  = comp321(big_coh_inv(ui,u,t),comp210(r0,v1))
 
-  # split assoc
-  sig step2 : comp22211(id1(comp110(comp110(ui,u),v0)),comp120(comp110(ui,u),s),comp210(r0,v1)) -> 
-              comp22211(comp221(assoc_r(ui,u,v0),assoc_l(ui,u,v0)),comp120(comp110(ui,u),s),comp210(r0,v1))
-
-  # reassoc
-  sig step3 : comp22211(comp221(assoc_r(ui,u,v0),assoc_l(ui,u,v0)),comp120(comp110(ui,u),s),comp210(r0,v1)) -> 
-              comp22211(assoc_r(ui,u,v0),comp221(assoc_l(ui,u,v0),comp120(comp110(ui,u),s)),comp210(r0,v1))
-
-  # whisk coherence
-  sig step4 : comp22211(assoc_r(ui,u,v0),comp221(assoc_l(ui,u,v0),comp120(comp110(ui,u),s)),comp210(r0,v1)) -> 
-              comp22211(assoc_r(ui,u,v0),comp221(comp120(ui,comp120(u,s)),assoc_l(ui,u,v1)),comp210(r0,v1))
-
-
-  # using w
-  sig step5 : comp22211(assoc_r(ui,u,v0),comp221(comp120(ui,comp120(u,s)),assoc_l(ui,u,v1)),comp210(r0,v1)) ->
-              comp22211(assoc_r(ui,u,v0),comp221(comp120(ui,comp120(u,t)),assoc_l(ui,u,v1)),comp210(r0,v1))                                                                                   
-
-  # whisk coherence
-  sig step6 : comp22211(assoc_r(ui,u,v0),comp221(comp120(ui,comp120(u,t)),assoc_l(ui,u,v1)),comp210(r0,v1)) ->
-              comp22211(assoc_r(ui,u,v0),comp221(assoc_l(ui,u,v0),comp120(comp110(ui,u),t)),comp210(r0,v1))
-
-  # reassoc
-  sig step7 : comp22211(assoc_r(ui,u,v0),comp221(assoc_l(ui,u,v0),comp120(comp110(ui,u),t)),comp210(r0,v1)) ->
-              comp22211(comp221(assoc_r(ui,u,v0),assoc_l(ui,u,v0)),comp120(comp110(ui,u),t),comp210(r0,v1))
-
-  # assoc inv
-  sig step8 : comp22211(comp221(assoc_r(ui,u,v0),assoc_l(ui,u,v0)),comp120(comp110(ui,u),t),comp210(r0,v1)) ->
-              comp22211(id1(comp110(comp110(ui,u),v0)),comp120(comp110(ui,u),t),comp210(r0,v1))
-
-  # unitor
-  sig step9 : comp22211(id1(comp110(comp110(ui,u),v0)),comp120(comp110(ui,u),t),comp210(r0,v1)) ->
-              comp221(comp120(comp110(ui,u),t),comp210(r0,v1))
-
-  # w1 will be the composition of the above steps.
-
-  sig w1 : comp221(comp120(comp110(ui,u),s),comp210(r0,v1)) ->
-           comp221(comp120(comp110(ui,u),t),comp210(r0,v1)) 
+  let w1 : comp221(comp120(comp110(ui,u),s),comp210(r0,v1)) ->
+           comp221(comp120(comp110(ui,u),t),comp210(r0,v1))
+         = comp332(comp332(bigstep(),using_w()),bigstep_inv())
 
   # the interchangers ...
   
@@ -98,7 +88,8 @@ section
                       comp221(comp210(r0,v0),comp120(id(y),t)) 
                     = ichg21_inv(r0,t)
 
-  sig want : comp221(comp210(r0,v0),comp120(id(y),s)) -> 
-             comp221(comp210(r0,v0),comp120(id(y),t))
+  let finally : comp221(comp210(r0,v0),comp120(id(y),s)) -> 
+                comp221(comp210(r0,v0),comp120(id(y),t))
+              = comp332(comp332(coh_ichg_up(),w1()),coh_ichg_down())
              
 end
