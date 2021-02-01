@@ -1,0 +1,9 @@
+#
+#  nf-test.catt - testing normal form comparison
+#
+
+import base
+
+eqnf (x : *) (y : *) (f : x -> y)
+  | f
+  | comp(id(x),f)

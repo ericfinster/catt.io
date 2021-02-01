@@ -1,0 +1,232 @@
+#
+#  more on division
+# 
+
+import prelude
+
+coh assoc_cyl_core2
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+            (k : z -> w) (a : h -> k)
+  : comp221(comp120(comp110(f,g),a),assoc_r(f,g,k)) ->
+    comp221(assoc_r(f,g,h),comp120(f,comp120(g,a)))
+
+coh assoc_cyl_core2_inv
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+            (k : z -> w) (a : h -> k)
+  : comp221(assoc_r(f,g,h),comp120(f,comp120(g,a))) ->
+    comp221(comp120(comp110(f,g),a),assoc_r(f,g,k)) 
+    
+coh assoc_cyl_core3
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+            (k : z -> w) (a : h -> k)
+                         (b : h -> k) (m : a -> b)
+  : comp332(comp321(comp130(comp110(f,g),m),assoc_r(f,g,k)),assoc_cyl_core2(f,g,b)) ->
+    comp332(assoc_cyl_core2(f,g,a),comp231(assoc_r(f,g,h),comp130(f,comp130(g,m))))
+
+coh assoc_cyl_core3_inv
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+            (k : z -> w) (a : h -> k)
+                         (b : h -> k) (m : a -> b)
+  : comp332(assoc_cyl_core2(f,g,a),comp231(assoc_r(f,g,h),comp130(f,comp130(g,m)))) ->
+    comp332(comp321(comp130(comp110(f,g),m),assoc_r(f,g,k)),assoc_cyl_core2(f,g,b)) 
+
+coh assoc_conj
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+            (k : z -> w) (a : h -> k)
+  : comp120(comp110(f,g),a) ->
+    comp22211(assoc_r(f,g,h),comp120(f,comp120(g,a)),assoc_l(f,g,k))
+
+coh assoc_conj_inv
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+            (k : z -> w) (a : h -> k)
+  : comp22211(assoc_r(f,g,h),comp120(f,comp120(g,a)),assoc_l(f,g,k)) ->
+    comp120(comp110(f,g),a) 
+
+coh assoc_conj3 
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+            (k : z -> w) (a : h -> k)
+                         (b : h -> k) (m : a -> b)
+  : comp130(comp110(f,g),m) ->
+    comp33322(
+      assoc_conj(f,g,a),
+      comp23211(assoc_r(f,g,h),comp130(f,comp130(g,m)),assoc_l(f,g,k)),
+      assoc_conj_inv(f,g,b)
+    )
+
+coh assoc_conj3_inv
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+            (k : z -> w) (a : h -> k)
+                         (b : h -> k) (m : a -> b)
+  : comp33322(
+      assoc_conj(f,g,a),
+      comp23211(assoc_r(f,g,h),comp130(f,comp130(g,m)),assoc_l(f,g,k)),
+      assoc_conj_inv(f,g,b)
+    ) ->
+    comp130(comp110(f,g),m) 
+
+#
+#  interchange coherences
+#
+
+coh ichg21
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+            (k : y -> z) (b : h -> k)
+  : comp221(comp210(a,h),comp120(g,b)) ->
+    comp221(comp120(f,b),comp210(a,k))
+
+coh ichg21_inv
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+            (k : y -> z) (b : h -> k)
+  : comp221(comp120(f,b),comp210(a,k)) -> 
+    comp221(comp210(a,h),comp120(g,b)) 
+
+coh ichg21_conj
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (b : f -> g) (m : a -> b)
+    (z : *) (h : y -> z)
+            (k : y -> z) (c : h -> k)
+  : comp321(comp310(m,h),comp120(g,c)) ->
+    comp33322(ichg21(a,c),comp231(comp120(f,c),comp310(m,k)),ichg21_inv(b,c))
+
+coh ichg21_conj_inv
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (b : f -> g) (m : a -> b)
+    (z : *) (h : y -> z)
+            (k : y -> z) (c : h -> k)
+  : comp33322(ichg21(a,c),comp231(comp120(f,c),comp310(m,k)),ichg21_inv(b,c)) ->
+    comp321(comp310(m,h),comp120(g,c)) 
+
+section
+  (x : *) (y : *) (z : *)
+  
+  (u : x -> y) (ui : y -> x)
+  (r0 : comp110(ui,u) -> id(y))
+  
+  (s1 : y -> z)
+  (t1 : y -> z)  
+  (s2 : s1 -> t1)
+  (t2 : s1 -> t1)
+  (w : comp120(u,s2) -> comp120(u,t2))
+  where   
+  
+  let w0 : comp120(ui,comp120(u,s2)) -> 
+           comp120(ui,comp120(u,t2))
+         = comp130(ui,w)
+
+  let step1 : comp120(comp110(ui,u),s2) ->
+              comp22211(assoc_r(ui,u,s1),comp120(ui,comp120(u,s2)),assoc_l(ui,u,t1))
+            = assoc_conj(ui,u,s2)
+
+  let step2 : comp22211(assoc_r(ui,u,s1),comp120(ui,comp120(u,s2)),assoc_l(ui,u,t1)) -> 
+              comp22211(assoc_r(ui,u,s1),comp120(ui,comp120(u,t2)),assoc_l(ui,u,t1))
+            = comp23211(assoc_r(ui,u,s1),w0(),assoc_l(ui,u,t1))
+
+  let step3 : comp22211(assoc_r(ui,u,s1),comp120(ui,comp120(u,t2)),assoc_l(ui,u,t1)) ->
+              comp120(comp110(ui,u),t2)
+            = assoc_conj_inv(ui,u,t2)
+
+  let w1 : comp120(comp110(ui,u),s2) ->
+           comp120(comp110(ui,u),t2)
+         = comp33322(step1(),step2(),step3())
+
+  let w2 : comp221(comp120(comp110(ui,u),s2),comp210(r0,t1)) ->
+           comp221(comp120(comp110(ui,u),t2),comp210(r0,t1))
+         = comp321(w1(),comp210(r0,t1))
+
+  let w3 : comp221(comp210(r0,s1),comp120(id(y),s2)) ->
+           comp221(comp210(r0,s1),comp120(id(y),t2)) 
+         = comp33322(ichg21(r0,s2),w2(),ichg21_inv(r0,t2))
+
+end
+
+section
+  (x : *) (y : *) (z : *)
+  
+  (u : x -> y) (ui : y -> x)
+  (r0 : comp110(ui,u) -> id(y))
+  
+  (s1 : y -> z)
+  (t1 : y -> z)  
+  (s2 : s1 -> t1)
+  (t2 : s1 -> t1)
+  (s3 : s2 -> t2)
+  (t3 : s2 -> t2)
+  (w : comp130(u,s3) -> comp130(u,t3))
+  where   
+
+  let w0 : comp130(ui,comp130(u,s3)) -> 
+           comp130(ui,comp130(u,t3))
+         = comp140(ui,w)
+
+  let step1 : comp130(comp110(ui,u),s3) ->
+              comp33322(
+                assoc_conj(ui,u,s2),
+                comp23211(assoc_r(ui,u,s1),comp130(ui,comp130(u,s3)),assoc_l(ui,u,t1)),
+                assoc_conj_inv(ui,u,t2)
+              )
+            = assoc_conj3(ui,u,s3)
+
+  sig step2 : comp33322(
+                assoc_conj(ui,u,s2),
+                comp23211(assoc_r(ui,u,s1),comp130(ui,comp130(u,s3)),assoc_l(ui,u,t1)),
+                assoc_conj_inv(ui,u,t2)
+              ) ->
+              comp33322(
+                assoc_conj(ui,u,s2),
+                comp23211(assoc_r(ui,u,s1),comp130(ui,comp130(u,t3)),assoc_l(ui,u,t1)),
+                assoc_conj_inv(ui,u,t2)
+              )
+      
+  let step3 : comp33322(
+                assoc_conj(ui,u,s2),
+                comp23211(assoc_r(ui,u,s1),comp130(ui,comp130(u,t3)),assoc_l(ui,u,t1)),
+                assoc_conj_inv(ui,u,t2)
+              ) ->
+              comp130(comp110(ui,u),t3) 
+            = assoc_conj3_inv(ui,u,t3)
+
+
+  sig w1 : comp130(comp110(ui,u),s3) ->
+           comp130(comp110(ui,u),t3)
+
+  sig w2 : comp321(comp130(comp110(ui,u),s3),comp210(r0,t1)) ->
+           comp321(comp130(comp110(ui,u),t3),comp210(r0,t1))
+
+  # Now we'll have a second cylinder transporting this for the
+  # interchange.
+
+end
