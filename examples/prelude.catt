@@ -118,6 +118,15 @@ coh comp32211
             (i : x -> y) (d : h -> i)
   : comp22211(a,c,d) -> comp22211(b,c,d)                                 
 
+coh comp23211
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+                         (c : g -> h) (m : b -> c)
+            (i : x -> y) (d : h -> i)
+  : comp22211(a,b,d) -> comp22211(a,c,d)                                 
+
 coh comp2322111
     (x : *)
     (y : *) (f : x -> y)
@@ -128,6 +137,15 @@ coh comp2322111
             (j : x -> y) (e : i -> j)
   : comp2222111(a,b,d,e) -> comp2222111(a,c,d,e)                                 
 
+coh comp33322
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (b : f -> g) (m : a -> b)
+                         (c : f -> g) (n : b -> c)
+                         (d : f -> g) (o : c -> d)
+  : a -> d
+  
 coh comp231 (x : *)
             (y : *) (f : x -> y)
                     (g : x -> y) (a : f -> g)
@@ -148,6 +166,25 @@ coh comp130 (x : *)
                     (k : y -> z) (c : h -> k)
                                  (d : h -> k) (n : c -> d)
   : comp120(f,c) -> comp120(f,d)
+
+
+coh comp230
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+            (k : y -> z) (c : h -> k)
+                         (d : h -> k) (n : c -> d)
+  : comp220(a,c) -> comp220(a,d)
+
+coh comp320
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (b : f -> g) (m : a -> b)
+    (z : *) (h : y -> z)
+            (k : y -> z) (c : h -> k)
+  : comp220(a,c) -> comp220(b,c)
 
 coh assoc3
     (x : *)
@@ -173,12 +210,22 @@ coh assoc3inv
 #  4d compositions
 #
 
-coh comp432 (x : *)
-            (y : *) (f : x -> y)
-                    (g : x -> y) (a : f -> g)
-                                 (b : f -> g) (m : a -> b)
-                                              (o : a -> b) (q : m -> o)
-                                 (c : f -> g) (n : b -> c)
+coh comp140
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (h : y -> z)
+            (k : y -> z) (c : h -> k)
+                         (d : h -> k) (n : c -> d)
+                                      (m : c -> d) (q : n -> m)
+  : comp130(f,n) -> comp130(f,m)
+
+coh comp432
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (b : f -> g) (m : a -> b)
+                                      (o : a -> b) (q : m -> o)
+                         (c : f -> g) (n : b -> c)
   : comp332(m,n) -> comp332(o,n)
 
 coh comp342 (x : *)
@@ -197,7 +244,27 @@ coh comp443 (x : *)
                                               (o : a -> b) (q : n -> o)
   : m -> o                                              
 
-coh fivecomp4
+coh comp340 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+                                 (b : f -> g) (m : a -> b)
+            (z : *) (h : y -> z)
+                    (i : y -> z) (c : h -> i)
+                                 (d : h -> i) (n : c -> d)
+                                              (o : c -> d) (p : n -> o)
+  : comp330(m,n) -> comp330(m,o) 
+
+coh comp44433
+  (x : *)
+  (y : *) (f : x -> y)
+          (g : x -> y) (a : f -> g)
+                       (b : f -> g) (b0 : a -> b)
+                                    (b1 : a -> b) (t1 : b0 -> b1) 
+                                    (b2 : a -> b) (t2 : b1 -> b2)
+                                    (b3 : a -> b) (t3 : b2 -> b3)
+  : b0 -> b3
+
+coh comp444443333
   (x : *)
   (y : *) (f : x -> y)
           (g : x -> y) (a : f -> g)

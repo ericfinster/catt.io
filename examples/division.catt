@@ -4,15 +4,6 @@
 
 import prelude
 
-coh whisk_l_comp
-    (x : *)
-    (y : *) (f : x -> y)
-    (z : *) (g : y -> z)
-    (w : *) (h : z -> w)
-            (k : z -> w) (a : h -> k)
-  : comp221(comp120(f,comp120(g,a)),assoc_l(f,g,k)) ->
-    comp221(assoc_l(f,g,h),comp120(comp110(f,g),a))
-
 coh ichg21
     (x : *)
     (y : *) (f : x -> y)
@@ -54,14 +45,13 @@ section
   
   (u : x -> y) (ui : y -> x)
   (r0 : comp110(ui,u) -> id(y))
-  (r1 : comp110(u,ui) -> id(x))
   
   (v0 : y -> z) (v1 : y -> z)  
   (s : v0 -> v1)
   (t : v0 -> v1)
   (w : comp120(u,s) -> comp120(u,t))
   where   
-
+         
   let bigstep : comp221(comp120(comp110(ui,u),s),comp210(r0,v1)) ->
                 comp221(comp221(assoc_r(ui,u,v0),comp221(comp120(ui,comp120(u,s)),assoc_l(ui,u,v1))),comp210(r0,v1))
               = comp321(big_coh(ui,u,s),comp210(r0,v1))
@@ -88,8 +78,83 @@ section
                       comp221(comp210(r0,v0),comp120(id(y),t)) 
                     = ichg21_inv(r0,t)
 
-  let finally : comp221(comp210(r0,v0),comp120(id(y),s)) -> 
-                comp221(comp210(r0,v0),comp120(id(y),t))
-              = comp332(comp332(coh_ichg_up(),w1()),coh_ichg_down())
+  let ih3 : comp221(comp210(r0,v0),comp120(id(y),s)) -> 
+            comp221(comp210(r0,v0),comp120(id(y),t))
+          = comp332(coh_ichg_up(),
+            comp332(bigstep(),
+            comp332(using_w(),
+            comp332(bigstep_inv(),
+            coh_ichg_down()))))
+
+  let ih3_expanded : comp221(comp210(r0,v0),comp120(id(y),s)) -> 
+            comp221(comp210(r0,v0),comp120(id(y),t))
+          = comp332(ichg21(r0,s),
+            comp332(comp321(big_coh(ui,u,s),comp210(r0,v1)),
+            comp332(comp321(comp231(assoc_r(ui,u,v0),comp321(comp130(ui,w),assoc_l(ui,u,v1))),comp210(r0,v1)),
+            comp332(comp321(big_coh_inv(ui,u,t),comp210(r0,v1)),ichg21_inv(r0,t)))))
+
              
+end
+
+section
+  (x : *) (y : *) (z : *)
+  
+  (u : x -> y) (ui : y -> x)
+  (r0 : comp110(ui,u) -> id(y))
+  
+  (v0 : y -> z) (v1 : y -> z)  
+  (s : v0 -> v1)
+  (t : v0 -> v1)
+  (w : comp120(u,s) -> comp120(u,t))
+  where   
+
+  let w0 : comp22211(comp120(ui,comp120(u,s)),assoc_l(ui,u,v1),comp210(r0,v1)) ->
+           comp22211(comp120(ui,comp120(u,t)),assoc_l(ui,u,v1),comp210(r0,v1))
+         = comp32211(comp130(ui,w),assoc_l(ui,u,v1),comp210(r0,v1))
+
+  sig T : comp221(comp120(comp110(ui,u),s),comp210(r0,v1)) ->
+          comp221(comp120(comp110(ui,u),t),comp210(r0,v1)) 
+
+  sig U : comp221(comp210(r0,v0),comp120(id(y),s)) -> 
+          comp221(comp210(r0,v0),comp120(id(y),t))
+
+end
+
+
+section
+  (x : *) (y : *) (z : *)
+  
+  (u : x -> y) (ui : y -> x)
+  (r0 : comp110(ui,u) -> id(y))
+  (r1 : comp110(u,ui) -> id(x))
+  
+  (v0 : y -> z)
+  (v1 : y -> z)  
+  (s0 : v0 -> v1)
+  (t0 : v0 -> v1)
+  (s : s0 -> t0)
+  (t : s0 -> t0)
+  (w : comp130(u,s) -> comp130(u,t))
+  where   
+
+
+  # ih3(src(w))
+  let ih3_src : comp221(comp210(r0,v0),comp120(id(y),s0)) -> 
+                comp221(comp210(r0,v0),comp120(id(y),t0))
+              = ih3(x,y,z,u,ui,r0,v0,v1,s0,t0,comp130(u,s))
+
+
+  sig L : comp231(comp210(r0,v0),comp130(id(y),s)) -> ih3_src()
+
+
+  # ih3(tgt(w))
+  let ih3_tgt : comp221(comp210(r0,v0),comp120(id(y),s0)) -> 
+                comp221(comp210(r0,v0),comp120(id(y),t0))
+              = ih3(x,y,z,u,ui,r0,v0,v1,s0,t0,comp130(u,t))
+
+  sig R : ih3_tgt() -> comp231(comp210(r0,v0),comp130(id(y),t)) 
+
+  sig ih4 : comp231(comp210(r0,v0),comp130(id(y),s)) ->
+            comp231(comp210(r0,v0),comp130(id(y),t))
+
 end
