@@ -11,7 +11,7 @@ open Suite
 open Term
 open Expr
     
-open Cheshire.Main
+open Mtl
 
 (*****************************************************************************)
 (*                             Typechecking Monad                            *)

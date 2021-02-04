@@ -15,4 +15,4 @@
  (name catt)
  (public_name catt)
  (synopsis "Core routines and typechecker for catt.io")
- (libraries cheshire menhirLib))
+ (libraries menhirLib))

@@ -5,7 +5,7 @@
 (*****************************************************************************)
 
 open Suite
-open Cheshire.Main
+open Mtl
        
 type 'a pd =
   | Br of 'a * ('a * 'a pd) suite
