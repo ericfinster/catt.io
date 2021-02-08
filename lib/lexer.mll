@@ -22,25 +22,13 @@ rule token = parse
 
   | "let"        { LET }
   | "coh"        { COH }
-  | "import"     { IMPRT }
-  | "prune"      { PRUNE }
-  | "normalize"  { NORMALIZE }
-  | "infer"      { INFER }
-  | "eqnf"       { EQNF }
-  | "section"    { SECTION }
-  | "where"      { WHERE } 
-  | "end"        { END }
-  | "sig"        { SIG }
   | "->"         { ARROW }
-  | "*"          { OBJ }
   | "("          { LPAR }
   | ")"          { RPAR }
-  | "["          { LBRACKET }
-  | "]"          { RBRACKET }
   | ":"          { COLON }
   | ","          { COMMA }
   | "="          { EQUAL }
-  | "|"          { VBAR }
+  | "U"          { TYPE }
 
   (* Identifiers *)
   | (['a'-'z''A'-'Z''0'-'9']['a'-'z''A'-'Z''0'-'9''_']* as str) { IDENT str }

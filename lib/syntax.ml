@@ -8,6 +8,19 @@ open Suite
 open Mtl
 
 (*****************************************************************************)
+(*                           User Level Expressions                          *)
+(*****************************************************************************)
+
+type expr =
+  | TypE
+
+type tele = (string * expr) suite
+    
+type defn =
+  | TermDef of string * tele * expr * expr
+  | CohDef of string * tele * expr
+
+(*****************************************************************************)
 (*                        Internal Term Representation                       *)
 (*****************************************************************************)
 
@@ -196,12 +209,14 @@ and tc_check_tm tm ty =
   (* phase shift *)
   | _ ->
     let* (tm', ty') = tc_infer_tm tm in
-    (* here we have to reify, i.e. readback and compare normal forms *)
     let* ty_nf = tc_reify ty in
     let* ty_nf' = tc_reify ty' in 
     if (ty_nf = ty_nf') then
       tc_ok (tm',ty')
     else
+      (* has the unfortunate effect that we always print
+       * error messages in fully normalized form ...
+      *)
       tc_throw (TypeMismatch (tm,ty_nf,ty_nf'))
 
 and tc_infer_tm tm =
