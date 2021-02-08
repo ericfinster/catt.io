@@ -45,6 +45,24 @@ let appD f d =
   | _ -> AppD (f,d)
 
 (*****************************************************************************)
+(*                                  Readback                                 *)
+(*****************************************************************************)
+
+let rec rb k d =
+  match d with
+  | TypD -> TypT
+  | CatD -> CatT
+  | VarD i -> VarT (k - i - 1)
+  | ObjD c -> ObjT (rb k c)
+  | HomD (c,s,t) -> HomT (rb k c, rb k s, rb k t)
+  | CylD c -> CylT (rb k c)
+  | CohD (g,s,t) ->
+    CohT (map (rb k) g, rb k s, rb k t)
+  | PiD (a,p) -> PiT (rb k a, rb (k+1) (p (VarD k)))
+  | LamD b -> LamT (rb (k+1) (b (VarD k)))
+  | AppD (a,b) -> AppT (rb k a , rb k b)
+
+(*****************************************************************************)
 (*                                 Evaluation                                *)
 (*****************************************************************************)
 
@@ -81,8 +99,8 @@ type tc_def =
   | TmDef of tm suite * tm * tm
 
 type tc_env = {
-  gma : tm suite;
-  rho : (string * tc_def) suite;
+  gma : dom suite;
+  rho : dom suite;
 }
 
 module TcErrMnd = ErrMnd(struct type t = tc_err end)
@@ -101,6 +119,20 @@ let tc_lookup_var i env =
   try Ok (nth i env.gma)
   with Not_found -> Fail (InvalidIndex i)
 
+let tc_reify d env =
+  let k = length (env.gma) in
+  Ok (rb k d)
+
+let tc_eval t env =
+  Ok (eval t env.rho)
+
+let tc_depth env =
+  Ok (length (env.gma))
+    
+let tc_with tm ty m env =
+  m { gma = Ext (env.gma,ty) ;
+      rho = Ext (env.rho,tm) }
+  
 (*****************************************************************************)
 (*                               Normalization                               *)
 (*****************************************************************************)
@@ -121,15 +153,18 @@ let rec tc_check_ty ty =
   (* categories *)
   | CatT -> tc_ok CatT
   | ObjT cat ->
-    let* (cat',_) = tc_check_tm cat CatT in
+    let* (cat',_) = tc_check_tm cat CatD in
     tc_ok (ObjT cat')
 
   (* pi formation *)
   | PiT (a,p) ->
     let* a' = tc_check_ty a in
-    (* extend context, etc here ... *)
-    let* p' = tc_check_ty p in
-    tc_ok (PiT (a',p'))
+    let* ad = tc_eval a' in
+    let* i = tc_depth in 
+    let v = VarD i in
+    tc_with ad v
+      (let* p' = tc_check_ty p in 
+       tc_ok (PiT (a',p')))
 
   | _ -> tc_throw (ExpectedType ty)
     
@@ -137,32 +172,37 @@ and tc_check_tm tm ty =
   match (tm,ty) with
 
   (* hom categories *)
-  | (HomT (cat,src,tgt), CatT) ->
-    let* (cat',_) = tc_check_tm cat CatT in
-    let* (src',_) = tc_check_tm src (ObjT cat') in
-    let* (tgt',_) = tc_check_tm tgt (ObjT cat') in
-    tc_ok (HomT (cat',src',tgt'), CatT)
+  | (HomT (cat,src,tgt), CatD) ->
+    let* (cat',_) = tc_check_tm cat CatD in
+    let* cat_d = tc_eval cat' in 
+    let* (src',_) = tc_check_tm src (ObjD cat_d) in
+    let* (tgt',_) = tc_check_tm tgt (ObjD cat_d) in
+    tc_ok (HomT (cat',src',tgt'), CatD)
 
   (* cylinder categories *)
-  | (CylT cat, CatT) ->
-    let* (cat',_) = tc_check_tm cat CatT in
-    tc_ok (CylT cat', CatT)
+  | (CylT cat, CatD) ->
+    let* (cat',_) = tc_check_tm cat CatD in
+    tc_ok (CylT cat', CatD)
 
   (* pi intro *)
-  | (LamT b, PiT (a,p)) ->
-    (* obviously, handle context here *)
-    let* (b',_) = tc_check_tm b p in
-    tc_ok (LamT b', PiT (a,p))
+  | (LamT b, PiD (a,p)) ->
+    let* i = tc_depth in
+    (* handle eta expansion ... *)
+    let v = VarD i in 
+    tc_with a v
+      (let* (b',_) = tc_check_tm b (p v) in
+       tc_ok (LamT b', PiD (a,p)))
 
   (* phase shift *)
   | _ ->
     let* (tm', ty') = tc_infer_tm tm in
-    let* ty_nf = tc_normalize ty in
-    let* ty_nf' = tc_normalize ty' in 
+    (* here we have to reify, i.e. readback and compare normal forms *)
+    let* ty_nf = tc_reify ty in
+    let* ty_nf' = tc_reify ty' in 
     if (ty_nf = ty_nf') then
       tc_ok (tm',ty')
     else
-      tc_throw (TypeMismatch (tm,ty,ty'))
+      tc_throw (TypeMismatch (tm,ty_nf,ty_nf'))
 
 and tc_infer_tm tm =
   match tm with
