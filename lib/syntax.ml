@@ -18,10 +18,54 @@ type tm =
   | ObjT of tm 
   | HomT of tm * tm * tm
   | CylT of tm
-  | PiT of tm * tm
-  | AppT of tm * tm
   | CohT of tm suite * tm * tm
+  | PiT of tm * tm
+  | LamT of tm 
+  | AppT of tm * tm
 
+(*****************************************************************************)
+(*                              Semantic Domain                              *)
+(*****************************************************************************)
+
+type dom =
+  | TypD
+  | CatD
+  | VarD of int
+  | ObjD of dom
+  | HomD of dom * dom * dom
+  | CylD of dom
+  | CohD of dom suite * dom * dom 
+  | PiD of dom * (dom -> dom)
+  | LamD of (dom -> dom)
+  | AppD of dom * dom 
+
+let appD f d =
+  match f with
+  | LamD phi -> phi d
+  | _ -> AppD (f,d)
+
+(*****************************************************************************)
+(*                                 Evaluation                                *)
+(*****************************************************************************)
+
+(* rho is a suite of domain elements giving the bindings of variables *)
+           
+let rec eval tm rho =
+  match tm with
+  | TypT -> TypD
+  | CatT -> CatD
+  | VarT i -> nth i rho
+  | ObjT cat -> ObjD (eval cat rho)
+  | HomT (cat,src,tgt) ->
+    HomD (eval cat rho, eval src rho, eval tgt rho)
+  | CylT cat -> CylD (eval cat rho)
+  | CohT (ctx,src,tgt) ->
+    (* this one needs some thought ... *)
+    CohD (map (fun t -> eval t rho) ctx, eval src rho, eval tgt rho)
+  | PiT (a,p) -> PiD (eval a rho , fun d -> eval p (Ext (rho,d)))
+  | LamT b -> LamD (fun d -> eval b (Ext (rho,d)))
+  | AppT (a,b) -> appD (eval a rho) (eval b rho)
+    
 (*****************************************************************************)
 (*                             Typechecking Monad                            *)
 (*****************************************************************************)
@@ -57,7 +101,6 @@ let tc_lookup_var i env =
   try Ok (nth i env.gma)
   with Not_found -> Fail (InvalidIndex i)
 
-
 (*****************************************************************************)
 (*                               Normalization                               *)
 (*****************************************************************************)
@@ -82,23 +125,34 @@ let rec tc_check_ty ty =
     tc_ok (ObjT cat')
 
   (* pi formation *)
-  | PiT (a,b) ->
+  | PiT (a,p) ->
     let* a' = tc_check_ty a in
     (* extend context, etc here ... *)
-    let* b' = tc_check_ty b in
-    tc_ok (PiT (a',b'))
+    let* p' = tc_check_ty p in
+    tc_ok (PiT (a',p'))
 
   | _ -> tc_throw (ExpectedType ty)
     
 and tc_check_tm tm ty =
   match (tm,ty) with
 
-  (* Hom Categories *)
+  (* hom categories *)
   | (HomT (cat,src,tgt), CatT) ->
     let* (cat',_) = tc_check_tm cat CatT in
     let* (src',_) = tc_check_tm src (ObjT cat') in
     let* (tgt',_) = tc_check_tm tgt (ObjT cat') in
     tc_ok (HomT (cat',src',tgt'), CatT)
+
+  (* cylinder categories *)
+  | (CylT cat, CatT) ->
+    let* (cat',_) = tc_check_tm cat CatT in
+    tc_ok (CylT cat', CatT)
+
+  (* pi intro *)
+  | (LamT b, PiT (a,p)) ->
+    (* obviously, handle context here *)
+    let* (b',_) = tc_check_tm b p in
+    tc_ok (LamT b', PiT (a,p))
 
   (* phase shift *)
   | _ ->
