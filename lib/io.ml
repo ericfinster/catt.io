@@ -72,8 +72,16 @@ let parse_file f =
     printf "Lexing error: %s@," err;
     exit (-1)
 
-(* There has got to be a better way to pass the environment around ... *)
-(* Actually, maybe the module list belongs with the raw checker!! *)
+let rec parse_all files =
+  match files with
+  | [] -> ()
+  | f::fs -> 
+    let _ = parse_all fs in 
+    print_string "-----------------";
+    print_cut ();
+    printf "Processing input file: %s\n" f;
+    let _ = parse_file f in ()
+      
 (* let rec raw_check_all files =
  *   match files with
  *   | [] -> raw_complete_env

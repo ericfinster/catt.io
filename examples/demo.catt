@@ -1,27 +1,7 @@
 #
-#  demo.catt
+#  demo.catt - new syntax demo and whatnot
 #
 
-coh id (x : *) : x -> x
+let idf (A : U) (a : A) : A = a
 
-coh comp (x : *)
-    	    (y : *) (f : x -> y)
-	    (z : *) (g : y -> z)
-  : x -> z
-
-coh vert (x : *)
-            (y : *) (f : x -> y)
-	            (g : x -> y) (a : f -> g)
-	            (h : x -> y) (b : g -> h)
-  : f -> h
-
-coh unitl
-    (x : *)
-    (y : *) (f : x -> y)
-  :  comp(f,id(y)) -> f 
-
-    
-
-
-
-
+coh id (C : Cat) (x : [C]) : [C | x -> x]

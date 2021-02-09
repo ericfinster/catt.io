@@ -13,8 +13,9 @@ let () =
   pp_set_margin std_formatter 200;
   open_vbox 0; (* initialize the pretty printer *)
   Arg.parse spec_list (fun s -> file_in := s::!file_in) usage;
-  (* let files = List.rev (!file_in) in *)
-  printf "not done\n"
+  let files = List.rev (!file_in) in
+  parse_all files;
+  printf "Success!\n"
     
   (* let tenv = { empty_env with config = !global_config } in
    * match raw_check_all files empty_raw_env tenv with

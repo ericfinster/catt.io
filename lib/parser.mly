@@ -6,10 +6,10 @@
 %} 
 
 %token LET COH
-%token TYPE 
-%token COLON EQUAL
-%token LPAR RPAR
-%token COMMA ARROW
+%token TYPE CAT
+%token LAMBDA COLON EQUAL DOT
+%token LPAR RPAR LBRKT RBRKT
+%token ARROW VBAR
 %token <string> IDENT 
 %token EOF
 
@@ -41,5 +41,33 @@ var_decl:
     { (id, ty) }
 
 expr:
+  | e = expr1
+    { e }
+  | LAMBDA id = IDENT DOT e = expr1
+    { LamE (id,e) }
+  | LPAR id = IDENT COLON ty = expr1 RPAR ARROW tm = expr1
+    { PiE (id,ty,tm) } 
+
+expr1:
+  | e = expr2
+    { e }
+  | e1 = expr1 e2 = expr2
+    { AppE (e1,e2) }
+
+expr2:
   | TYPE
     { TypE }
+  | CAT
+    { CatE } 
+  | id = IDENT
+    { VarE id }
+  | LBRKT c = cat RBRKT
+    { ObjE c }
+  | LPAR e = expr RPAR
+    { e }
+
+cat:
+  | id = IDENT
+    { VarE id }
+  | c = cat VBAR s = expr ARROW t = expr
+    { HomE (c,s,t) }

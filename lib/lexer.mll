@@ -25,10 +25,15 @@ rule token = parse
   | "->"         { ARROW }
   | "("          { LPAR }
   | ")"          { RPAR }
+  | "["          { LBRKT }
+  | "]"          { RBRKT }
   | ":"          { COLON }
-  | ","          { COMMA }
   | "="          { EQUAL }
+  | "."          { DOT }
+  | "\\"         { LAMBDA }
+  | "|"          { VBAR }
   | "U"          { TYPE }
+  | "Cat"        { CAT }
 
   (* Identifiers *)
   | (['a'-'z''A'-'Z''0'-'9']['a'-'z''A'-'Z''0'-'9''_']* as str) { IDENT str }

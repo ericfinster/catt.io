@@ -13,8 +13,17 @@ open Mtl
 
 type expr =
   | TypE
+  | CatE
+  | VarE of string
+  | ObjE of expr
+  | HomE of expr * expr * expr
+  | CylE of expr
+  | CohE of expr suite * expr * expr
+  | PiE of string * expr * expr
+  | LamE of string * expr
+  | AppE of expr * expr
 
-type tele = (string * expr) suite
+and tele = (string * expr) suite
     
 type defn =
   | TermDef of string * tele * expr * expr
