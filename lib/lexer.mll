@@ -28,6 +28,7 @@ rule token = parse
   | "["          { LBRKT }
   | "]"          { RBRKT }
   | ":"          { COLON }
+  | "::"         { DBLCOLON }
   | "="          { EQUAL }
   | "."          { DOT }
   | "\\"         { LAMBDA }

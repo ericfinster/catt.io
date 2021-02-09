@@ -4,4 +4,14 @@
 
 let idf (A : U) (a : A) : A = a
 
-coh id (C : Cat) (x : [C]) : [C | x -> x]
+coh id (C : Cat)
+    (x :: C)
+  : x -> x
+
+coh comp (C : Cat)
+    (x :: C)
+    (y :: C) (f :: x -> y)
+    (z :: C) (g :: y -> z)
+  : x -> z
+
+

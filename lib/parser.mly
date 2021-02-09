@@ -1,20 +1,20 @@
 %{
 
-    open Syntax
+    open Expr
     open Suite
        
 %} 
 
 %token LET COH
 %token TYPE CAT
-%token LAMBDA COLON EQUAL DOT
+%token LAMBDA COLON DBLCOLON EQUAL DOT
 %token LPAR RPAR LBRKT RBRKT
 %token ARROW VBAR
 %token <string> IDENT 
 %token EOF
 
 %start prog
-%type <Syntax.defn list> prog
+%type <Expr.defn list> prog
 
 %%
 
@@ -27,8 +27,8 @@ prog:
 defn:
   | LET id = IDENT tl = tele COLON ty = expr EQUAL tm = expr
     { TermDef (id,tl,ty,tm) }
-  | COH id = IDENT tl = tele COLON ty = expr
-    { CohDef (id,tl,ty) }
+  | COH id = IDENT tl = tele COLON c = cat
+    { CohDef (id,tl,ObjE c) }
 
 tele:
   |
@@ -38,7 +38,9 @@ tele:
 
 var_decl:
   | LPAR id = IDENT COLON ty = expr RPAR
-    { (id, ty) }
+    { (id,ty) }
+  | LPAR id = IDENT DBLCOLON c = cat RPAR
+    { (id,ObjE c) }
 
 expr:
   | e = expr1
@@ -70,4 +72,6 @@ cat:
   | id = IDENT
     { VarE id }
   | c = cat VBAR s = expr ARROW t = expr
-    { HomE (c,s,t) }
+    { HomE (Some c,s,t) }
+  | s = expr ARROW t = expr
+    { HomE (None,s,t) }

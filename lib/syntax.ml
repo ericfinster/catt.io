@@ -6,29 +6,7 @@
 
 open Suite
 open Mtl
-
-(*****************************************************************************)
-(*                           User Level Expressions                          *)
-(*****************************************************************************)
-
-type expr =
-  | TypE
-  | CatE
-  | VarE of string
-  | ObjE of expr
-  | HomE of expr * expr * expr
-  | CylE of expr
-  | CohE of expr suite * expr * expr
-  | PiE of string * expr * expr
-  | LamE of string * expr
-  | AppE of expr * expr
-
-and tele = (string * expr) suite
     
-type defn =
-  | TermDef of string * tele * expr * expr
-  | CohDef of string * tele * expr
-
 (*****************************************************************************)
 (*                        Internal Term Representation                       *)
 (*****************************************************************************)
@@ -125,115 +103,116 @@ type tc_env = {
   rho : dom suite;
 }
 
-module TcErrMnd = ErrMnd(struct type t = tc_err end)
-module TcmMnd = ReaderT(struct type t = tc_env end)(TcErrMnd)
+module TmTcm(M : MndErr with type e = tc_err) = struct
 
-(* Bring syntax into scope *)
-open TcmMnd
-open MonadSyntax(TcmMnd)
+  module TcmMnd = ReaderT(struct type t = tc_env end)(M)
 
-type 'a tcm = 'a TcmMnd.m
-    
-let tc_ok a = pure a
-let tc_throw e = lift (Fail e)
+  open TcmMnd
+  open MonadSyntax(TcmMnd)
 
-let tc_lookup_var i env =
-  try Ok (nth i env.gma)
-  with Not_found -> Fail (InvalidIndex i)
+  type 'a tcm = 'a TcmMnd.m
 
-let tc_reify d env =
-  let k = length (env.gma) in
-  Ok (rb k d)
+  let tc_ok a = pure a
+  let tc_throw e = lift (M.throw e)
 
-let tc_eval t env =
-  Ok (eval t env.rho)
+  let tc_lookup_var i env =
+    try M.pure (nth i env.gma)
+    with Not_found -> M.throw (InvalidIndex i)
 
-let tc_depth env =
-  Ok (length (env.gma))
-    
-let tc_with tm ty m env =
-  m { gma = Ext (env.gma,ty) ;
-      rho = Ext (env.rho,tm) }
-  
-(*****************************************************************************)
-(*                               Normalization                               *)
-(*****************************************************************************)
+  let tc_reify d env =
+    let k = length (env.gma) in
+    M.pure (rb k d)
 
-let tc_normalize _ =
-  tc_throw (InternalError "not done")
+  let tc_eval t env =
+    M.pure (eval t env.rho)
 
-(*****************************************************************************)
-(*                             Typechecking Rules                            *)
-(*****************************************************************************)
+  let tc_depth env =
+    M.pure (length (env.gma))
 
-let rec tc_check_ty ty = 
-  match ty with
+  let tc_with tm ty m env =
+    m { gma = Ext (env.gma,ty) ;
+        rho = Ext (env.rho,tm) }
 
-  (* type in type *)
-  | TypT -> tc_ok TypT
+  (*****************************************************************************)
+  (*                               Normalization                               *)
+  (*****************************************************************************)
 
-  (* categories *)
-  | CatT -> tc_ok CatT
-  | ObjT cat ->
-    let* (cat',_) = tc_check_tm cat CatD in
-    tc_ok (ObjT cat')
+  let tc_normalize _ =
+    tc_throw (InternalError "not done")
 
-  (* pi formation *)
-  | PiT (a,p) ->
-    let* a' = tc_check_ty a in
-    let* ad = tc_eval a' in
-    let* i = tc_depth in 
-    let v = VarD i in
-    tc_with ad v
-      (let* p' = tc_check_ty p in 
-       tc_ok (PiT (a',p')))
+  (*****************************************************************************)
+  (*                             Typechecking Rules                            *)
+  (*****************************************************************************)
 
-  | _ -> tc_throw (ExpectedType ty)
-    
-and tc_check_tm tm ty =
-  match (tm,ty) with
+  let rec tc_check_ty ty = 
+    match ty with
 
-  (* hom categories *)
-  | (HomT (cat,src,tgt), CatD) ->
-    let* (cat',_) = tc_check_tm cat CatD in
-    let* cat_d = tc_eval cat' in 
-    let* (src',_) = tc_check_tm src (ObjD cat_d) in
-    let* (tgt',_) = tc_check_tm tgt (ObjD cat_d) in
-    tc_ok (HomT (cat',src',tgt'), CatD)
+    (* type in type *)
+    | TypT -> tc_ok TypT
 
-  (* cylinder categories *)
-  | (CylT cat, CatD) ->
-    let* (cat',_) = tc_check_tm cat CatD in
-    tc_ok (CylT cat', CatD)
+    (* categories *)
+    | CatT -> tc_ok CatT
+    | ObjT cat ->
+      let* (cat',_) = tc_check_tm cat CatD in
+      tc_ok (ObjT cat')
 
-  (* pi intro *)
-  | (LamT b, PiD (a,p)) ->
-    let* i = tc_depth in
-    (* handle eta expansion ... *)
-    let v = VarD i in 
-    tc_with a v
-      (let* (b',_) = tc_check_tm b (p v) in
-       tc_ok (LamT b', PiD (a,p)))
+    (* pi formation *)
+    | PiT (a,p) ->
+      let* a' = tc_check_ty a in
+      let* ad = tc_eval a' in
+      let* i = tc_depth in 
+      let v = VarD i in
+      tc_with ad v
+        (let* p' = tc_check_ty p in 
+         tc_ok (PiT (a',p')))
 
-  (* phase shift *)
-  | _ ->
-    let* (tm', ty') = tc_infer_tm tm in
-    let* ty_nf = tc_reify ty in
-    let* ty_nf' = tc_reify ty' in 
-    if (ty_nf = ty_nf') then
-      tc_ok (tm',ty')
-    else
-      (* has the unfortunate effect that we always print
-       * error messages in fully normalized form ...
-      *)
-      tc_throw (TypeMismatch (tm,ty_nf,ty_nf'))
+    | _ -> tc_throw (ExpectedType ty)
 
-and tc_infer_tm tm =
-  match tm with
-  
-  | VarT i ->
-    let* typ = tc_lookup_var i in
-    tc_ok (VarT i , typ)
+  and tc_check_tm tm ty =
+    match (tm,ty) with
 
-  | _ -> tc_throw (InternalError "not done")
-           
+    (* hom categories *)
+    | (HomT (cat,src,tgt), CatD) ->
+      let* (cat',_) = tc_check_tm cat CatD in
+      let* cat_d = tc_eval cat' in 
+      let* (src',_) = tc_check_tm src (ObjD cat_d) in
+      let* (tgt',_) = tc_check_tm tgt (ObjD cat_d) in
+      tc_ok (HomT (cat',src',tgt'), CatD)
+
+    (* cylinder categories *)
+    | (CylT cat, CatD) ->
+      let* (cat',_) = tc_check_tm cat CatD in
+      tc_ok (CylT cat', CatD)
+
+    (* pi intro *)
+    | (LamT b, PiD (a,p)) ->
+      let* i = tc_depth in
+      (* handle eta expansion ... *)
+      let v = VarD i in 
+      tc_with a v
+        (let* (b',_) = tc_check_tm b (p v) in
+         tc_ok (LamT b', PiD (a,p)))
+
+    (* phase shift *)
+    | _ ->
+      let* (tm', ty') = tc_infer_tm tm in
+      let* ty_nf = tc_reify ty in
+      let* ty_nf' = tc_reify ty' in 
+      if (ty_nf = ty_nf') then
+        tc_ok (tm',ty')
+      else
+        (* has the unfortunate effect that we always print
+         * error messages in fully normalized form ...
+        *)
+        tc_throw (TypeMismatch (tm,ty_nf,ty_nf'))
+
+  and tc_infer_tm tm =
+    match tm with
+
+    | VarT i ->
+      let* typ = tc_lookup_var i in
+      tc_ok (VarT i , typ)
+
+    | _ -> tc_throw (InternalError "not done")
+
+end  
