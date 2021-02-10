@@ -79,7 +79,7 @@ let rec pp_print_term ppf tm =
                      pp_print_id_opt i
                      pp_print_term a
                      pp_print_term p
-  | LamT (i,b) -> fprintf ppf "\\%a. %a"
+  | LamT (i,b) -> fprintf ppf "(\\%a. %a)"
                     pp_print_id_opt i
                     pp_print_term b
   | AppT (u,v) ->
@@ -290,8 +290,10 @@ let tc_dump_ctx env =
 (*****************************************************************************)
 
 let tc_normalize tm =
+  printf "About to normalize: %a@," pp_print_term tm;
   let* tmd = tc_eval tm in
   let* tm_nf = tc_reify tmd in
+  printf "Result: %a@," pp_print_term tm_nf;
   tc_ok tm_nf
 
 (*****************************************************************************)
@@ -322,7 +324,8 @@ let rec tc_check_ty ty =
   | _ -> let* (ty',_) = tc_check_tm ty TypT in tc_ok ty'
 
 and tc_check_tm tm ty =
-  printf "Checking term: %a@," pp_print_term tm;
+  printf "Checking term: %a has type %a@,"
+    pp_print_term tm pp_print_term ty;
   let* _ = tc_dump_ctx in 
   match (tm,ty) with
 
@@ -366,20 +369,29 @@ and tc_infer_tm tm =
     let* env = tc_env in
     tc_try
       (let* (k,typ) = tc_lookup_ctx_id 0 id env.gma in
-       let ty = db_lift (length env.gma - k + 1) typ in 
+       let ty = db_lift (k+1) typ in 
        printf "Found a named variable of depth %d@," k;
+       printf "Context length is %d@," (length env.gma);
        printf "Reified type: %a@," pp_print_term ty;
-       (* hmmm. but now we have to lift it's type into the current context .... *)
        tc_ok (VarT k,ty))
       (let* typ = tc_lookup_id id in
        (* Do we need to lift here? *)
        tc_ok (IdT id,typ))
        
   | VarT k ->
-    let* env = tc_env in 
+    (* let* env = tc_env in  *)
     let* typ = tc_lookup_var k in
-    let ty = db_lift (length env.gma - k + 1) typ in 
+    let ty = db_lift (k+1) typ in 
     tc_ok (VarT k,ty)
+
+  | AppT (u,v) ->
+    let* (u_tm,u_ty) = tc_infer_tm u in
+    (match u_ty with
+     | PiT (_,a,p) ->
+       let* (v_tm,_) = tc_check_tm v a in
+       let* app_ty = tc_normalize (AppT (LamT (None,p),v_tm)) in 
+       tc_ok (AppT (u_tm,v_tm), app_ty)
+     | _ -> tc_throw (InternalError "not a pi type"))
 
   | _ -> tc_throw (InternalError "not done")
 
