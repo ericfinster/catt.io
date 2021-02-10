@@ -3,6 +3,7 @@
 #
 
 let idf (A : U) (a : A) : A = a
+let dlb (A : U) (f : (a : A) -> A) (a : A) : A = f (f a)
 
 coh id (C : Cat)
     (x :: C)

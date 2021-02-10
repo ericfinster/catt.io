@@ -1,6 +1,6 @@
 %{
 
-    open Expr
+    open Syntax
     open Suite
        
 %} 
@@ -14,7 +14,7 @@
 %token EOF
 
 %start prog
-%type <Expr.defn list> prog
+%type <Syntax.defn list> prog
 
 %%
 
@@ -25,10 +25,10 @@ prog:
     { defs }
 
 defn:
-  | LET id = IDENT tl = tele COLON ty = expr EQUAL tm = expr
+  | LET id = IDENT tl = tele COLON ty = term EQUAL tm = term
     { TermDef (id,tl,ty,tm) }
   | COH id = IDENT tl = tele COLON c = cat
-    { CohDef (id,tl,ObjE c) }
+    { CohDef (id,tl,ObjT c) }
 
 tele:
   |
@@ -37,41 +37,41 @@ tele:
     { Ext (t, v) }
 
 var_decl:
-  | LPAR id = IDENT COLON ty = expr RPAR
+  | LPAR id = IDENT COLON ty = term RPAR
     { (id,ty) }
   | LPAR id = IDENT DBLCOLON c = cat RPAR
-    { (id,ObjE c) }
+    { (id,ObjT c) }
 
-expr:
-  | e = expr1
+term:
+  | e = term1
     { e }
-  | LAMBDA id = IDENT DOT e = expr1
-    { LamE (id,e) }
-  | LPAR id = IDENT COLON ty = expr1 RPAR ARROW tm = expr1
-    { PiE (id,ty,tm) } 
+  | LAMBDA id = IDENT DOT e = term1
+    { LamT (Some id,e) }
+  | LPAR id = IDENT COLON ty = term1 RPAR ARROW tm = term1
+    { PiT (Some id,ty,tm) } 
 
-expr1:
-  | e = expr2
+term1:
+  | e = term2
     { e }
-  | e1 = expr1 e2 = expr2
-    { AppE (e1,e2) }
+  | e1 = term1 e2 = term2
+    { AppT (e1,e2) }
 
-expr2:
+term2:
   | TYPE
-    { TypE }
+    { TypT }
   | CAT
-    { CatE } 
+    { CatT } 
   | id = IDENT
-    { VarE id }
+    { IdT id }
   | LBRKT c = cat RBRKT
-    { ObjE c }
-  | LPAR e = expr RPAR
+    { ObjT c }
+  | LPAR e = term RPAR
     { e }
 
 cat:
   | id = IDENT
-    { VarE id }
-  | c = cat VBAR s = expr ARROW t = expr
-    { HomE (Some c,s,t) }
-  | s = expr ARROW t = expr
-    { HomE (None,s,t) }
+    { IdT id }
+  | c = cat VBAR s = term ARROW t = term
+    { HomT (Some c,s,t) }
+  | s = term ARROW t = term
+    { HomT (None,s,t) }

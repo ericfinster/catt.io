@@ -5,7 +5,7 @@
 (*****************************************************************************)
 
 open Format
-open Expr
+open Syntax
 
 (*****************************************************************************)
 (*                                  Options                                  *)
@@ -81,7 +81,7 @@ let rec parse_all files =
     print_cut ();
     printf "Processing input file: %s\n" f;
     let _ = parse_file f in ()
-      
+
 (* let rec raw_check_all files =
  *   match files with
  *   | [] -> raw_complete_env
