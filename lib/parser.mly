@@ -9,7 +9,7 @@
 %token TYPE CAT
 %token LAMBDA COLON DBLCOLON EQUAL DOT
 %token LPAR RPAR LBRKT RBRKT
-%token ARROW VBAR
+%token DBLARROW ARROW VBAR
 %token <string> IDENT 
 %token EOF
 
@@ -27,7 +27,7 @@ prog:
 defn:
   | LET id = IDENT tl = tele COLON ty = term EQUAL tm = term
     { TermDef (id,tl,ty,tm) }
-  | COH id = IDENT tl = tele COLON c = cat
+  | COH id = IDENT tl = tele COLON c = term
     { CohDef (id,tl,ObjT c) }
 
 tele:
@@ -39,39 +39,40 @@ tele:
 var_decl:
   | LPAR id = IDENT COLON ty = term RPAR
     { (id,ty) }
-  | LPAR id = IDENT DBLCOLON c = cat RPAR
+  | LPAR id = IDENT DBLCOLON c = term RPAR
     { (id,ObjT c) }
 
-term:
-  | e = term1
-    { e }
-  | LAMBDA id = IDENT DOT e = term
-    { LamT (Some id,e) }
-  | LPAR id = IDENT COLON ty = term RPAR ARROW tm = term
-    { PiT (Some id,ty,tm) } 
+term: 
+  | t = term1
+    { t }
+  | s = term1 DBLARROW t = term1
+    { HomT (None,s,t) }
+  | c = term1 VBAR s = term1 DBLARROW t = term1
+    { HomT (Some c,s,t) }
 
 term1:
-  | e = term2
-    { e }
-  | e1 = term1 e2 = term2
-    { AppT (e1,e2) }
+  | t = term2
+    { t }
+  | LAMBDA id = IDENT DOT e = term1
+    { LamT (Some id,e) }
+  | LPAR id = IDENT COLON ty = term1 RPAR ARROW tm = term1
+    { PiT (Some id,ty,tm) } 
 
 term2:
+  | t = term3
+    { t }
+  | u = term2 v = term3
+    { AppT (u,v) }
+
+term3:
   | TYPE
     { TypT }
   | CAT
     { CatT } 
   | id = IDENT
     { IdT id }
-  | LBRKT c = cat RBRKT
+  | LBRKT c = term RBRKT
     { ObjT c }
-  | LPAR e = term RPAR
-    { e }
+  | LPAR t = term RPAR
+    { t }
 
-cat:
-  | id = IDENT
-    { IdT id }
-  | c = cat VBAR s = term ARROW t = term
-    { HomT (Some c,s,t) }
-  | s = term ARROW t = term
-    { HomT (None,s,t) }

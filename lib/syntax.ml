@@ -71,7 +71,7 @@ let rec pp_print_term ppf tm =
   | VarT i -> fprintf ppf "%d" i
   | IdT id -> fprintf ppf "%s" id
   | ObjT c -> fprintf ppf "[%a]" pp_print_term c
-  | HomT (_,s,t) -> fprintf ppf "%a -> %a"
+  | HomT (_,s,t) -> fprintf ppf "%a => %a"
                       pp_print_term s pp_print_term t
   | CylT c -> fprintf ppf "Cyl (%a)" pp_print_term c
   | CohT (_,_,_) -> fprintf ppf "coherence"
@@ -191,16 +191,18 @@ let rec eval tm rho tau =
 (*****************************************************************************)
 
 type tc_err =
+  | InternalError of string
   | ExpectedType of term
   | TypeMismatch of term * term * term
   | InvalidIndex of int
   | UnknownIdentifier of string
-  | InternalError of string 
+  | InferenceFailed of term
 
 let pp_print_tc_err ppf terr =
   match terr with
-  | ExpectedType _ ->
-    fprintf ppf "Expected type"
+  | ExpectedType tm ->
+    fprintf ppf "Expected type: %a"
+      pp_print_term tm
   | TypeMismatch (tm,tya,tyb) ->
     fprintf ppf "Type mismatch:@,@,@[<hov>%a@, =/= @,%a@]@,@,when checking@,@,%a"
       pp_print_term tya
@@ -212,6 +214,9 @@ let pp_print_tc_err ppf terr =
     fprintf ppf "Unknown identifier: %s" id
   | InternalError s ->
     fprintf ppf "Internal error: %s" s
+  | InferenceFailed tm ->
+    fprintf ppf "Failed to infer type for: %a"
+      pp_print_term tm 
 
 let print_tc_err terr =
   pp_print_tc_err std_formatter terr
@@ -324,7 +329,11 @@ let rec tc_check_ty ty =
        tc_ok (PiT (None, a',p')))
 
   (* fall back to inference *)
-  | _ -> let* ty' = tc_check_tm ty TypT in tc_ok ty'
+  | _ ->
+    let* (ty',tty) = tc_infer_tm ty in
+    (match tty with
+     | TypT -> tc_ok ty'
+     | _ -> tc_throw (ExpectedType ty))
 
 and tc_check_tm tm ty =
   (* printf "Checking term: %a has type %a@,"
@@ -332,6 +341,8 @@ and tc_check_tm tm ty =
   (* let* _ = tc_dump_ctx in  *)
   match (tm,ty) with
 
+  | (_ , TypT) -> tc_check_ty tm 
+    
   (* hom categories *)
   | (HomT (Some cat,src,tgt), CatT) ->
     let* cat' = tc_check_tm cat CatT in
@@ -404,7 +415,7 @@ and tc_infer_tm tm =
        tc_ok (AppT (u_tm,v_tm), app_ty)
      | _ -> tc_throw (InternalError "not a pi type"))
 
-  | _ -> tc_throw (InternalError "failed to infer type")
+  | _ -> tc_throw (InferenceFailed tm)
 
 (* m : term suite -> 'a tcm *)
 let rec tc_with_tele tl m =

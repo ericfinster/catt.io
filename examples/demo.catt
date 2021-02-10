@@ -4,7 +4,11 @@
 
 let idf (A : U) (a : A) (b : A) (c : A) : A = a
 let dlb (A : U) (f : (a : A) -> A) (a : A) : A = f (f a)
+let lams (A : U) : (a : A) -> (b : A) -> A = \a.\b.a
 # let bad (A : U) (B : U) (a : A) (b : B) : B = a
+
+let cattest1 (C : Cat) : U = [ C ]
+let cattest2 (C : Cat) (x :: C) (y :: C) : Cat = x => y
 
 # coh id (C : Cat)
 #     (x :: C)
@@ -15,5 +19,3 @@ let dlb (A : U) (f : (a : A) -> A) (a : A) : A = f (f a)
 #     (y :: C) (f :: x -> y)
 #     (z :: C) (g :: y -> z)
 #   : x -> z
-
-let id_abs (A : U) : (a : A) -> (b : A) -> A = \a.\b.a

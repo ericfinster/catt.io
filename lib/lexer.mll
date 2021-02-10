@@ -23,6 +23,7 @@ rule token = parse
   | "let"        { LET }
   | "coh"        { COH }
   | "->"         { ARROW }
+  | "=>"         { DBLARROW }
   | "("          { LPAR }
   | ")"          { RPAR }
   | "["          { LBRKT }
