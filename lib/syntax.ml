@@ -28,12 +28,33 @@ type term =
   | LamT of ident option * term
   | AppT of term * term
 
-and tele = (string * term) suite
+and tele = (ident * term) suite
     
 type defn =
   | TermDef of string * tele * term * term
   | CohDef of string * tele * term
 
+let rec map_bvar f tm =
+  match tm with
+  | TypT -> TypT
+  | CatT -> CatT
+  | VarT i -> VarT (f i)
+  | IdT id -> IdT id
+  | ObjT c -> ObjT (map_bvar f c)
+  | HomT (c,s,t) ->
+    HomT (Option.map (map_bvar f) c,
+          map_bvar f s, map_bvar f t)
+  | CylT c -> CylT (map_bvar f c)
+  | CohT (pd,s,t) ->
+    CohT (map (map_bvar f) pd,
+          map_bvar f s, map_bvar f t)
+  | PiT (i,a,p) -> PiT (i,map_bvar f a, map_bvar f p)
+  | LamT (i,b) -> LamT (i,map_bvar f b)
+  | AppT (u,v) -> AppT (map_bvar f u, map_bvar f v)
+
+let db_lift k tm =
+  map_bvar (fun i -> i + k) tm 
+  
 (*****************************************************************************)
 (*                              Pretty Printing                              *)
 (*****************************************************************************)
@@ -82,7 +103,7 @@ let pp_print_tele ppf tl =
 let pp_print_defn ppf def =
   match def with
   | TermDef (id,tl,ty,tm) ->
-    fprintf ppf "let %s %a : %a = %a" id
+    fprintf ppf "@[<hov>let %s %a : %a = %a@]" id
       pp_print_tele tl
       pp_print_term ty
       pp_print_term tm
@@ -148,7 +169,7 @@ let rec eval tm rho tau =
   match tm with
   | TypT -> TypD
   | CatT -> CatD
-  | VarT i -> nth i tau
+  | VarT i -> db_get i tau
   | IdT id ->
     let (rho',tm,_) = glb_lookup id rho in
     eval tm rho' Emp
@@ -179,8 +200,11 @@ let pp_print_tc_err ppf terr =
   match terr with
   | ExpectedType _ ->
     fprintf ppf "Expected type"
-  | TypeMismatch (_,_,_) ->
-    fprintf ppf "Type mismatch"
+  | TypeMismatch (tm,tya,tyb) ->
+    fprintf ppf "Type mismatch:@,@,@[<hov>%a@, =/= @,%a@]@,@,when checking@,@,%a"
+      pp_print_term tya
+      pp_print_term tyb
+      pp_print_term tm 
   | InvalidIndex i ->
     fprintf ppf "Invalid index: %d" i
   | InternalError s ->
@@ -194,7 +218,7 @@ type tc_def =
   | TmDef of term suite * term * term
 
 type tc_env = {
-  gma : (ident * dom) suite;
+  gma : (ident * term) suite;
   rho : glb_env;
 }
 
@@ -223,8 +247,8 @@ let tc_lookup_var i env =
 
 let tc_lookup_id id =
   let* env = tc_env in
-  try (let (rho',_,ty) = glb_lookup id env.rho
-       in tc_ok (eval ty rho' Emp))
+  try (let (_,_,ty) = glb_lookup id env.rho
+       in tc_ok ty)
   with Not_found -> tc_throw (InternalError "unknown id")
 
 let rec tc_lookup_ctx_id k id g =
@@ -241,7 +265,7 @@ let tc_reify d env =
 
 let tc_eval t env =
   (* eta expand the variables!!! *)
-  let tau = map (fun (i,_) -> VarD (i-1))
+  let tau = map (fun (i,_) -> VarD i)
       (zip_with_idx env.gma) in 
   TcmErr.pure (eval t env.rho tau)
 
@@ -257,12 +281,18 @@ let tc_with iopt ty m env =
 let tc_with_def id ty tm m env =
   m { env with rho = Ext (env.rho,(id,ty,tm)) }
 
+let tc_dump_ctx env =
+  printf "Context: @[<hov>%a@]@," pp_print_tele env.gma;
+  Ok ()
+
 (*****************************************************************************)
 (*                               Normalization                               *)
 (*****************************************************************************)
 
-let tc_normalize _ =
-  tc_throw (InternalError "not done")
+let tc_normalize tm =
+  let* tmd = tc_eval tm in
+  let* tm_nf = tc_reify tmd in
+  tc_ok tm_nf
 
 (*****************************************************************************)
 (*                             Typechecking Rules                            *)
@@ -277,20 +307,23 @@ let rec tc_check_ty ty =
   (* categories *)
   | CatT -> tc_ok CatT
   | ObjT cat ->
-    let* (cat',_) = tc_check_tm cat CatD in
+    let* (cat',_) = tc_check_tm cat CatT in
     tc_ok (ObjT cat')
 
   (* pi formation *)
   | PiT (id,a,p) ->
     let* a' = tc_check_ty a in
-    let* ad = tc_eval a' in
-    tc_with id ad
+    let* a_nf = tc_normalize a' in 
+    tc_with id a_nf
       (let* p' = tc_check_ty p in 
        tc_ok (PiT (None, a',p')))
 
-  | _ -> tc_throw (ExpectedType ty)
+  (* fall back to inference *)
+  | _ -> let* (ty',_) = tc_check_tm ty TypT in tc_ok ty'
 
 and tc_check_tm tm ty =
+  printf "Checking term: %a@," pp_print_term tm;
+  let* _ = tc_dump_ctx in 
   match (tm,ty) with
 
   (* hom categories *)
@@ -302,44 +335,51 @@ and tc_check_tm tm ty =
    *   tc_ok (HomT (cat',src',tgt'), CatD) *)
 
   (* cylinder categories *)
-  | (CylT cat, CatD) ->
-    let* (cat',_) = tc_check_tm cat CatD in
-    tc_ok (CylT cat', CatD)
+  | (CylT cat, CatT) ->
+    let* (cat',_) = tc_check_tm cat CatT in
+    tc_ok (CylT cat', CatT)
 
   (* pi intro *)
-  | (LamT (id,b), PiD (a,p)) ->
-    let* i = tc_depth in
-    tc_with id a
-      (let* (b',_) = tc_check_tm b (p (VarD i)) in
-       tc_ok (LamT (None,b'), PiD (a,p)))
+  (* | (LamT (id,b), PiT (_,a,p)) ->
+   *   let* i = tc_depth in
+   *   tc_with id a
+   *     (let* (b',_) = tc_check_tm b (p (VarD i)) in
+   *      tc_ok (LamT (None,b'), PiD (a,p))) *)
 
   (* phase shift *)
   | _ ->
     let* (tm', ty') = tc_infer_tm tm in
-    let* ty_nf = tc_reify ty in
-    let* ty_nf' = tc_reify ty' in 
-    if (ty_nf = ty_nf') then
+    let* ty_nf = tc_normalize ty in
+    if (ty_nf = ty') then
       tc_ok (tm',ty')
     else
       (* has the unfortunate effect that we always print
        * error messages in fully normalized form ...
       *)
-      tc_throw (TypeMismatch (tm,ty_nf,ty_nf'))
+      tc_throw (TypeMismatch (tm,ty_nf,ty'))
 
 and tc_infer_tm tm =
+  printf "Inferring type of: %a@," pp_print_term tm;
   match tm with
 
   | IdT id ->
     let* env = tc_env in
     tc_try
       (let* (k,typ) = tc_lookup_ctx_id 0 id env.gma in
-       tc_ok (VarT k,typ))
+       let ty = db_lift (length env.gma - k + 1) typ in 
+       printf "Found a named variable of depth %d@," k;
+       printf "Reified type: %a@," pp_print_term ty;
+       (* hmmm. but now we have to lift it's type into the current context .... *)
+       tc_ok (VarT k,ty))
       (let* typ = tc_lookup_id id in
+       (* Do we need to lift here? *)
        tc_ok (IdT id,typ))
        
-  | VarT i ->
-    let* typ = tc_lookup_var i in
-    tc_ok (VarT i,typ)
+  | VarT k ->
+    let* env = tc_env in 
+    let* typ = tc_lookup_var k in
+    let ty = db_lift (length env.gma - k + 1) typ in 
+    tc_ok (VarT k,ty)
 
   | _ -> tc_throw (InternalError "not done")
 
@@ -351,8 +391,8 @@ let rec tc_with_tele tl m =
     tc_with_tele tl'
       (fun s -> 
          let* ty' = tc_check_ty ty in
-         let* tyd = tc_eval ty' in
-         tc_with (Some id) tyd (m (Ext (s,ty'))))
+         let* ty_nf = tc_normalize ty' in 
+         tc_with (Some id) ty_nf (m (Ext (s,ty_nf))))
 
 let rec abstract_all tl ty tm =
   match tl with
@@ -367,8 +407,9 @@ let tc_check_defn def =
     let* (tl',ty',tm') = tc_with_tele tl
         (fun tl' ->
            let* ty' = tc_check_ty ty in
-           let* tyd = tc_eval ty' in
-           let* (tm',_) = tc_check_tm tm tyd in
+           let* ty_nf = tc_normalize ty' in 
+           let* (tm',_) = tc_check_tm tm ty_nf in
+           (* so we don't store the type in normal form. is this good? *)
            tc_ok (tl',ty',tm')) in
     let (rty,rtm) = abstract_all tl' ty' tm' in 
     tc_ok (id,rty,rtm)
