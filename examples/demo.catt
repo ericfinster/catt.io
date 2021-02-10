@@ -8,7 +8,8 @@ let lams (A : U) : (a : A) -> (b : A) -> A = \a.\b.a
 # let bad (A : U) (B : U) (a : A) (b : B) : B = a
 
 let cattest1 (C : Cat) : U = [ C ]
-let cattest2 (C : Cat) (x :: C) (y :: C) : Cat = x => y
+let cattest2 (C : Cat) (x :: C) (y :: C) : Cat = C | x => y
+let cattest3 (C : Cat) (x :: C) (y :: C) : U = [ x => y ]
 
 # coh id (C : Cat)
 #     (x :: C)

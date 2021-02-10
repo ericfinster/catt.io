@@ -111,6 +111,78 @@ let pp_print_defn ppf def =
     fprintf ppf "coherence"
 
 (*****************************************************************************)
+(*                           Context/Pd Conversion                           *)
+(*****************************************************************************)
+
+open Pd
+
+module StrErr =
+  ErrMnd(struct type t = string end)
+    
+let rec cat_dim t =
+  let open MonadSyntax(StrErr) in 
+  match t with
+  | VarT _ -> Ok 0
+  | HomT (Some c,_,_) ->
+    let* d = cat_dim c in 
+    Ok (d + 1)
+  | _ -> Fail "no valid dimension"
+
+let rec nth_tgt i ty tm =
+  let open MonadSyntax(StrErr) in 
+  if (i = 0) then Ok (ty, tm) else
+    match ty with
+    | HomT (Some c,_,t) ->
+      nth_tgt (i-1) c t
+    | _ -> Fail "No target"
+
+let unobj t =
+  let open MonadSyntax(StrErr) in 
+  match t with
+  | ObjT t' -> Ok t'
+  | _ -> Fail "Not a type of objects"
+           
+let rec context_to_pd gma =
+  let open MonadSyntax(StrErr) in 
+  match gma with
+  | Emp -> Fail "Empty context is not a pasting diagram"
+  | Ext(Emp,_) -> Fail "Singleton context is not a pasting diagram"
+  | Ext(Ext(Emp,(_,CatT)),(_,ObjT (VarT 0))) ->
+    Ok (Br (VarT 0,Emp),VarT 1,VarT 0,0,0)
+  | Ext(Ext(gma',(_,ttyp_ob)),(_,ftyp_ob)) ->
+
+    let* ttyp = unobj ttyp_ob in 
+    let* ftyp = unobj ftyp_ob in
+    
+    let* (pd,styp,stm,k,dim) = context_to_pd gma' in
+    let* tdim = cat_dim ttyp in
+    let codim = dim - tdim in
+    let* (styp',stm') = nth_tgt codim styp stm in 
+
+    if (styp' <> ttyp) then
+
+      let msg = asprintf 
+          "@[<v>Source and target types incompatible.
+                @,Source: %a
+                @,Target: %a@]"
+          pp_print_term styp' pp_print_term ttyp
+      in Fail msg
+
+    else let etyp = HomT (Some styp', stm', VarT (k+1)) in
+      if (ftyp <> etyp) then
+
+        let msg = asprintf
+            "@[<v>Incorrect filling type.
+                  @,Expected: %a
+                  @,Provided: %a@]"
+            pp_print_term etyp
+            pp_print_term ftyp
+        in Fail msg
+
+      else let* rpd = insert pd tdim (VarT (k+1)) (Br (VarT (k+2), Emp)) in 
+        Ok (rpd, ftyp, VarT (k+2), k+2, tdim+1)
+
+(*****************************************************************************)
 (*                              Semantic Domain                              *)
 (*****************************************************************************)
 
