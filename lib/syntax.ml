@@ -193,7 +193,8 @@ let rec eval tm rho tau =
 type tc_err =
   | ExpectedType of term
   | TypeMismatch of term * term * term
-  | InvalidIndex of int 
+  | InvalidIndex of int
+  | UnknownIdentifier of string
   | InternalError of string 
 
 let pp_print_tc_err ppf terr =
@@ -207,6 +208,8 @@ let pp_print_tc_err ppf terr =
       pp_print_term tm 
   | InvalidIndex i ->
     fprintf ppf "Invalid index: %d" i
+  | UnknownIdentifier id ->
+    fprintf ppf "Unknown identifier: %s" id
   | InternalError s ->
     fprintf ppf "Internal error: %s" s
 
@@ -249,11 +252,11 @@ let tc_lookup_id id =
   let* env = tc_env in
   try (let (_,_,ty) = glb_lookup id env.rho
        in tc_ok ty)
-  with Not_found -> tc_throw (InternalError "unknown id")
+  with Not_found -> tc_throw (UnknownIdentifier id)
 
 let rec tc_lookup_ctx_id k id g =
   match g with
-  | Emp -> tc_throw (InternalError "Unknown var id")
+  | Emp -> tc_throw (UnknownIdentifier id)
   | Ext (g',(id',d)) ->
     if (id = id') then
       tc_ok (k,d)
@@ -290,10 +293,10 @@ let tc_dump_ctx env =
 (*****************************************************************************)
 
 let tc_normalize tm =
-  printf "About to normalize: %a@," pp_print_term tm;
+  (* printf "About to normalize: %a@," pp_print_term tm; *)
   let* tmd = tc_eval tm in
   let* tm_nf = tc_reify tmd in
-  printf "Result: %a@," pp_print_term tm_nf;
+  (* printf "Result: %a@," pp_print_term tm_nf; *)
   tc_ok tm_nf
 
 (*****************************************************************************)
@@ -309,7 +312,7 @@ let rec tc_check_ty ty =
   (* categories *)
   | CatT -> tc_ok CatT
   | ObjT cat ->
-    let* (cat',_) = tc_check_tm cat CatT in
+    let* cat' = tc_check_tm cat CatT in
     tc_ok (ObjT cat')
 
   (* pi formation *)
@@ -321,40 +324,48 @@ let rec tc_check_ty ty =
        tc_ok (PiT (None, a',p')))
 
   (* fall back to inference *)
-  | _ -> let* (ty',_) = tc_check_tm ty TypT in tc_ok ty'
+  | _ -> let* ty' = tc_check_tm ty TypT in tc_ok ty'
 
 and tc_check_tm tm ty =
-  printf "Checking term: %a has type %a@,"
-    pp_print_term tm pp_print_term ty;
-  let* _ = tc_dump_ctx in 
+  (* printf "Checking term: %a has type %a@,"
+   *   pp_print_term tm pp_print_term ty; *)
+  (* let* _ = tc_dump_ctx in  *)
   match (tm,ty) with
 
   (* hom categories *)
-  (* | (HomT (cat,src,tgt), CatD) ->
-   *   let* (cat',_) = tc_check_tm cat CatD in
-   *   let* cat_d = tc_eval cat' in 
-   *   let* (src',_) = tc_check_tm src (ObjD cat_d) in
-   *   let* (tgt',_) = tc_check_tm tgt (ObjD cat_d) in
-   *   tc_ok (HomT (cat',src',tgt'), CatD) *)
-
+  | (HomT (Some cat,src,tgt), CatT) ->
+    let* cat' = tc_check_tm cat CatT in
+    let* cat_nf = tc_normalize cat' in 
+    let* src' = tc_check_tm src (ObjT cat_nf) in
+    let* tgt' = tc_check_tm tgt (ObjT cat_nf) in
+    tc_ok (HomT (Some cat',src',tgt'))
+      
+  (* hom category (inferred case) *)
+  | (HomT (None,src,tgt), CatT) ->
+    let* (src',src_ty) = tc_infer_tm src in
+    (match src_ty with
+     | ObjT cat ->
+       let* tgt' = tc_check_tm tgt src_ty in
+       tc_ok (HomT (Some cat,src',tgt'))
+     | _ -> tc_throw (InternalError "not a category"))
+  
   (* cylinder categories *)
   | (CylT cat, CatT) ->
-    let* (cat',_) = tc_check_tm cat CatT in
-    tc_ok (CylT cat', CatT)
+    let* cat' = tc_check_tm cat CatT in
+    tc_ok (CylT cat')
 
   (* pi intro *)
-  (* | (LamT (id,b), PiT (_,a,p)) ->
-   *   let* i = tc_depth in
-   *   tc_with id a
-   *     (let* (b',_) = tc_check_tm b (p (VarD i)) in
-   *      tc_ok (LamT (None,b'), PiD (a,p))) *)
+  | (LamT (id,b), PiT (_,a,p)) ->
+    tc_with id a
+      (let* b' = tc_check_tm b p in
+       tc_ok (LamT (None,b')))
 
   (* phase shift *)
   | _ ->
     let* (tm', ty') = tc_infer_tm tm in
     let* ty_nf = tc_normalize ty in
     if (ty_nf = ty') then
-      tc_ok (tm',ty')
+      tc_ok tm'
     else
       (* has the unfortunate effect that we always print
        * error messages in fully normalized form ...
@@ -362,7 +373,7 @@ and tc_check_tm tm ty =
       tc_throw (TypeMismatch (tm,ty_nf,ty'))
 
 and tc_infer_tm tm =
-  printf "Inferring type of: %a@," pp_print_term tm;
+  (* printf "Inferring type of: %a@," pp_print_term tm; *)
   match tm with
 
   | IdT id ->
@@ -370,9 +381,9 @@ and tc_infer_tm tm =
     tc_try
       (let* (k,typ) = tc_lookup_ctx_id 0 id env.gma in
        let ty = db_lift (k+1) typ in 
-       printf "Found a named variable of depth %d@," k;
-       printf "Context length is %d@," (length env.gma);
-       printf "Reified type: %a@," pp_print_term ty;
+       (* printf "Found a named variable of depth %d@," k;
+        * printf "Context length is %d@," (length env.gma);
+        * printf "Reified type: %a@," pp_print_term ty; *)
        tc_ok (VarT k,ty))
       (let* typ = tc_lookup_id id in
        (* Do we need to lift here? *)
@@ -388,12 +399,12 @@ and tc_infer_tm tm =
     let* (u_tm,u_ty) = tc_infer_tm u in
     (match u_ty with
      | PiT (_,a,p) ->
-       let* (v_tm,_) = tc_check_tm v a in
+       let* v_tm = tc_check_tm v a in
        let* app_ty = tc_normalize (AppT (LamT (None,p),v_tm)) in 
        tc_ok (AppT (u_tm,v_tm), app_ty)
      | _ -> tc_throw (InternalError "not a pi type"))
 
-  | _ -> tc_throw (InternalError "not done")
+  | _ -> tc_throw (InternalError "failed to infer type")
 
 (* m : term suite -> 'a tcm *)
 let rec tc_with_tele tl m =
@@ -420,7 +431,7 @@ let tc_check_defn def =
         (fun tl' ->
            let* ty' = tc_check_ty ty in
            let* ty_nf = tc_normalize ty' in 
-           let* (tm',_) = tc_check_tm tm ty_nf in
+           let* tm' = tc_check_tm tm ty_nf in
            (* so we don't store the type in normal form. is this good? *)
            tc_ok (tl',ty',tm')) in
     let (rty,rtm) = abstract_all tl' ty' tm' in 

@@ -4,6 +4,7 @@
 
 let idf (A : U) (a : A) (b : A) (c : A) : A = a
 let dlb (A : U) (f : (a : A) -> A) (a : A) : A = f (f a)
+# let bad (A : U) (B : U) (a : A) (b : B) : B = a
 
 # coh id (C : Cat)
 #     (x :: C)
@@ -15,4 +16,4 @@ let dlb (A : U) (f : (a : A) -> A) (a : A) : A = f (f a)
 #     (z :: C) (g :: y -> z)
 #   : x -> z
 
-
+let id_abs (A : U) : (a : A) -> (b : A) -> A = \a.\b.a

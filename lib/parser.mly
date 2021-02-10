@@ -45,9 +45,9 @@ var_decl:
 term:
   | e = term1
     { e }
-  | LAMBDA id = IDENT DOT e = term1
+  | LAMBDA id = IDENT DOT e = term
     { LamT (Some id,e) }
-  | LPAR id = IDENT COLON ty = term1 RPAR ARROW tm = term1
+  | LPAR id = IDENT COLON ty = term RPAR ARROW tm = term
     { PiT (Some id,ty,tm) } 
 
 term1:
