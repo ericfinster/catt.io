@@ -74,14 +74,16 @@ let parse_file f =
 
 let rec parse_all files =
   match files with
-  | [] -> ()
+  | [] -> []
   | f::fs -> 
-    let _ = parse_all fs in 
+    let dds = parse_all fs in 
     print_string "-----------------";
     print_cut ();
     printf "Processing input file: %s\n" f;
-    let _ = parse_file f in ()
+    let ds = parse_file f in
+    List.append ds dds
 
+    
 (* let rec raw_check_all files =
  *   match files with
  *   | [] -> raw_complete_env

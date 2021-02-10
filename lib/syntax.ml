@@ -44,7 +44,6 @@ let is_app tm =
   | _ -> false
     
 let rec pp_print_term ppf tm =
-  
   match tm with
   | TypT -> fprintf ppf "U"
   | CatT -> fprintf ppf "Cat"
@@ -135,7 +134,6 @@ let rec rb k d =
 (*****************************************************************************)
 
 type lcl_env = dom suite
-(* I mean, this should be changed to a list of definitions .... *)
 type glb_env = (ident * term * term) suite
 
 let rec glb_lookup id rho =
@@ -177,6 +175,20 @@ type tc_err =
   | InvalidIndex of int 
   | InternalError of string 
 
+let pp_print_tc_err ppf terr =
+  match terr with
+  | ExpectedType _ ->
+    fprintf ppf "Expected type"
+  | TypeMismatch (_,_,_) ->
+    fprintf ppf "Type mismatch"
+  | InvalidIndex i ->
+    fprintf ppf "Invalid index: %d" i
+  | InternalError s ->
+    fprintf ppf "Internal error: %s" s
+
+let print_tc_err terr =
+  pp_print_tc_err std_formatter terr
+    
 type tc_def =
   | CohDef of term suite * term * term
   | TmDef of term suite * term * term
@@ -186,6 +198,8 @@ type tc_env = {
   rho : glb_env;
 }
 
+let empty_env = { gma = Emp ; rho = Emp }
+                
 module TcmErr = ErrMnd(struct type t = tc_err end)
 module TcmMnd = ReaderT(struct type t = tc_env end)(TcmErr)
 
@@ -193,7 +207,7 @@ open TcmMnd
 open MonadSyntax(TcmMnd)
 
 (***************************************************************************)
-(*                             Monadic Helpers                             *)
+(*                          Typechecking Helpers                           *)
 (***************************************************************************)
 
 let tc_ok a = pure a
@@ -239,6 +253,9 @@ let tc_with iopt ty m env =
     | None -> ""
     | Some id -> id in 
   m { env with gma = Ext (env.gma,(nm,ty)) }
+
+let tc_with_def id ty tm m env =
+  m { env with rho = Ext (env.rho,(id,ty,tm)) }
 
 (*****************************************************************************)
 (*                               Normalization                               *)
@@ -326,3 +343,47 @@ and tc_infer_tm tm =
 
   | _ -> tc_throw (InternalError "not done")
 
+(* m : term suite -> 'a tcm *)
+let rec tc_with_tele tl m =
+  match tl with
+  | Emp -> m Emp
+  | Ext(tl',(id,ty)) ->
+    tc_with_tele tl'
+      (fun s -> 
+         let* ty' = tc_check_ty ty in
+         let* tyd = tc_eval ty' in
+         tc_with (Some id) tyd (m (Ext (s,ty'))))
+
+let rec abstract_all tl ty tm =
+  match tl with
+  | Emp -> (ty,tm)
+  | Ext (tl',pty) ->
+    abstract_all tl'
+      (PiT (None,pty,ty)) (LamT (None,tm))
+
+let tc_check_defn def =
+  match def with
+  | TermDef (id,tl,ty,tm) ->
+    let* (tl',ty',tm') = tc_with_tele tl
+        (fun tl' ->
+           let* ty' = tc_check_ty ty in
+           let* tyd = tc_eval ty' in
+           let* (tm',_) = tc_check_tm tm tyd in
+           tc_ok (tl',ty',tm')) in
+    let (rty,rtm) = abstract_all tl' ty' tm' in 
+    tc_ok (id,rty,rtm)
+  | CohDef (_,_,_) -> tc_throw (InternalError "not done")
+
+let rec tc_check_defns defs =
+  match defs with
+  | [] -> tc_ok ()
+  | d::ds ->
+    print_string "-----------------";
+    print_cut ();
+    printf "Processing definition: @,%a@,"
+      pp_print_defn d;
+    let* (id,ty,tm) = tc_check_defn d in
+    tc_with_def id ty tm (tc_check_defns ds)
+
+
+    
