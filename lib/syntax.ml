@@ -107,8 +107,10 @@ let pp_print_defn ppf def =
       pp_print_tele tl
       pp_print_term ty
       pp_print_term tm
-  | CohDef (_,_,_) ->
-    fprintf ppf "coherence"
+  | CohDef (id,tl,ty) ->
+    fprintf ppf "@[<hov>coh %s %a : %a@]" id
+      pp_print_tele tl
+      pp_print_term ty
 
 (*****************************************************************************)
 (*                           Context/Pd Conversion                           *)
@@ -147,9 +149,9 @@ let rec context_to_pd gma =
   match gma with
   | Emp -> Fail "Empty context is not a pasting diagram"
   | Ext(Emp,_) -> Fail "Singleton context is not a pasting diagram"
-  | Ext(Ext(Emp,(_,CatT)),(_,ObjT (VarT 0))) ->
+  | Ext(Ext(Emp,CatT),ObjT (VarT 0)) ->
     Ok (Br (VarT 0,Emp),VarT 1,VarT 0,0,0)
-  | Ext(Ext(gma',(_,ttyp_ob)),(_,ftyp_ob)) ->
+  | Ext(Ext(gma',ttyp_ob),ftyp_ob) ->
 
     let* ttyp = unobj ttyp_ob in 
     let* ftyp = unobj ftyp_ob in
@@ -157,8 +159,11 @@ let rec context_to_pd gma =
     let* (pd,styp,stm,k,dim) = context_to_pd gma' in
     let* tdim = cat_dim ttyp in
     let codim = dim - tdim in
+    (* printf "k: %d@," k;
+     * printf "codim: %d@," codim; *)
     let* (styp',stm') = nth_tgt codim styp stm in 
-
+    (* printf "styp': %a@," pp_print_term styp';
+     * printf "stm': %a@," pp_print_term stm'; *)
     if (styp' <> ttyp) then
 
       let msg = asprintf 
@@ -168,7 +173,10 @@ let rec context_to_pd gma =
           pp_print_term styp' pp_print_term ttyp
       in Fail msg
 
-    else let etyp = HomT (Some styp', stm', VarT (k+1)) in
+    else
+      let lstyp = db_lift 1 styp' in
+      let lstm = db_lift 1 stm' in 
+      let etyp = HomT (Some lstyp, lstm, VarT 0) in
       if (ftyp <> etyp) then
 
         let msg = asprintf
@@ -180,7 +188,7 @@ let rec context_to_pd gma =
         in Fail msg
 
       else let* rpd = insert pd tdim (VarT (k+1)) (Br (VarT (k+2), Emp)) in 
-        Ok (rpd, ftyp, VarT (k+2), k+2, tdim+1)
+        Ok (rpd, db_lift 1 ftyp, VarT 0, k+2, tdim+1)
 
 (*****************************************************************************)
 (*                              Semantic Domain                              *)
@@ -361,6 +369,13 @@ let tc_with iopt ty m env =
 let tc_with_def id ty tm m env =
   m { env with rho = Ext (env.rho,(id,ty,tm)) }
 
+let tc_with_env env m _ = m env
+
+let tc_ctx_to_pd env =
+  match context_to_pd (map snd env.gma) with
+  | Fail msg -> Fail (InternalError msg)
+  | Ok (pd,_,_,_,_) -> Ok pd 
+
 let tc_dump_ctx env =
   printf "Context: @[<hov>%a@]@," pp_print_tele env.gma;
   Ok ()
@@ -500,6 +515,10 @@ let rec tc_with_tele tl m =
          let* ty_nf = tc_normalize ty' in 
          tc_with (Some id) ty_nf (m (Ext (s,ty_nf))))
 
+(* to ignore the argument ... *)
+let tc_in_tele tl m =
+  tc_with_tele tl (fun _ -> m)
+    
 let rec abstract_all tl ty tm =
   match tl with
   | Emp -> (ty,tm)
@@ -519,7 +538,16 @@ let tc_check_defn def =
            tc_ok (tl',ty',tm')) in
     let (rty,rtm) = abstract_all tl' ty' tm' in 
     tc_ok (id,rty,rtm)
-  | CohDef (_,_,_) -> tc_throw (InternalError "not done")
+  | CohDef (_,tl,_) ->
+    let* env = tc_env in
+    let* _ = tc_with_env { env with gma = Emp }
+        (tc_in_tele tl
+           (let* _ = tc_dump_ctx in 
+            let* pd = tc_ctx_to_pd in
+            printf "Pasting diagram: %a@,"
+              (pp_print_pd pp_print_term) pd;
+            tc_ok ()))
+    in tc_throw (InternalError "not done")
 
 let rec tc_check_defns defs =
   match defs with
