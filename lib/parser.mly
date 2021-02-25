@@ -5,11 +5,11 @@
        
 %} 
 
-%token LET
-%token TYPE 
-%token LAMBDA COLON EQUAL DOT
-%token LPAR RPAR LBR RBR
-%token ARROW HOLE
+%token LET COH
+%token TYPE CAT
+%token LAMBDA COLON DBLCOLON EQUAL DOT
+%token LPAR RPAR LBR RBR LBRKT RBRKT
+%token VBAR DBLARROW ARROW HOLE
 %token <string> IDENT 
 %token EOF
 
@@ -26,7 +26,9 @@ prog:
 
 defn:
   | LET id = IDENT tl = tele COLON ty = expr EQUAL tm = expr
-    { Def (id,tl,ty,tm) }
+    { TermDef (id,tl,ty,tm) }
+  | COH id = IDENT tl = tele COLON c = expr
+    { CohDef (id,tl,ObjE c) }
 
 tele:
   |
@@ -39,6 +41,8 @@ var_decl:
     { (id,Expl,ty) }
   | LBR id = IDENT COLON ty = expr RBR
     { (id,Impl,ty) }
+  | LPAR id = IDENT DBLCOLON c = expr RPAR
+    { (id,Expl,ObjE c) }
 
 pi_head:
   | v = var_decl
@@ -49,6 +53,10 @@ pi_head:
 expr: 
   | e = expr1
     { e }
+  | s = expr1 DBLARROW t = expr1
+    { HomE (HoleE,s,t) }
+  | c = expr1 VBAR s = expr1 DBLARROW t = expr1
+    { HomE (c,s,t) }
 
 expr1:
   | e = expr2
@@ -71,10 +79,14 @@ expr2:
 expr3:
   | TYPE
     { TypE }
+  | CAT
+    { CatE }
   | HOLE
     { HoleE } 
   | id = IDENT
     { VarE id }
+  | LBRKT c = expr RBRKT
+    { ObjE c }
   | LPAR t = expr RPAR
     { t }
 

@@ -1,5 +1,7 @@
 (*****************************************************************************)
-(*                      Glued Evaluation Implementation                      *)
+(*                                                                           *)
+(*                                   Syntax                                  *)
+(*                                                                           *)
 (*****************************************************************************)
 
 open Fmt
@@ -22,13 +24,17 @@ type expr =
   | LamE of name * icit * expr
   | AppE of expr * expr * icit
   | PiE of name * icit * expr * expr
+  | ObjE of expr
+  | HomE of expr * expr * expr 
+  | CatE
   | TypE
   | HoleE
 
 type tele = (name * icit * expr) suite
     
 type defn =
-  | Def of name * tele * expr * expr
+  | TermDef of name * tele * expr * expr
+  | CohDef of name * tele * expr
 
 (*****************************************************************************)
 (*                         Pretty Printing Raw Syntax                        *)
@@ -68,6 +74,10 @@ let rec pp_expr ppf expr =
   | PiE (nm,Expl,dom,cod) ->
     pf ppf "(%s : %a) -> %a" nm
       pp_expr dom pp_expr cod
+  | ObjE e -> pf ppf "[%a]" pp_expr e
+  | HomE (_,s,t) ->
+    pf ppf "%a => %a" pp_expr s pp_expr t
+  | CatE -> string ppf "Cat"
   | TypE -> string ppf "U"
   | HoleE -> string ppf "_"
   
@@ -84,6 +94,9 @@ type term =
   | LamT of name * icit * term
   | AppT of term * term * icit
   | PiT of name * icit * term * term
+  | ObjT of term
+  | HomT of term * term * term 
+  | CatT
   | TypT
   | MetaT of mvar
   | InsMetaT of mvar 
@@ -99,6 +112,10 @@ let rec term_to_expr nms tm =
     AppE (term_to_expr nms u, term_to_expr nms v, ict)
   | PiT (nm,ict,a,b) ->
     PiE (nm, ict, term_to_expr nms a, term_to_expr (Ext (nms,nm)) b)
+  | ObjT c -> ObjE (term_to_expr nms c)
+  | HomT (c,s,t) ->
+    HomE (term_to_expr nms c, term_to_expr nms s, term_to_expr nms t)
+  | CatT -> CatE 
   | TypT -> TypE
   | MetaT _ -> HoleE
   (* Somewhat dubious, since we lose the implicit application ... *)
@@ -145,6 +162,11 @@ let rec pp_term ppf tm =
   | PiT (nm,Expl,a,p) ->
     pf ppf "(%s : %a) -> %a" nm
       pp_term a pp_term p
+  | ObjT c ->
+    pf ppf "[%a]" pp_term c
+  | HomT (_,s,t) ->
+    pf ppf "%a => %a" pp_term s pp_term t
+  | CatT -> pf ppf "Cat"
   | TypT -> pf ppf "U"
   | MetaT _ -> pf ppf "_"
   (* Again, misses some implicit information ... *)
@@ -162,6 +184,9 @@ type value =
   | TopV of name * spine * value 
   | LamV of name * icit * closure
   | PiV of name * icit * value * closure 
+  | ObjV of value
+  | HomV of value * value * value 
+  | CatV
   | TypV 
 
 and top_env = (name * value) suite
@@ -189,6 +214,11 @@ let rec pp_value ppf v =
   | PiV (nm,Impl,a,Closure (_,_,bdy)) -> 
     pf ppf "{%s : %a} -> <%a>" nm
       pp_value a pp_term bdy
+  | ObjV c ->
+    pf ppf "[%a]" pp_value c
+  | HomV (_,s,t) ->
+    pf ppf "%a => %a" pp_value s pp_value t
+  | CatV -> pf ppf "Cat"
   | TypV -> pf ppf "U"
 
 and pp_spine ppf sp =
@@ -248,6 +278,10 @@ let rec eval top loc tm =
   | LamT (nm,ict,u) -> LamV (nm, ict, Closure (top,loc,u))
   | AppT (u,v,ict) -> appV (eval top loc u) (eval top loc v) ict
   | PiT (nm,ict,u,v) -> PiV (nm, ict, eval top loc u, Closure (top,loc,v))
+  | ObjT c -> ObjV (eval top loc c)
+  | HomT (c,s,t) ->
+    HomV (eval top loc c, eval top loc s, eval top loc t)
+  | CatT -> CatV
   | TypT -> TypV
   | MetaT m -> metaV m
   | InsMetaT m ->
@@ -270,6 +304,9 @@ and appV t u ict =
   | TopV (nm,sp,tv) -> TopV(nm,Ext(sp,(u,ict)),appV tv u ict)
   | LamV (_,_,cl) -> cl $$ u
   | PiV (_,_,_,_) -> raise (Eval_error "malformed app: pi")
+  | ObjV _ -> raise (Eval_error "malformed app: obj")
+  | HomV (_,_,_) -> raise (Eval_error "malformed app: hom")
+  | CatV -> raise (Eval_error "malformed app: cat")
   | TypV -> raise (Eval_error "malformed app: typ")
 
 and appLocV loc v =
@@ -306,6 +343,9 @@ let rec quote k v ufld =
   | TopV (nm,sp,_) -> quote_sp k (TopT nm) sp ufld
   | LamV (nm,ict,cl) -> LamT (nm, ict, quote (k+1) (cl $$ varV k) ufld)
   | PiV (nm,ict,u,cl) -> PiT (nm, ict, quote k u ufld, quote (k+1) (cl $$ varV k) ufld)
+  | ObjV c -> ObjT (quote k c ufld)
+  | HomV (c,s,t) -> HomT (quote k c ufld, quote k s ufld, quote k t ufld)
+  | CatV -> CatT
   | TypV -> TypT
 
 and quote_sp k t sp ufld =
@@ -366,11 +406,14 @@ let rename m pren v =
       (match Map.find pr.ren i with
        | Some l -> goSp pr (VarT (lvl_to_idx pr.dom l)) sp 
        | None -> raise (Unify_error "escaped variable"))
-    (* We do not unfold here. Is that the best choice? *)
-    (* It's possible this should have a flag like quoting... *)
-    | TopV (nm,sp,_) -> goSp pr (TopT nm) sp 
+    (* We maximally unfold meta-solutions.  I think this is the only
+       reasonable choice for top-level metas like we have here. *)
+    | TopV (_,_,tv) -> go pr tv
     | LamV (nm,ict,a) -> LamT (nm, ict, go (lift pr) (a $$ varV pr.cod))
     | PiV (nm,ict,a,b) -> PiT (nm, ict, go pr a, go (lift pr) (b $$ varV pr.cod))
+    | ObjV c -> ObjT (go pr c)
+    | HomV (c,s,t) -> HomT (go pr c, go pr s, go pr t)
+    | CatV -> CatT
     | TypV -> TypT
 
   in go pren v
@@ -400,6 +443,7 @@ type strategy =
 let rec unify stgy top l t u =
   match (force_meta t , force_meta u) with
   | (TypV , TypV) -> ()
+  | (CatV , CatV) -> ()
                      
   | (LamV (_,_,a) , LamV (_,_,a')) -> unify stgy top (l+1) (a $$ varV l) (a' $$ varV l)
   | (t' , LamV(_,i,a')) -> unify stgy top (l+1) (appV t' (varV l) i) (a' $$ varV l)
@@ -437,6 +481,14 @@ let rec unify stgy top l t u =
   | (_ , TopV (_,_,_)) when Poly.(=) stgy UnfoldNone ->
     raise (Unify_error "refusing to unfold top level def")
   | (t , TopV (_,_,tv')) -> unify stgy top l t tv'
+
+  | (ObjV c, ObjV c') ->
+    unify stgy top l c c'
+      
+  | (HomV (c,s,t), HomV (c',s',t')) ->
+    unify stgy top l c c';
+    unify stgy top l s s';
+    unify stgy top l t t'
 
   | _ -> raise (Unify_error "could not unify")
 
@@ -531,11 +583,6 @@ let insert gma (tm, ty) =
   | LamT (_,Impl,_) -> (tm, ty)
   | _ -> insert' gma (tm, ty)
 
-let rec untop typ =
-  match typ with
-  | TopV (_,_,tv) -> untop tv
-  | _ -> typ
-
 exception Typing_error of string
 
 let rec check gma expr typ =
@@ -596,7 +643,7 @@ and infer gma expr =
       | Expl -> insert' gma (infer gma u)
     in
 
-    let (a,b) = match untop (force_meta ut) with
+    let (a,b) = match force_meta ut with
       | PiV (_,ict',a,b) ->
         if (Poly.(<>) ict ict') then
           raise (Typing_error "Implicit mismatch")
@@ -614,6 +661,18 @@ and infer gma expr =
     let b' = check (bind gma nm (eval gma.top gma.loc a')) b TypV in
     (PiT (nm,ict,a',b') , TypV)
 
+  | ObjE c ->
+    let c' = check gma c CatV in
+    (ObjT c', TypV)
+    
+  | HomE (c,s,t) ->
+    let c' = check gma c CatV in
+    let cv = eval gma.top gma.loc c' in
+    let s' = check gma s (ObjV cv) in
+    let t' = check gma t (ObjV cv) in
+    (HomT (c',s',t'), CatV)
+
+  | CatE -> (CatT , TypV)
   | TypE -> (TypT , TypV)
 
   | HoleE ->
@@ -638,7 +697,7 @@ let rec abstract_tele tl ty tm =
 let rec check_defs gma defs =
   match defs with
   | [] -> gma
-  | (Def (id,tl,ty,tm))::ds ->
+  | (TermDef (id,tl,ty,tm))::ds ->
     pr "----------------@,";
     pr "Checking definition: %s@," id;
     let (abs_ty,abs_tm) = abstract_tele tl ty tm in
@@ -652,4 +711,6 @@ let rec check_defs gma defs =
     pr "Type: %a@," pp_expr ty_nf;
     pr "Term: %a@," pp_expr tm_nf;
     check_defs (define gma id tm_val ty_val) ds
-
+  | (CohDef (_,_,_))::ds ->
+    pr "skipping coherence ...@,"; 
+    check_defs gma ds
