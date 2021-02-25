@@ -5,7 +5,7 @@
 (*****************************************************************************)
 
 open Suite
-open Mtl
+(* open Mtl *)
        
 type 'a pd =
   | Br of 'a * ('a * 'a pd) suite
@@ -34,13 +34,13 @@ let rec truncate dir d pd =
         else let a' = fold_left (fun _ (y,_) -> y) a brs in 
           Br (a', Emp)
       )
-    else Br (a, map (fun (l,b) -> (l,truncate dir (d-1) b)) brs)
+    else Br (a, map_suite brs ~f:(fun (l,b) -> (l,truncate dir (d-1) b)))
 
 let rec append_leaves pd lvs =
   match pd with
   | Br (l,Emp) -> Ext (lvs,l)
   | Br (_,bs) -> 
-    let open MonadSyntax(SuiteMnd) in
+    let open SuiteMnd in
     bs >>= (fun (_,b) -> leaves b)
 
 and leaves pd = append_leaves pd Emp
@@ -48,7 +48,7 @@ and leaves pd = append_leaves pd Emp
 let rec labels pd =
   match pd with
   | Br (l,brs) ->
-    let open MonadSyntax(SuiteMnd) in
+    let open SuiteMnd in
     append (singleton l)
       (brs >>= (fun (bl,b) -> append (singleton bl) (labels b)))
 
@@ -67,186 +67,169 @@ let with_label a pd =
 let rec zip_with_addr_lcl addr pd =
   match pd with
   | Br (l,brs) ->
-    let brs' = map (fun (i,(x,b)) ->
-        let addr' = Ext (addr,i) in 
-        ((addr',x),zip_with_addr_lcl addr' b))
-        (zip_with_idx brs) in 
-    Br ((addr,l),brs')
+    let brs' = map_suite (zip_with_idx brs)
+        ~f:(fun (i,(x,b)) ->
+            let addr' = Ext (addr,i) in 
+            ((addr',x),zip_with_addr_lcl addr' b))
+    in Br ((addr,l),brs')
 
 let zip_with_addr pd =
   zip_with_addr_lcl Emp pd
 
-module StringErr = ErrMnd(struct type t = string end)
-open MonadSyntax(StringErr)
-let (<||>) = StringErr.(<||>)
-               
+
 let rec insert pd d lbl nbr =
+  let open Base.Result.Monad_infix in
   match pd with
   | Br (a,brs) ->
     if (d <= 0) then
       Ok (Br (a, Ext(brs,(lbl,nbr))))
     else match brs with
-      | Emp -> Fail "Depth overflow"
+      | Emp -> Error "Depth overflow"
       | Ext(bs,(b,br)) ->
-        let* rbr = insert br (d-1) lbl nbr in
+        insert br (d-1) lbl nbr >>= fun rbr -> 
         Ok (Br (a,Ext(bs,(b,rbr))))
 
 (*****************************************************************************)
 (*                                   Zipper                                  *)
 (*****************************************************************************)
 
-type 'a pd_ctx = 'a * 'a * ('a * 'a pd) suite * ('a * 'a pd) list 
-type 'a pd_zip = 'a pd_ctx suite * 'a pd
-
-let visit d (ctx, fcs) =
-  match fcs with
-  | Br (s,brs) ->
-    let* (l,(t,b),r) = open_at d brs in
-    Ok (Ext (ctx,(s,t,l,r)), b)
-
-let rec seek addr pz =
-  match addr with
-  | Emp -> Ok pz
-  | Ext(addr',d) ->
-    let* pz' = seek addr' pz in
-    visit d pz'
-
-let rec addr_of (ctx, fcs) =
-  match ctx with
-  | Emp -> Emp
-  | Ext(ctx',(s,t,l,r)) ->
-    Ext (addr_of (ctx', Br (s, close (l,(t,fcs),r))), length l)
-
-let rec pd_close (ctx, fcs) =
-  match ctx with
-  | Emp -> fcs
-  | Ext(ctx',(s,t,l,r)) ->
-    pd_close (ctx', Br (s, close (l,(t,fcs),r)))
-
-let pd_drop (ctx, _) =
-  match ctx with
-  | Emp -> Fail "Cannot drop root"
-  | Ext(ctx',(s,_,l,r)) ->
-    Ok (ctx', Br(s, append_list l r))
-
-let parent (ctx,fcs) =
-  match ctx with
-  | Emp -> Fail "No parent in empty context"
-  | Ext(ctx',(s,t,l,r)) ->
-    Ok (ctx', Br (s, close (l,(t,fcs),r)))
-
-let sibling_right (ctx,fcs) =
-  match ctx with
-  | Ext(ctx',(s,t,l,(t',fcs')::rs)) ->
-    Ok (Ext (ctx',(s,t',Ext (l,(t,fcs)),rs)), fcs')
-  | _ -> Fail "No right sibling"
-
-let sibling_left (ctx,fcs) =
-  match ctx with
-  | Ext(ctx',(s,t,Ext(l,(t',fcs')),r)) ->
-    Ok (Ext (ctx',(s,t',l,(t,fcs)::r)), fcs')
-  | _ -> Fail "No left sibling"
-
-let rec to_rightmost_leaf (ctx,fcs) =
-  match fcs with
-  | Br (_,Emp) -> Ok (ctx, fcs)
-  | Br (s,Ext(brs,(t,b))) ->
-    to_rightmost_leaf
-      (Ext (ctx,(s,t,brs,[])), b)
-
-let rec to_leftmost_leaf (ctx,fcs) =
-  match fcs with
-  | Br (_,Emp) -> Ok (ctx, fcs)
-  | Br (s,brs) ->
-    let* (_,(t,b),r) = open_leftmost brs in
-    to_leftmost_leaf
-      (Ext(ctx,(s,t,Emp,r)),b)
-
-let rec parent_sibling_left z =
-  sibling_left z <||>
-  (parent z >>= parent_sibling_left) <||>
-  Fail "No more left siblings"
-
-let rec parent_sibling_right z =
-  sibling_right z <||>
-  (parent z >>= parent_sibling_right) <||>
-  Fail "No more right siblings"
-
-let leaf_right z =
-  parent_sibling_right z >>=
-  to_leftmost_leaf
-
-let leaf_left z =
-  parent_sibling_left z >>=
-  to_rightmost_leaf
-
-let insert_at addr b pd =
-  match addr with
-  | Emp -> Fail "Empty address for insertion"
-  | Ext(base,dir) ->
-    let* (ctx, fcs) = seek base (Emp, pd) in 
-    let* newfcs =
-      (match fcs with
-       | Br (a,brs) ->
-         let* (l,br,r) = open_at dir brs in
-         Ok (Br (a, close (l,b,br::r)))) in
-    Ok (pd_close (ctx, newfcs))
+(* type 'a pd_ctx = 'a * 'a * ('a * 'a pd) suite * ('a * 'a pd) list 
+ * type 'a pd_zip = 'a pd_ctx suite * 'a pd
+ * 
+ * let visit d (ctx, fcs) =
+ *   match fcs with
+ *   | Br (s,brs) ->
+ *     let* (l,(t,b),r) = open_at d brs in
+ *     Ok (Ext (ctx,(s,t,l,r)), b)
+ * 
+ * let rec seek addr pz =
+ *   match addr with
+ *   | Emp -> Ok pz
+ *   | Ext(addr',d) ->
+ *     let* pz' = seek addr' pz in
+ *     visit d pz'
+ * 
+ * let rec addr_of (ctx, fcs) =
+ *   match ctx with
+ *   | Emp -> Emp
+ *   | Ext(ctx',(s,t,l,r)) ->
+ *     Ext (addr_of (ctx', Br (s, close (l,(t,fcs),r))), length l)
+ * 
+ * let rec pd_close (ctx, fcs) =
+ *   match ctx with
+ *   | Emp -> fcs
+ *   | Ext(ctx',(s,t,l,r)) ->
+ *     pd_close (ctx', Br (s, close (l,(t,fcs),r)))
+ * 
+ * let pd_drop (ctx, _) =
+ *   match ctx with
+ *   | Emp -> Fail "Cannot drop root"
+ *   | Ext(ctx',(s,_,l,r)) ->
+ *     Ok (ctx', Br(s, append_list l r))
+ * 
+ * let parent (ctx,fcs) =
+ *   match ctx with
+ *   | Emp -> Fail "No parent in empty context"
+ *   | Ext(ctx',(s,t,l,r)) ->
+ *     Ok (ctx', Br (s, close (l,(t,fcs),r)))
+ * 
+ * let sibling_right (ctx,fcs) =
+ *   match ctx with
+ *   | Ext(ctx',(s,t,l,(t',fcs')::rs)) ->
+ *     Ok (Ext (ctx',(s,t',Ext (l,(t,fcs)),rs)), fcs')
+ *   | _ -> Fail "No right sibling"
+ * 
+ * let sibling_left (ctx,fcs) =
+ *   match ctx with
+ *   | Ext(ctx',(s,t,Ext(l,(t',fcs')),r)) ->
+ *     Ok (Ext (ctx',(s,t',l,(t,fcs)::r)), fcs')
+ *   | _ -> Fail "No left sibling"
+ * 
+ * let rec to_rightmost_leaf (ctx,fcs) =
+ *   match fcs with
+ *   | Br (_,Emp) -> Ok (ctx, fcs)
+ *   | Br (s,Ext(brs,(t,b))) ->
+ *     to_rightmost_leaf
+ *       (Ext (ctx,(s,t,brs,[])), b)
+ * 
+ * let rec to_leftmost_leaf (ctx,fcs) =
+ *   match fcs with
+ *   | Br (_,Emp) -> Ok (ctx, fcs)
+ *   | Br (s,brs) ->
+ *     let* (_,(t,b),r) = open_leftmost brs in
+ *     to_leftmost_leaf
+ *       (Ext(ctx,(s,t,Emp,r)),b)
+ * 
+ * let rec parent_sibling_left z =
+ *   sibling_left z <||>
+ *   (parent z >>= parent_sibling_left) <||>
+ *   Fail "No more left siblings"
+ * 
+ * let rec parent_sibling_right z =
+ *   sibling_right z <||>
+ *   (parent z >>= parent_sibling_right) <||>
+ *   Fail "No more right siblings"
+ * 
+ * let leaf_right z =
+ *   parent_sibling_right z >>=
+ *   to_leftmost_leaf
+ * 
+ * let leaf_left z =
+ *   parent_sibling_left z >>=
+ *   to_rightmost_leaf
+ * 
+ * let insert_at addr b pd =
+ *   match addr with
+ *   | Emp -> Fail "Empty address for insertion"
+ *   | Ext(base,dir) ->
+ *     let* (ctx, fcs) = seek base (Emp, pd) in 
+ *     let* newfcs =
+ *       (match fcs with
+ *        | Br (a,brs) ->
+ *          let* (l,br,r) = open_at dir brs in
+ *          Ok (Br (a, close (l,b,br::r)))) in
+ *     Ok (pd_close (ctx, newfcs)) *)
 
 (*****************************************************************************)
 (*                              Instances                                    *)
 (*****************************************************************************)
 
-module PdFunctor = struct
-  type 'a t = 'a pd
-  let rec map f pd =
-    match pd with
-    | Br (a, brs) ->
-      let fm (l, b) = (f l, map f b) in
-      Br (f a, Suite.map fm brs)
-end
+let rec map_pd pd ~f =
+  match pd with
+  | Br (a, brs) ->
+    let fm (l, b) = (f l, map_pd b ~f:f) in
+    Br (f a, map_suite brs ~f:fm)
 
-let map_pd = PdFunctor.map
-
-module PdTraverse(A : Applicative) = struct
-
-  type 'a t = 'a pd
-  type 'a m = 'a A.t
-  
-  open ApplicativeSyntax(A)
-  module ST = SuiteTraverse(A)
-
-  let rec traverse f pd =
-    match pd with
-    | Br (a,abrs) ->
-      let tr (l,b) =
-        let+ l' = f l
-        and+ b' = traverse f b
-        in (l',b') in 
-      let+ b = f a
-      and+ bbrs = ST.traverse tr abrs in
-      Br (b,bbrs)
-        
-end
+(* module PdTraverse(A : Applicative) = struct
+ * 
+ *   type 'a t = 'a pd
+ *   type 'a m = 'a A.t
+ *   
+ *   open ApplicativeSyntax(A)
+ *   module ST = SuiteTraverse(A)
+ * 
+ *   let rec traverse f pd =
+ *     match pd with
+ *     | Br (a,abrs) ->
+ *       let tr (l,b) =
+ *         let+ l' = f l
+ *         and+ b' = traverse f b
+ *         in (l',b') in 
+ *       let+ b = f a
+ *       and+ bbrs = ST.traverse tr abrs in
+ *       Br (b,bbrs)
+ *         
+ * end *)
 
 (*****************************************************************************)
 (*                              Pretty Printing                              *)
 (*****************************************************************************)
 
-open Format
-
-let rec pp_print_pd f ppf pd =
+let rec pp_pd f ppf pd =
   match pd with
   | Br (s,brs) ->
-    let ps ppf (l,b) = fprintf ppf "(%a, %a)" f l (pp_print_pd f) b in 
-    fprintf ppf "Br (%a, @[<v>%a@])" f s (pp_print_suite ps) brs
-
-let print_pd pd =
-  pp_print_pd pp_print_string std_formatter pd ;
-  pp_print_newline std_formatter
-
-let pp_print_addr ppf addr =
-  fprintf ppf "@[<hov>{%a}@]"
-    (pp_print_suite pp_print_int) addr
+    Fmt.pf ppf "Br (%a, %a)" f s
+      (pp_suite (Fmt.parens (Fmt.pair f (pp_pd f)))) brs
 
 (*****************************************************************************)
 (*                      Substitution of Pasting Diagrams                     *)
@@ -259,20 +242,20 @@ let rec merge d p q =
       Br (l, append bas bbs)
     else
       let mm ((l,p'),(_,q')) = (l,merge (d-1) p' q') in 
-      Br (l, map mm (zip bas bbs))
+      Br (l, map_suite (zip bas bbs) ~f:mm)
 
 let rec join_pd d pd =
   match pd with
   | Br (p,brs) ->
     let jr (_,b) = join_pd (d+1) b in
-    fold_left (merge d) p (map jr brs)
+    fold_left (merge d) p (map_suite brs ~f:jr)
 
 let rec disc n =
   if (n <= 0) then Br ((), Emp)
   else Br ((), Ext (Emp, ((), disc (n-1))))
 
-let blank pd = map_pd (fun _ -> ()) pd
-let subst pd sub = map_pd (fun id -> assoc id sub) pd
+let blank pd = map_pd pd ~f:(fun _ -> ()) 
+let subst pd sub = map_pd pd ~f:(fun id -> Suite.assoc id sub) 
 
 (*****************************************************************************)
 (*                                  Examples                                 *)

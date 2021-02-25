@@ -9,6 +9,18 @@ open Format
 open Catt.Io
 open Catt.Syntax
 
+(*****************************************************************************)
+(*                                  Options                                  *)
+(*****************************************************************************)
+    
+let usage = "catt [options] [file]"
+
+let spec_list = []
+
+(*****************************************************************************)
+(*                              Main Entry Point                             *)
+(*****************************************************************************)
+
 let () = 
   let file_in = ref [] in
   pp_set_margin std_formatter 200;
@@ -16,17 +28,13 @@ let () =
   Arg.parse spec_list (fun s -> file_in := s::!file_in) usage;
   let files = List.rev (!file_in) in
   let defs = parse_all files in
-  match tc_check_defns defs empty_env with
-  | Ok _ -> 
+  try let _ = check_defs empty_ctx defs in
     printf "----------------@,Success!";
     print_newline ();
     print_newline ()
-  | Fail terr -> 
-    printf "----------------@,Typing error:@,@,%a"
-      pp_print_tc_err terr;
-    print_cut ();
-    print_newline ();
-    print_newline ()
-
-
+  with
+  | Typing_error msg ->
+    printf "Typing error: %s@," msg
+  | Unify_error msg ->
+    printf "Unification error: %s@," msg
 

@@ -21,21 +21,17 @@ let space = ' ' | '\t' | '\r'
 rule token = parse
 
   | "let"        { LET }
-  | "coh"        { COH }
   | "->"         { ARROW }
-  | "=>"         { DBLARROW }
   | "("          { LPAR }
   | ")"          { RPAR }
-  | "["          { LBRKT }
-  | "]"          { RBRKT }
+  | "{"          { LBR }
+  | "}"          { RBR }
   | ":"          { COLON }
-  | "::"         { DBLCOLON }
   | "="          { EQUAL }
   | "."          { DOT }
   | "\\"         { LAMBDA }
-  | "|"          { VBAR }
+  | "_"          { HOLE }
   | "U"          { TYPE }
-  | "Cat"        { CAT }
 
   (* Identifiers *)
   | (['a'-'z''A'-'Z''0'-'9']['a'-'z''A'-'Z''0'-'9''_']* as str) { IDENT str }
