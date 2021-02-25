@@ -18,23 +18,24 @@ type icit =
   | Expl
 
 type name = string
-  
+
+type 'a tele = (name * icit * 'a) suite
+    
 type expr =
   | VarE of name
   | LamE of name * icit * expr
   | AppE of expr * expr * icit
   | PiE of name * icit * expr * expr
   | ObjE of expr
-  | HomE of expr * expr * expr 
+  | HomE of expr * expr * expr
+  | CohE of expr tele * expr 
   | CatE
   | TypE
   | HoleE
 
-type tele = (name * icit * expr) suite
-    
 type defn =
-  | TermDef of name * tele * expr * expr
-  | CohDef of name * tele * expr
+  | TermDef of name * expr tele * expr * expr
+  | CohDef of name * expr tele * expr
 
 (*****************************************************************************)
 (*                         Pretty Printing Raw Syntax                        *)
@@ -49,7 +50,14 @@ let is_pi e =
   match e with
   | PiE (_,_,_,_) -> true
   | _ -> false
-    
+
+let pp_tele pp_el ppf tl =
+  let pp_trpl ppf (nm,ict,t) =
+    match ict with
+    | Expl -> pf ppf "(%s : %a)" nm pp_el t
+    | Impl -> pf ppf "{%s : %a}" nm pp_el t
+  in pp_suite pp_trpl ppf tl 
+
 let rec pp_expr ppf expr =
   match expr with
   | VarE nm -> string ppf nm
@@ -77,6 +85,8 @@ let rec pp_expr ppf expr =
   | ObjE e -> pf ppf "[%a]" pp_expr e
   | HomE (c,s,t) ->
     pf ppf "%a | %a => %a" pp_expr c pp_expr s pp_expr t
+  | CohE (g,a) ->
+    pf ppf "coh [ %a : %a ]" (pp_tele pp_expr) g pp_expr a
   | CatE -> string ppf "Cat"
   | TypE -> string ppf "U"
   | HoleE -> string ppf "_"
@@ -95,12 +105,13 @@ type term =
   | AppT of term * term * icit
   | PiT of name * icit * term * term
   | ObjT of term
-  | HomT of term * term * term 
+  | HomT of term * term * term
+  | CohT of term tele * term
   | CatT
   | TypT
   | MetaT of mvar
   | InsMetaT of mvar 
-
+    
 let rec term_to_expr nms tm = 
   match tm with
   | VarT i ->
@@ -115,6 +126,14 @@ let rec term_to_expr nms tm =
   | ObjT c -> ObjE (term_to_expr nms c)
   | HomT (c,s,t) ->
     HomE (term_to_expr nms c, term_to_expr nms s, term_to_expr nms t)
+  | CohT (g,a) ->
+    let rec go g nms a =
+      match g with
+      | Emp -> (Emp, term_to_expr nms a)
+      | Ext (g',(nm,icit,ty)) ->
+        let (rg,e) = go g' (Ext (nms,nm)) a in
+        (Ext (rg,(nm,icit,term_to_expr nms ty)), e)
+    in let r = go g nms a in CohE (fst r , snd r)
   | CatT -> CatE 
   | TypT -> TypE
   | MetaT _ -> HoleE
@@ -166,6 +185,8 @@ let rec pp_term ppf tm =
     pf ppf "[%a]" pp_term c
   | HomT (_,s,t) ->
     pf ppf "%a => %a" pp_term s pp_term t
+  | CohT (g,a) ->
+    pf ppf "coh [ %a : %a ]" (pp_tele pp_term) g pp_term a
   | CatT -> pf ppf "Cat"
   | TypT -> pf ppf "U"
   | MetaT _ -> pf ppf "_"
@@ -185,7 +206,8 @@ type value =
   | LamV of name * icit * closure
   | PiV of name * icit * value * closure 
   | ObjV of value
-  | HomV of value * value * value 
+  | HomV of value * value * value
+  | CohV of value tele * value * spine
   | CatV
   | TypV 
 
@@ -195,6 +217,8 @@ and spine = (value * icit) suite
 
 and closure =
   | Closure of top_env * loc_env * term
+
+let varV k = RigidV (k,Emp)
 
 let rec pp_value ppf v =
   match v with
@@ -218,6 +242,9 @@ let rec pp_value ppf v =
     pf ppf "[%a]" pp_value c
   | HomV (_,s,t) ->
     pf ppf "%a => %a" pp_value s pp_value t
+  | CohV (g,a,sp) -> 
+    pf ppf "coh [ %a : %a ] %a" (pp_tele pp_value) g
+      pp_value a pp_spine sp
   | CatV -> pf ppf "Cat"
   | TypV -> pf ppf "U"
 
@@ -281,6 +308,17 @@ let rec eval top loc tm =
   | ObjT c -> ObjV (eval top loc c)
   | HomT (c,s,t) ->
     HomV (eval top loc c, eval top loc s, eval top loc t)
+  | CohT (g,a) ->
+    
+    (* we trivially evaluate with variables *)
+    let rec go g loc k a =
+      match g with
+      | Emp -> (Emp, eval top loc a)
+      | Ext (g',(nm,icit,ty)) ->
+        let (rg,v) = go g' (Ext (loc,varV k)) (k+1) a in
+        (Ext (rg,(nm,icit,eval top loc ty)), v)
+    in let r = go g loc (length loc) a in CohV (fst r , snd r, Emp)
+    
   | CatT -> CatV
   | TypT -> TypV
   | MetaT m -> metaV m
@@ -301,7 +339,8 @@ and appV t u ict =
   match t with
   | FlexV (m,sp) -> FlexV (m,Ext(sp,(u,ict)))
   | RigidV (i,sp) -> RigidV (i,Ext(sp,(u,ict)))
-  | TopV (nm,sp,tv) -> TopV(nm,Ext(sp,(u,ict)),appV tv u ict)
+  | TopV (nm,sp,tv) -> TopV (nm,Ext(sp,(u,ict)),appV tv u ict)
+  | CohV (g,a,sp) -> CohV (g,a,Ext(sp,(u,ict)))
   | LamV (_,_,cl) -> cl $$ u
   | PiV (_,_,_,_) -> raise (Eval_error "malformed app: pi")
   | ObjV _ -> raise (Eval_error "malformed app: obj")
@@ -333,8 +372,6 @@ let rec force_meta v =
 
 let lvl_to_idx k l = k - l - 1
 
-let varV k = RigidV (k,Emp)
-    
 let rec quote k v ufld =
   match v with
   | FlexV (m,sp) -> quote_sp k (MetaT m) sp ufld
@@ -345,6 +382,17 @@ let rec quote k v ufld =
   | PiV (nm,ict,u,cl) -> PiT (nm, ict, quote k u ufld, quote (k+1) (cl $$ varV k) ufld)
   | ObjV c -> ObjT (quote k c ufld)
   | HomV (c,s,t) -> HomT (quote k c ufld, quote k s ufld, quote k t ufld)
+  | CohV (g,a,sp) ->
+
+    let rec go g k a =
+      match g with
+      | Emp -> (Emp, quote k a ufld)
+      | Ext (g',(nm,icit,ty)) ->
+        let (rg,v) = go g' (k+1) a in
+        (Ext (rg,(nm,icit,quote k ty ufld)), v)
+    in let r = go g k a
+    in quote_sp k (CohT (fst r , snd r)) sp ufld 
+      
   | CatV -> CatT
   | TypV -> TypT
 
@@ -413,6 +461,17 @@ let rename m pren v =
     | PiV (nm,ict,a,b) -> PiT (nm, ict, go pr a, go (lift pr) (b $$ varV pr.cod))
     | ObjV c -> ObjT (go pr c)
     | HomV (c,s,t) -> HomT (go pr c, go pr s, go pr t)
+    | CohV (g,a,sp) ->
+
+      let rec coh_go g a =
+        match g with
+        | Emp -> (Emp, go pr a)
+        | Ext (g',(nm,icit,ty)) ->
+          let (rg,v) = coh_go g' a in
+          (Ext (rg,(nm,icit, go pr ty)), v)
+      in let r = coh_go g a
+      in goSp pr (CohT (fst r , snd r)) sp 
+        
     | CatV -> CatT
     | TypV -> TypT
 
@@ -536,6 +595,85 @@ let define gma nm tm ty = {
   lvl = gma.lvl;
   types = Ext (gma.types,(nm,(Defined,ty)));
 }
+
+(*****************************************************************************)
+(*                           Context/Pd Conversion                           *)
+(*****************************************************************************)
+
+(* open Pd
+ * 
+ * module StrErr =
+ *   ErrMnd(struct type t = string end)
+ *     
+ * let rec cat_dim t =
+ *   let open MonadSyntax(StrErr) in 
+ *   match t with
+ *   | VarT _ -> Ok 0
+ *   | HomT (Some c,_,_) ->
+ *     let* d = cat_dim c in 
+ *     Ok (d + 1)
+ *   | _ -> Fail "no valid dimension"
+ * 
+ * let rec nth_tgt i ty tm =
+ *   let open MonadSyntax(StrErr) in 
+ *   if (i = 0) then Ok (ty, tm) else
+ *     match ty with
+ *     | HomT (Some c,_,t) ->
+ *       nth_tgt (i-1) c t
+ *     | _ -> Fail "No target"
+ * 
+ * let unobj t =
+ *   let open MonadSyntax(StrErr) in 
+ *   match t with
+ *   | ObjT t' -> Ok t'
+ *   | _ -> Fail "Not a type of objects"
+ *            
+ * let rec context_to_pd gma =
+ *   let open MonadSyntax(StrErr) in 
+ *   match gma with
+ *   | Emp -> Fail "Empty context is not a pasting diagram"
+ *   | Ext(Emp,_) -> Fail "Singleton context is not a pasting diagram"
+ *   | Ext(Ext(Emp,CatT),ObjT (VarT 0)) ->
+ *     Ok (Br (VarT 0,Emp),VarT 1,VarT 0,0,0)
+ *   | Ext(Ext(gma',ttyp_ob),ftyp_ob) ->
+ * 
+ *     let* ttyp = unobj ttyp_ob in 
+ *     let* ftyp = unobj ftyp_ob in
+ *     
+ *     let* (pd,styp,stm,k,dim) = context_to_pd gma' in
+ *     let* tdim = cat_dim ttyp in
+ *     let codim = dim - tdim in
+ *     (\* printf "k: %d@," k;
+ *      * printf "codim: %d@," codim; *\)
+ *     let* (styp',stm') = nth_tgt codim styp stm in 
+ *     (\* printf "styp': %a@," pp_print_term styp';
+ *      * printf "stm': %a@," pp_print_term stm'; *\)
+ *     if (styp' <> ttyp) then
+ * 
+ *       let msg = asprintf 
+ *           "@[<v>Source and target types incompatible.
+ *                 @,Source: %a
+ *                 @,Target: %a@]"
+ *           pp_print_term styp' pp_print_term ttyp
+ *       in Fail msg
+ * 
+ *     else
+ *       let lstyp = db_lift 1 styp' in
+ *       let lstm = db_lift 1 stm' in 
+ *       let etyp = HomT (Some lstyp, lstm, VarT 0) in
+ *       if (ftyp <> etyp) then
+ * 
+ *         let msg = asprintf
+ *             "@[<v>Incorrect filling type.
+ *                   @,Expected: %a
+ *                   @,Provided: %a@]"
+ *             pp_print_term etyp
+ *             pp_print_term ftyp
+ *         in Fail msg
+ * 
+ *       else let* rpd = insert pd tdim (VarT (k+1)) (Br (VarT (k+2), Emp)) in 
+ *         Ok (rpd, db_lift 1 ftyp, VarT 0, k+2, tdim+1) *)
+
 
 (*****************************************************************************)
 (*                                   Debug                                   *)
@@ -671,6 +809,8 @@ and infer gma expr =
     let s' = check gma s (ObjV cv) in
     let t' = check gma t (ObjV cv) in
     (HomT (c',s',t'), CatV)
+
+  | CohE (_,_) -> raise (Typing_error "not done")
 
   | CatE -> (CatT , TypV)
   | TypE -> (TypT , TypV)

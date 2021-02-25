@@ -57,6 +57,8 @@ expr:
     { HomE (HoleE,s,t) }
   | c = expr1 VBAR s = expr1 DBLARROW t = expr1
     { HomE (c,s,t) }
+  | COH LBRKT tl = tele COLON e = expr RBRKT
+    { CohE (tl,e) } 
 
 expr1:
   | e = expr2
