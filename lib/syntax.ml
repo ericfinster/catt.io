@@ -75,8 +75,8 @@ let rec pp_expr ppf expr =
     pf ppf "(%s : %a) -> %a" nm
       pp_expr dom pp_expr cod
   | ObjE e -> pf ppf "[%a]" pp_expr e
-  | HomE (_,s,t) ->
-    pf ppf "%a => %a" pp_expr s pp_expr t
+  | HomE (c,s,t) ->
+    pf ppf "%a | %a => %a" pp_expr c pp_expr s pp_expr t
   | CatE -> string ppf "Cat"
   | TypE -> string ppf "U"
   | HoleE -> string ppf "_"

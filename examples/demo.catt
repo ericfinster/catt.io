@@ -8,6 +8,9 @@ let id (A : U) (a : A) : A = a
 let cattest1 (C : Cat) : U = [ C ]
 let cattest2 (C : Cat) (x :: C) (y :: C) : Cat = x => y
 let cattest3 (C : Cat) (x :: C) (y :: C) : U = [ x => y ]
+let cattest4 (C : Cat) (x :: C) (y :: C)
+  (f :: x => y) (g :: x => y)
+  : Cat = f => g
 
 # coh id (C : Cat)
 #     (x :: C)
