@@ -9,6 +9,9 @@ open Fmt
 open Base
 open Suite
 
+(* Monadic bind for errors in scope *)
+let (let*) m f = Base.Result.bind m ~f 
+
 (*****************************************************************************)
 (*                                 Raw Syntax                                *)
 (*****************************************************************************)
@@ -127,6 +130,7 @@ let rec term_to_expr nms tm =
   | HomT (c,s,t) ->
     HomE (term_to_expr nms c, term_to_expr nms s, term_to_expr nms t)
   | CohT (g,a) ->
+    
     let rec go g nms a =
       match g with
       | Emp -> (Emp, term_to_expr nms a)
@@ -134,6 +138,7 @@ let rec term_to_expr nms tm =
         let (rg,e) = go g' (Ext (nms,nm)) a in
         (Ext (rg,(nm,icit,term_to_expr nms ty)), e)
     in let r = go g nms a in CohE (fst r , snd r)
+
   | CatT -> CatE 
   | TypT -> TypE
   | MetaT _ -> HoleE
@@ -224,8 +229,8 @@ let rec pp_value ppf v =
   match v with
   | FlexV (m,sp) ->
     pf ppf "?%d %a" m pp_spine sp
-  | RigidV (i,sp) ->
-    pf ppf "%d %a" i pp_spine sp
+  | RigidV (i,Emp) -> pf ppf "%d" i 
+  | RigidV (i,sp) -> pf ppf "%d %a" i pp_spine sp
   | TopV (nm,sp,_) ->
     pf ppf "%s %a" nm pp_spine sp
   | LamV (nm,Expl,Closure (_,_,bdy)) ->
@@ -260,7 +265,8 @@ let pp_top_env =
 
 let pp_loc_env =
   hovbox (pp_suite ~sep:comma pp_value)
-    
+
+
 (*****************************************************************************)
 (*                           Metavariable Context                            *)
 (*****************************************************************************)
@@ -462,7 +468,8 @@ let rename m pren v =
     | ObjV c -> ObjT (go pr c)
     | HomV (c,s,t) -> HomT (go pr c, go pr s, go pr t)
     | CohV (g,a,sp) ->
-
+      
+      (* Are these all folds of a certain kind? *)
       let rec coh_go g a =
         match g with
         | Emp -> (Emp, go pr a)
@@ -600,80 +607,71 @@ let define gma nm tm ty = {
 (*                           Context/Pd Conversion                           *)
 (*****************************************************************************)
 
-(* open Pd
- * 
- * module StrErr =
- *   ErrMnd(struct type t = string end)
- *     
- * let rec cat_dim t =
- *   let open MonadSyntax(StrErr) in 
- *   match t with
- *   | VarT _ -> Ok 0
- *   | HomT (Some c,_,_) ->
- *     let* d = cat_dim c in 
- *     Ok (d + 1)
- *   | _ -> Fail "no valid dimension"
- * 
- * let rec nth_tgt i ty tm =
- *   let open MonadSyntax(StrErr) in 
- *   if (i = 0) then Ok (ty, tm) else
- *     match ty with
- *     | HomT (Some c,_,t) ->
- *       nth_tgt (i-1) c t
- *     | _ -> Fail "No target"
- * 
- * let unobj t =
- *   let open MonadSyntax(StrErr) in 
- *   match t with
- *   | ObjT t' -> Ok t'
- *   | _ -> Fail "Not a type of objects"
- *            
- * let rec context_to_pd gma =
- *   let open MonadSyntax(StrErr) in 
- *   match gma with
- *   | Emp -> Fail "Empty context is not a pasting diagram"
- *   | Ext(Emp,_) -> Fail "Singleton context is not a pasting diagram"
- *   | Ext(Ext(Emp,CatT),ObjT (VarT 0)) ->
- *     Ok (Br (VarT 0,Emp),VarT 1,VarT 0,0,0)
- *   | Ext(Ext(gma',ttyp_ob),ftyp_ob) ->
- * 
- *     let* ttyp = unobj ttyp_ob in 
- *     let* ftyp = unobj ftyp_ob in
- *     
- *     let* (pd,styp,stm,k,dim) = context_to_pd gma' in
- *     let* tdim = cat_dim ttyp in
- *     let codim = dim - tdim in
- *     (\* printf "k: %d@," k;
- *      * printf "codim: %d@," codim; *\)
- *     let* (styp',stm') = nth_tgt codim styp stm in 
- *     (\* printf "styp': %a@," pp_print_term styp';
- *      * printf "stm': %a@," pp_print_term stm'; *\)
- *     if (styp' <> ttyp) then
- * 
- *       let msg = asprintf 
- *           "@[<v>Source and target types incompatible.
- *                 @,Source: %a
- *                 @,Target: %a@]"
- *           pp_print_term styp' pp_print_term ttyp
- *       in Fail msg
- * 
- *     else
- *       let lstyp = db_lift 1 styp' in
- *       let lstm = db_lift 1 stm' in 
- *       let etyp = HomT (Some lstyp, lstm, VarT 0) in
- *       if (ftyp <> etyp) then
- * 
- *         let msg = asprintf
- *             "@[<v>Incorrect filling type.
- *                   @,Expected: %a
- *                   @,Provided: %a@]"
- *             pp_print_term etyp
- *             pp_print_term ftyp
- *         in Fail msg
- * 
- *       else let* rpd = insert pd tdim (VarT (k+1)) (Br (VarT (k+2), Emp)) in 
- *         Ok (rpd, db_lift 1 ftyp, VarT 0, k+2, tdim+1) *)
+type pasting_error = [
+  | `PastingError of string
+]
+    
+let rec cat_dim v =
+  match v with
+  | RigidV(_,_) -> Ok 0
+  | HomV (c,_,_) ->
+    let* d = cat_dim c in 
+    Ok (d + 1)
+  | _ -> Error "Term has no valid dimension"
 
+let rec nth_tgt i ty tm =
+  if (i = 0) then Ok (ty, tm) else
+    match ty with
+    | HomV (c,_,t) ->
+      nth_tgt (i-1) c t
+    | _ -> Error "No target"
+
+let unobj v =
+  match v with
+  | ObjV v' -> Ok v'
+  | _ -> Error (str "Not a type of objects: %a" pp_value v)
+
+let rec ctx_to_pd loc =
+  pr "Trying pasting context: @[<hov>%a@]@," (pp_suite pp_value) loc;
+  match loc with
+  | Emp -> Error "Empty context is not a pasting diagram"
+  | Ext(Emp,_) -> Error "Singleton context is not a pasting diagram"
+  | Ext(Ext(Emp,CatV),ObjV (RigidV (0,Emp))) ->
+    Ok (Pd.Br (varV 1,Emp),varV 0,varV 1,2,0)
+  | Ext(Ext(loc',tobj),fobj) ->
+
+    let* tty = unobj tobj in
+    let* fty = unobj fobj in
+
+    let* (pd,sty,stm,k,dim) = ctx_to_pd loc' in
+    let* tdim = cat_dim tty in
+    let codim = dim - tdim in
+    pr "codim: %d@," codim;
+    let* (sty',stm') = nth_tgt codim sty stm in
+    
+    if (Poly.(<>) sty' tty) then
+
+      let msg = str 
+          "@[<v>Source and target types incompatible.
+                  @,Source: %a
+                  @,Target: %a@]"
+          pp_value sty' pp_value tty
+      in Error msg
+
+    else let ety = HomV (sty',stm',varV k) in
+      if (Poly.(<>) ety fty) then 
+
+        let msg = str
+            "@[<v>Incorrect filling type.
+                    @,Expected: %a
+                    @,Provided: %a@]"
+            pp_value ety
+            pp_value fty
+        in Error msg
+
+      else let* pd' = Pd.insert pd tdim (varV k)
+               (Pd.Br (varV (k+1), Emp)) in
+        Ok (pd', fty, varV (k+1), k+2, tdim+1)
 
 (*****************************************************************************)
 (*                                   Debug                                   *)
@@ -708,22 +706,29 @@ let fresh_meta _ =
   metacontext := Map.set mctx ~key:m ~data:Unsolved;
   InsMetaT m
 
-let rec insert' gma (tm,ty) =
+let rec insert' gma m =
+  let* (tm, ty) = m in 
   match force_meta ty with
   | PiV (_,Impl,_,b) ->
     let m = fresh_meta () in
     let mv = eval gma.top gma.loc m in
-    insert' gma (AppT (tm,m,Impl) , b $$ mv)
-  | _ -> (tm, ty)
+    insert' gma (Ok (AppT (tm,m,Impl) , b $$ mv))
+  | _ -> Ok (tm, ty)
 
-let insert gma (tm, ty) =
+let insert gma m =
+  let* (tm, ty) = m in 
   match tm with
-  | LamT (_,Impl,_) -> (tm, ty)
-  | _ -> insert' gma (tm, ty)
+  | LamT (_,Impl,_) -> Ok (tm, ty)
+  | _ -> insert' gma (Ok (tm, ty))
 
-exception Typing_error of string
+type typing_error = [
+  | `NameNotInScope of name
+  | `IcityMismatch of icit * icit
+  | `PastingError of string
+  | `InternalError
+]
 
-let rec check gma expr typ =
+let rec check gma expr typ = 
   (* let typ_tm = quote gma.lvl typ false in
    * pr "Checking %a has type %a@," pp_expr expr pp_term typ_tm ;
    * dump_ctx true gma; *)
@@ -734,99 +739,104 @@ let rec check gma expr typ =
   
   | (LamE (nm,i,e) , PiV (_,i',a,b)) when Poly.(=) i i' ->
     (* pr "canonical lambda@,"; *)
-    let bdy = check (bind gma nm a) e (b $$ varV gma.lvl) in
-    LamT (nm,i,bdy)
-
+    let* bdy = check (bind gma nm a) e (b $$ varV gma.lvl) in
+    Ok (LamT (nm,i,bdy))
+  
   | (t , PiV (nm,Impl,a,b)) ->
     (* pr "non-canonical lambda@,"; *)
-    let bdy = check (bind gma nm a) t (b $$ varV gma.lvl) in
-    LamT (nm,Impl,bdy)
-
+    let* bdy = check (bind gma nm a) t (b $$ varV gma.lvl) in
+    Ok (LamT (nm,Impl,bdy))
+  
   | (HoleE , _) -> (* pr "fresh meta@,"; *)
-    let mv = fresh_meta () in mv
-
+    let mv = fresh_meta () in Ok mv
+  
   | (e, expected) ->
     (* pr "switching mode@,";
      * pr "e: %a@," pp_expr e;
      * pr "exp: %a@," pp_term (quote gma.lvl expected false); *)
-    let (e',inferred) = insert gma (infer gma e) in
-    unify OneShot gma.top gma.lvl expected inferred ; e'
+    let* (e',inferred) = insert gma (infer gma e) in
+    unify OneShot gma.top gma.lvl expected inferred ; Ok e'
 
-and infer gma expr =
+and infer gma expr = 
   (* pr "Inferring type of %a@," pp_expr expr ;
    * dump_ctx true gma; *)
   match expr with
-
+  
   | VarE nm -> (
       try
         let (idx,(b,typ)) = assoc_with_idx nm gma.types in
         match b with
         | Bound ->
           (* pr "Inferred variable of index %d to have type: %a@," idx pp_term (quote gma.lvl typ true) ; *)
-          (VarT idx, typ)
+          Ok (VarT idx, typ)
         | Defined ->
           (* pr "Inferred definition %s to have type: %a@," nm pp_term (quote gma.lvl typ true) ; *)
-          (TopT nm, typ)
-      with Lookup_error -> raise (Typing_error (str "Unknown identifier %s" nm))
+          Ok (TopT nm, typ)
+      with Lookup_error -> Error (`NameNotInScope nm)
     )
-
+  
   | LamE (nm,ict,e) ->
     let a = eval gma.top gma.loc (fresh_meta ()) in
-    let (e', t) = insert gma (infer (bind gma nm a) e) in
-    (LamT (nm,ict,e') , PiV (nm,ict,a,Closure (gma.top,gma.loc,quote (gma.lvl + 1) t false)))
-
+    let* (e', t) = insert gma (infer (bind gma nm a) e) in
+    Ok (LamT (nm,ict,e') , PiV (nm,ict,a,Closure (gma.top,gma.loc,quote (gma.lvl + 1) t false)))
+  
   | AppE (u,v,ict) ->
-    let (u',ut) = match ict with
+    let* (u',ut) = match ict with
       | Impl -> infer gma u
       | Expl -> insert' gma (infer gma u)
     in
-
-    let (a,b) = match force_meta ut with
+  
+    let* (a,b) = match force_meta ut with
       | PiV (_,ict',a,b) ->
         if (Poly.(<>) ict ict') then
-          raise (Typing_error "Implicit mismatch")
-        else (a,b)
+          Error (`IcityMismatch (ict,ict'))
+        else Ok (a,b)
       | _ ->
         let a = eval gma.top gma.loc (fresh_meta ()) in
         let b = Closure (gma.top,gma.loc,fresh_meta ()) in
         unify OneShot gma.top gma.lvl ut (PiV ("x",ict,a,b)); 
-        (a,b)
-    in let v' = check gma v a in 
-    (AppT (u', v', ict) , b $$ eval gma.top gma.loc v')
-
+        Ok (a,b)
+    in let* v' = check gma v a in 
+    Ok (AppT (u', v', ict) , b $$ eval gma.top gma.loc v')
+  
   | PiE (nm,ict,a,b) ->
-    let a' = check gma a TypV in
-    let b' = check (bind gma nm (eval gma.top gma.loc a')) b TypV in
-    (PiT (nm,ict,a',b') , TypV)
-
+    let* a' = check gma a TypV in
+    let* b' = check (bind gma nm (eval gma.top gma.loc a')) b TypV in
+    Ok (PiT (nm,ict,a',b') , TypV)
+  
   | ObjE c ->
-    let c' = check gma c CatV in
-    (ObjT c', TypV)
+    let* c' = check gma c CatV in
+    Ok (ObjT c', TypV)
     
   | HomE (c,s,t) ->
-    let c' = check gma c CatV in
+    let* c' = check gma c CatV in
     let cv = eval gma.top gma.loc c' in
-    let s' = check gma s (ObjV cv) in
-    let t' = check gma t (ObjV cv) in
-    (HomT (c',s',t'), CatV)
-
-  | CohE (_,_) -> raise (Typing_error "not done")
-
-  | CatE -> (CatT , TypV)
-  | TypE -> (TypT , TypV)
-
+    let* s' = check gma s (ObjV cv) in
+    let* t' = check gma t (ObjV cv) in
+    Ok (HomT (c',s',t'), CatV)
+  
+  | CohE (_,_) -> Error `InternalError
+    (* with_tele gma g (fun _ _ -> 
+     *     raise (Typing_error "not done")
+     *   ) *)
+  
+  | CatE -> Ok (CatT , TypV)
+  | TypE -> Ok (TypT , TypV)
+  
   | HoleE ->
     let a = eval gma.top gma.loc (fresh_meta ()) in
     let t = fresh_meta () in
-    (t , a)
+    Ok (t , a)
 
-let rec with_tele gma tl m =
+and with_tele gma tl m =
   match tl with
-  | Emp -> m gma
-  | Ext (tl',(id,ty)) ->
-    with_tele gma tl' (fun gma' ->
-        let ty' = check gma' ty TypV in
-        m (bind gma' id (eval gma'.top gma'.loc ty')))
+  | Emp -> m gma Emp
+  | Ext (tl',(id,_,ty)) ->
+    with_tele gma tl' (fun g t ->
+        let* ty' = check g ty TypV in
+        let ty_v = eval g.top g.loc ty' in 
+        m (bind g id ty_v)
+          (Ext (t,ty_v)))
 
 let rec abstract_tele tl ty tm =
   match tl with
@@ -836,14 +846,14 @@ let rec abstract_tele tl ty tm =
     
 let rec check_defs gma defs =
   match defs with
-  | [] -> gma
+  | [] -> Ok gma
   | (TermDef (id,tl,ty,tm))::ds ->
     pr "----------------@,";
     pr "Checking definition: %s@," id;
     let (abs_ty,abs_tm) = abstract_tele tl ty tm in
-    let ty_tm = check gma abs_ty TypV in
+    let* ty_tm = check gma abs_ty TypV in
     let ty_val = eval gma.top gma.loc ty_tm in
-    let tm_tm = check gma abs_tm ty_val in
+    let* tm_tm = check gma abs_tm ty_val in
     let tm_val = eval gma.top gma.loc tm_tm in 
     pr "Checking complete for %s@," id;
     let tm_nf = term_to_expr Emp (quote (gma.lvl) tm_val true) in
@@ -851,6 +861,14 @@ let rec check_defs gma defs =
     pr "Type: %a@," pp_expr ty_nf;
     pr "Term: %a@," pp_expr tm_nf;
     check_defs (define gma id tm_val ty_val) ds
-  | (CohDef (_,_,_))::ds ->
-    pr "skipping coherence ...@,"; 
-    check_defs gma ds
+  | (CohDef (nm,g,_))::ds ->
+    pr "----------------@,";
+    pr "Checking coherence: %s@," nm; 
+    let* _ = with_tele gma g (fun _ gv ->
+        match ctx_to_pd gv with
+        | Ok (_,_,_,_,_) -> 
+          pr "Valid pasting context!@,"; Ok ()
+        | Error msg -> Error (`PastingError msg)
+      ) in check_defs gma ds
+
+
