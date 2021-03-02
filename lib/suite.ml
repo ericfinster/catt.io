@@ -57,6 +57,13 @@ let rec zip s t =
   | (Ext (s',a), Ext (t',b)) ->
     Ext (zip s' t', (a, b))
 
+let to_list s =
+  let rec go s l = 
+    match s with
+    | Emp -> l
+    | Ext (s',x) -> go s' (x::l)
+  in go s []
+
 let zip_with_idx s =
   let rec zip_with_idx_pr s =
     match s with

@@ -28,7 +28,7 @@ defn:
   | LET id = IDENT tl = tele COLON ty = expr EQUAL tm = expr
     { TermDef (id,tl,ty,tm) }
   | COH id = IDENT tl = tele COLON c = expr
-    { CohDef (id,tl,ObjE c) }
+    { CohDef (id,tl,c) }
 
 tele:
   |

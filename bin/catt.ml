@@ -26,7 +26,9 @@ let spec_list = []
 let pp_error ppf e =
   match e with
   | `NameNotInScope nm -> Fmt.pf ppf "Name not in scope: %s" nm
+  | `TypeMismatch msg -> Fmt.pf ppf "%s" msg  
   | `PastingError msg -> Fmt.pf ppf "Error while checking pasting context: %s" msg
+  | `FullnessError msg -> Fmt.pf ppf "Fullness error: %s" msg 
   | `IcityMismatch (_, _) -> Fmt.pf ppf "Icity mismatch"
   | `InternalError -> Fmt.pf ppf "Internal Error"
 

@@ -2,24 +2,24 @@
 #  demo.catt - new syntax demo and whatnot
 #
 
-let id (A : U) (a : A) : A = a
+# let id {A : U} (a : A) : A = a
 # let bad (A : U) (B : U) (a : A) (b : B) : B = a
 
-let cattest1 (C : Cat) : U = [ C ]
-let cattest2 (C : Cat) (x :: C) (y :: C) : Cat = x => y
-let cattest3 (C : Cat) (x :: C) (y :: C) : U = [ x => y ]
-let cattest4 (C : Cat) (x :: C) (y :: C)
-  (f :: x => y) (g :: x => y)
-  : Cat = f => g
+# let cattest1 (C : Cat) : U = [ C ]
+# let cattest2 (C : Cat) (x :: C) (y :: C) : Cat = x => y
+# let cattest3 (C : Cat) (x :: C) (y :: C) : U = [ x => y ]
+# let cattest4 (C : Cat) (x :: C) (y :: C)
+#   (f :: x => y) (g :: x => y)
+#   : Cat = f => g
 
 
 # Some impredicative encodings
-let List : U -> U
-  = \A. (L : U) -> (A -> L -> L) -> L -> L
-let nil : (A : _) -> List A
-  = \A. \L. \cons. \nil. nil
-let cons : (A : U) -> A -> List A -> List A
-  = \A. \x. \xs. \L. \cons. \nil. cons x (xs _ cons nil)
+# let List : U -> U
+#   = \A. (L : U) -> (A -> L -> L) -> L -> L
+# let nil : (A : _) -> List A
+#   = \A. \L. \cons. \nil. nil
+# let cons : (A : U) -> A -> List A -> List A
+#   = \A. \x. \xs. \L. \cons. \nil. cons x (xs _ cons nil)
 
 coh id (C : Cat)
     (x :: C)
@@ -31,11 +31,11 @@ coh comp (C : Cat)
     (z :: C) (g :: y => z)
   : x => z
 
-coh comp31201 (C : Cat)
-    (x :: C)
-    (y :: C) (f :: x => y)
-             (g :: x => y) (a :: f => g)
-                           (b :: f => g) (m :: a => b)
-             (h :: x => y) (c :: g => h)
-    (z :: C) (k :: y => z)
-  : x => z
+# coh comp31201 (C : Cat)
+#     (x :: C)
+#     (y :: C) (f :: x => y)
+#              (g :: x => y) (a :: f => g)
+#                            (b :: f => g) (m :: a => b)
+#              (h :: x => y) (c :: g => h)
+#     (z :: C) (k :: y => z) 
+#   : x => z

@@ -130,14 +130,19 @@ let rec term_to_expr nms tm =
   | HomT (c,s,t) ->
     HomE (term_to_expr nms c, term_to_expr nms s, term_to_expr nms t)
   | CohT (g,a) ->
-    
-    let rec go g nms a =
+
+    let rec go g nms m =
       match g with
-      | Emp -> (Emp, term_to_expr nms a)
-      | Ext (g',(nm,icit,ty)) ->
-        let (rg,e) = go g' (Ext (nms,nm)) a in
-        (Ext (rg,(nm,icit,term_to_expr nms ty)), e)
-    in let r = go g nms a in CohE (fst r , snd r)
+      | Emp -> m nms Emp
+      | Ext (g',(nm,ict,ty)) ->
+        go g' nms (fun nms' ge' ->
+            let e = term_to_expr nms' ty in
+            m (Ext (nms',nm))
+              (Ext (ge',(nm,ict,e))))
+
+    in let (ge,ae) = go g nms
+           (fun nms' ge' -> (ge' , term_to_expr nms' a))
+    in CohE (ge, ae)
 
   | CatT -> CatE 
   | TypT -> TypE
@@ -315,15 +320,20 @@ let rec eval top loc tm =
   | HomT (c,s,t) ->
     HomV (eval top loc c, eval top loc s, eval top loc t)
   | CohT (g,a) ->
-    
-    (* we trivially evaluate with variables *)
-    let rec go g loc k a =
+
+    let rec go g loc k gv m =
       match g with
-      | Emp -> (Emp, eval top loc a)
-      | Ext (g',(nm,icit,ty)) ->
-        let (rg,v) = go g' (Ext (loc,varV k)) (k+1) a in
-        (Ext (rg,(nm,icit,eval top loc ty)), v)
-    in let r = go g loc (length loc) a in CohV (fst r , snd r, Emp)
+      | Emp -> m loc k gv 
+      | Ext (g',(nm,ict,ty)) ->
+        go g' loc k gv
+          (fun loc' _ gv' ->
+             let ty_v = eval top loc' ty in
+             m (Ext (loc', varV 0)) (k+1)
+               (Ext (gv',(nm,ict,ty_v))))
+          
+    in go g loc (length loc) Emp
+      (fun loc' _ gv' ->
+         CohV (gv', eval top loc' a, Emp))
     
   | CatT -> CatV
   | TypT -> TypV
@@ -390,14 +400,16 @@ let rec quote k v ufld =
   | HomV (c,s,t) -> HomT (quote k c ufld, quote k s ufld, quote k t ufld)
   | CohV (g,a,sp) ->
 
-    let rec go g k a =
+    let rec go g k gt m =
       match g with
-      | Emp -> (Emp, quote k a ufld)
-      | Ext (g',(nm,icit,ty)) ->
-        let (rg,v) = go g' (k+1) a in
-        (Ext (rg,(nm,icit,quote k ty ufld)), v)
-    in let r = go g k a
-    in quote_sp k (CohT (fst r , snd r)) sp ufld 
+      | Emp -> m k gt
+      | Ext (g',(nm,ict,ty)) ->
+        go g' k gt (fun k' gt' ->
+            let tyt = quote k' ty ufld in
+            m (k' + 1) (Ext (gt',(nm,ict,tyt))))
+    in let (gt,at) = go g k Emp
+           (fun k' gt' -> (gt', quote k' a ufld)) in
+    quote_sp k (CohT (gt,at)) sp ufld
       
   | CatV -> CatT
   | TypV -> TypT
@@ -468,16 +480,19 @@ let rename m pren v =
     | ObjV c -> ObjT (go pr c)
     | HomV (c,s,t) -> HomT (go pr c, go pr s, go pr t)
     | CohV (g,a,sp) ->
-      
-      (* Are these all folds of a certain kind? *)
-      let rec coh_go g a =
+
+      let rec coh_go g pr gt m =
         match g with
-        | Emp -> (Emp, go pr a)
-        | Ext (g',(nm,icit,ty)) ->
-          let (rg,v) = coh_go g' a in
-          (Ext (rg,(nm,icit, go pr ty)), v)
-      in let r = coh_go g a
-      in goSp pr (CohT (fst r , snd r)) sp 
+        | Emp -> m pr gt
+        | Ext (g',(nm,ict,ty)) ->
+          coh_go g' pr gt (fun pr' gt' ->
+              let tyt = go pr' ty in
+              m (lift pr') (Ext (gt',(nm,ict,tyt))))
+            
+      in let (gt,at) = coh_go g pr Emp
+             (fun pr' gt' -> (gt' , go pr' a))
+             
+      in goSp pr (CohT (gt,at)) sp
         
     | CatV -> CatT
     | TypV -> TypT
@@ -556,6 +571,8 @@ let rec unify stgy top l t u =
     unify stgy top l s s';
     unify stgy top l t t'
 
+  (* FIXME! Coherence case ... *)
+
   | _ -> raise (Unify_error "could not unify")
 
 and unifySp stgy top l sp sp' =
@@ -607,17 +624,12 @@ let define gma nm tm ty = {
 (*                           Context/Pd Conversion                           *)
 (*****************************************************************************)
 
-type pasting_error = [
-  | `PastingError of string
-]
-    
-let rec cat_dim v =
+let rec underlying_cat v =
   match v with
-  | RigidV(_,_) -> Ok 0
   | HomV (c,_,_) ->
-    let* d = cat_dim c in 
-    Ok (d + 1)
-  | _ -> Error "Term has no valid dimension"
+    let (cat,dim) = underlying_cat c in
+    (cat,dim+1)
+  | _ -> (v,0)
 
 let rec nth_tgt i ty tm =
   if (i = 0) then Ok (ty, tm) else
@@ -631,47 +643,48 @@ let unobj v =
   | ObjV v' -> Ok v'
   | _ -> Error (str "Not a type of objects: %a" pp_value v)
 
-let rec ctx_to_pd loc =
-  pr "Trying pasting context: @[<hov>%a@]@," (pp_suite pp_value) loc;
-  match loc with
-  | Emp -> Error "Empty context is not a pasting diagram"
-  | Ext(Emp,_) -> Error "Singleton context is not a pasting diagram"
-  | Ext(Ext(Emp,CatV),ObjV (RigidV (0,Emp))) ->
-    Ok (Pd.Br (varV 1,Emp),varV 0,varV 1,2,0)
-  | Ext(Ext(loc',tobj),fobj) ->
+let ctx_to_pd loc = 
+  let rec go l loc =
+    (* pr "Trying pasting context: @[<hov>%a@]@," (pp_suite pp_value) loc; *)
+    match loc with
+    | Emp -> Error "Empty context is not a pasting diagram"
+    | Ext(Emp,_) -> Error "Singleton context is not a pasting diagram"
+    | Ext(Ext(Emp,CatV),ObjV (RigidV (0,Emp))) ->
+      Ok (Pd.Br (l,Emp),varV 0,varV 1,2,0)
+    | Ext(Ext(loc',tobj),fobj) ->
 
-    let* tty = unobj tobj in
-    let* fty = unobj fobj in
+      let* tty = unobj tobj in
+      let* fty = unobj fobj in
 
-    let* (pd,sty,stm,k,dim) = ctx_to_pd loc' in
-    let* tdim = cat_dim tty in
-    let codim = dim - tdim in
-    pr "codim: %d@," codim;
-    let* (sty',stm') = nth_tgt codim sty stm in
-    
-    if (Poly.(<>) sty' tty) then
+      let* (pd,sty,stm,k,dim) = go (l+2) loc' in
+      let (_,tdim) = underlying_cat tty in
+      let codim = dim - tdim in
+      let* (sty',stm') = nth_tgt codim sty stm in
 
-      let msg = str 
-          "@[<v>Source and target types incompatible.
+      if (Poly.(<>) sty' tty) then
+
+        let msg = str 
+            "@[<v>Source and target types incompatible.
                   @,Source: %a
                   @,Target: %a@]"
-          pp_value sty' pp_value tty
-      in Error msg
-
-    else let ety = HomV (sty',stm',varV k) in
-      if (Poly.(<>) ety fty) then 
-
-        let msg = str
-            "@[<v>Incorrect filling type.
-                    @,Expected: %a
-                    @,Provided: %a@]"
-            pp_value ety
-            pp_value fty
+            pp_value sty' pp_value tty
         in Error msg
 
-      else let* pd' = Pd.insert pd tdim (varV k)
-               (Pd.Br (varV (k+1), Emp)) in
-        Ok (pd', fty, varV (k+1), k+2, tdim+1)
+      else let ety = HomV (sty',stm',varV k) in
+        if (Poly.(<>) ety fty) then 
+
+          let msg = str
+              "@[<v>Incorrect filling type.
+                    @,Expected: %a
+                    @,Provided: %a@]"
+              pp_value ety
+              pp_value fty
+          in Error msg
+
+        else let* pd' = Pd.insert pd tdim (l+1)
+                 (Pd.Br (l, Emp)) in
+          Ok (pd', fty, varV (k+1), k+2, tdim+1)
+  in go 0 loc
 
 (*****************************************************************************)
 (*                                   Debug                                   *)
@@ -693,6 +706,58 @@ let dump_ctx ufld gma =
   let (tl,_) = quote_tele ufld gma.types in 
   pr "Context: @[<hov>%a@]@,"
     (pp_suite (parens (pair ~sep:(any " : ") string pp_term))) tl
+
+(*****************************************************************************)
+(*                               Free Variables                              *)
+(*****************************************************************************)
+
+let fvs_empty = Set.empty (module Int)
+let fvs_singleton k = Set.singleton (module Int) k
+    
+let rec free_vars k tm =
+  match tm with
+  | VarT i when i >= k -> fvs_singleton i 
+  | VarT _ -> fvs_empty
+  | TopT _ -> fvs_empty
+  | LamT (_,_,bdy) -> free_vars (k+1) bdy
+  | AppT (u,v,_) ->
+    Set.union (free_vars k u) (free_vars k v)
+  | PiT (_,_,a,b) ->
+    Set.union (free_vars k a) (free_vars (k+1) b)
+  | ObjT c -> free_vars k c
+  | HomT (c,s,t) ->
+    Set.union (free_vars k c) (Set.union (free_vars k s) (free_vars k t))
+  | CohT (g,a) ->
+    let rec go k g =
+      match g with
+      | Emp -> free_vars k a
+      | Ext (g',_) -> go (k+1) g'
+    in go k g
+  | CatT -> fvs_empty
+  | TypT -> fvs_empty
+  | MetaT _ -> fvs_empty
+  | InsMetaT _ -> fvs_empty
+
+let rec val_free_vars k v =
+  let sp_vars sp =
+    Set.union_list (module Int)
+      (to_list (map_suite sp ~f:(fun (v',_) -> val_free_vars k v'))) in 
+  match force_meta v with
+  | FlexV (_,sp) -> sp_vars sp
+  | RigidV (l,sp) -> Set.add (sp_vars sp) (lvl_to_idx k l) 
+  | TopV (_,sp,_) -> sp_vars sp
+  | LamV (_,_,Closure (_,loc,tm)) -> free_vars (length loc) tm
+  | PiV (_,_,a,Closure (_,loc,b)) ->
+    Set.union (val_free_vars k a) (free_vars (length loc) b)
+  | ObjV c -> val_free_vars k c
+  | HomV (c,s,t) -> Set.union_list (module Int)
+                      [val_free_vars k c;
+                       val_free_vars k s;
+                       val_free_vars k t]
+  | CohV (g,a,sp) ->
+    Set.union (val_free_vars (k + length g) a) (sp_vars sp)
+  | CatV -> fvs_empty
+  | TypV -> fvs_empty 
 
 (*****************************************************************************)
 (*                                Typechecking                               *)
@@ -724,7 +789,9 @@ let insert gma m =
 type typing_error = [
   | `NameNotInScope of name
   | `IcityMismatch of icit * icit
+  | `TypeMismatch of string
   | `PastingError of string
+  | `FullnessError of string 
   | `InternalError
 ]
 
@@ -750,12 +817,18 @@ let rec check gma expr typ =
   | (HoleE , _) -> (* pr "fresh meta@,"; *)
     let mv = fresh_meta () in Ok mv
   
-  | (e, expected) ->
+  | (e, expected) -> 
     (* pr "switching mode@,";
      * pr "e: %a@," pp_expr e;
      * pr "exp: %a@," pp_term (quote gma.lvl expected false); *)
     let* (e',inferred) = insert gma (infer gma e) in
-    unify OneShot gma.top gma.lvl expected inferred ; Ok e'
+    try unify OneShot gma.top gma.lvl expected inferred ; Ok e'
+    with Unify_error _ ->
+      let inferred_nf = quote gma.lvl inferred false in
+      let expected_nf = quote gma.lvl expected false in 
+      let msg = str "@[<v>Type mismatch:@,Expression: %a@,Expected: %a@,Inferred: %a@,@]"
+          pp_expr e pp_term expected_nf pp_term inferred_nf
+      in Error (`TypeMismatch msg) 
 
 and infer gma expr = 
   (* pr "Inferring type of %a@," pp_expr expr ;
@@ -830,45 +903,131 @@ and infer gma expr =
 
 and with_tele gma tl m =
   match tl with
-  | Emp -> m gma Emp
-  | Ext (tl',(id,_,ty)) ->
-    with_tele gma tl' (fun g t ->
-        let* ty' = check g ty TypV in
-        let ty_v = eval g.top g.loc ty' in 
-        m (bind g id ty_v)
-          (Ext (t,ty_v)))
+  | Emp -> m gma Emp Emp
+  | Ext (tl',(id,ict,ty)) ->
+    with_tele gma tl' (fun g tv tt ->
+        let* ty_tm = check g ty TypV in
+        let ty_val = eval g.top g.loc ty_tm in 
+        m (bind g id ty_val)
+          (Ext (tv,ty_val))
+          (Ext (tt,(id,ict,ty_tm))))
 
-let rec abstract_tele tl ty tm =
+let rec abstract_tele tl ty =
+  match tl with
+  | Emp -> ty
+  | Ext (tl',(nm,ict,ty_tm)) ->
+    abstract_tele tl' (PiT (nm,ict,ty_tm,ty))
+
+let check_coh gma g a =
+  with_tele gma g (fun gma' gv gt ->
+      match ctx_to_pd gv with
+      | Ok (pd,_,_,_,_) ->
+
+        pr "Valid pasting context!@,";
+        let* a' = check gma' a CatV in
+        pr "return type: %a@," pp_term a';
+        let av = eval gma'.top gma'.loc a' in 
+        let (ucat,bdim) = underlying_cat av in
+        let cat_lvl = (length gma'.loc) - (length gv) in
+        let cat_idx = length gv - 1 in 
+        pr "cat_lvl: %d@," cat_lvl;
+        (try unify OneShot gma'.top gma'.lvl (varV cat_lvl) ucat;
+           pr "unification successful@,";
+
+           let a_fvs = val_free_vars (length gma'.loc) av in
+           pr "a_fvs: @[%a@]@," (list ~sep:(any ", ") int) (Set.to_list a_fvs);
+           
+           (match av with
+            | HomV (c,s,t) ->
+
+              let k = length gma'.loc in 
+              let cat_vars = val_free_vars k c in
+              let src_vars = val_free_vars k s in
+              let tgt_vars = val_free_vars k t in
+              let pd_dim = Pd.dim_pd pd in 
+
+              pr "bdim: %d@," bdim;
+              pr "pd_dim: %d@," pd_dim;
+              pr "cat_vars: %a@," (list int) (Set.to_list cat_vars);
+              pr "src_vars: %a@," (list int) (Set.to_list src_vars);
+              pr "tgt_vars: %a@," (list int) (Set.to_list tgt_vars);
+
+              if (bdim > pd_dim) then
+
+                let pd_vars = Set.of_list (module Int) (cat_idx::to_list (Pd.labels pd)) in
+                let tot_vars = Set.union cat_vars (Set.union src_vars tgt_vars) in
+
+                pr "cat_idx: %d@," cat_idx;
+                pr "pd_vars: @[<hov>%a@]@," (list ~sep:(any ", ") int) (Set.to_list pd_vars);
+                pr "tot_vars: @[<hov>%a@]@," (list ~sep:(any ", ") int) (Set.to_list tot_vars);
+                
+                if (not (Set.is_subset pd_vars ~of_:tot_vars)) then
+                  Error (`FullnessError "coherence case is not full")                 
+                else Ok (gt,a')
+
+              else
+
+                let pd_src = Pd.truncate true (pd_dim - 1) pd in
+                let pd_tgt = Pd.truncate false (pd_dim - 1) pd in
+
+                let pd_src_vars = Set.of_list (module Int) (cat_idx::to_list (Pd.labels pd_src)) in
+                let pd_tgt_vars = Set.of_list (module Int) (cat_idx::to_list (Pd.labels pd_tgt)) in
+
+                let tot_src_vars = Set.union cat_vars src_vars in
+                let tot_tgt_vars = Set.union cat_vars tgt_vars in
+
+                if (not (Set.is_subset pd_src_vars ~of_:tot_src_vars)) then
+                  Error (`FullnessError "non-full source")
+                else if (not (Set.is_subset pd_tgt_vars ~of_:tot_tgt_vars)) then
+                  Error (`FullnessError "non-full target")
+                else Ok (gt,a')
+
+            | _ -> Error (`FullnessError "invalid coherence return type"))
+
+
+         with Unify_error _ -> Error (`FullnessError "invalid base category"))
+
+      | Error msg -> Error (`PastingError msg))
+
+
+let rec abstract_tele_with_tm tl ty tm =
   match tl with
   | Emp -> (ty,tm)
   | Ext (tl',(nm,ict,expr)) ->
-    abstract_tele tl' (PiE (nm,ict,expr,ty)) (LamE (nm,ict,tm))
-    
+    abstract_tele_with_tm tl'
+      (PiE (nm,ict,expr,ty)) (LamE (nm,ict,tm))
+              
 let rec check_defs gma defs =
   match defs with
   | [] -> Ok gma
   | (TermDef (id,tl,ty,tm))::ds ->
     pr "----------------@,";
     pr "Checking definition: %s@," id;
-    let (abs_ty,abs_tm) = abstract_tele tl ty tm in
+    let (abs_ty,abs_tm) = abstract_tele_with_tm tl ty tm in
     let* ty_tm = check gma abs_ty TypV in
     let ty_val = eval gma.top gma.loc ty_tm in
     let* tm_tm = check gma abs_tm ty_val in
     let tm_val = eval gma.top gma.loc tm_tm in 
     pr "Checking complete for %s@," id;
-    let tm_nf = term_to_expr Emp (quote (gma.lvl) tm_val true) in
+    let tm_nf = term_to_expr Emp (quote (gma.lvl) tm_val false) in
     let ty_nf = term_to_expr Emp (quote (gma.lvl) ty_val false) in
     pr "Type: %a@," pp_expr ty_nf;
     pr "Term: %a@," pp_expr tm_nf;
     check_defs (define gma id tm_val ty_val) ds
-  | (CohDef (nm,g,_))::ds ->
+  | (CohDef (id,g,a))::ds ->
     pr "----------------@,";
-    pr "Checking coherence: %s@," nm; 
-    let* _ = with_tele gma g (fun _ gv ->
-        match ctx_to_pd gv with
-        | Ok (_,_,_,_,_) -> 
-          pr "Valid pasting context!@,"; Ok ()
-        | Error msg -> Error (`PastingError msg)
-      ) in check_defs gma ds
+    pr "Checking coherence: %s@," id;
+    let* (gt,at) = check_coh gma g a in
+    pr "got a result@,";
+    let coh_ty = eval gma.top gma.loc (abstract_tele gt at) in
+    let coh_tm = eval gma.top gma.loc (CohT (gt , at)) in
+    let coh_ty_nf = term_to_expr Emp (quote gma.lvl coh_ty false) in
+    (* let coh_tm_nf = term_to_expr Emp (quote gma.lvl coh_tm false) in *)
+    pr "Coh type: %a@," pp_expr coh_ty_nf;
+    (* pr "Coh term: %a@," pp_expr coh_tm_nf; *)
+    pr "Coh term raw: %a@," pp_term (CohT (gt,at));
+    pr "Coh term val: %a@," pp_value coh_tm; 
+    (* pr "Coh term nf: %a@," pp_term (quote gma.lvl coh_tm false); *)
+    check_defs (define gma id coh_tm coh_ty) ds
 
 
