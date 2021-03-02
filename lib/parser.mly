@@ -43,6 +43,8 @@ var_decl:
     { (id,Impl,ty) }
   | LPAR id = IDENT DBLCOLON c = expr RPAR
     { (id,Expl,ObjE c) }
+  | LBR id = IDENT DBLCOLON c = expr RBR
+    { (id,Impl,ObjE c) }
 
 pi_head:
   | v = var_decl

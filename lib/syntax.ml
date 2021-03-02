@@ -217,7 +217,8 @@ type value =
   | PiV of name * icit * value * closure 
   | ObjV of value
   | HomV of value * value * value
-  | CohV of value tele * value * spine
+  | CohV of top_env * loc_env * term tele * term * spine
+  (* | CohV of value tele * value * spine *)
   | CatV
   | TypV 
 
@@ -252,9 +253,9 @@ let rec pp_value ppf v =
     pf ppf "[%a]" pp_value c
   | HomV (_,s,t) ->
     pf ppf "%a => %a" pp_value s pp_value t
-  | CohV (g,a,sp) -> 
-    pf ppf "coh [ %a : %a ] %a" (pp_tele pp_value) g
-      pp_value a pp_spine sp
+  | CohV (_,_,g,a,sp) -> 
+    pf ppf "coh [ %a : %a ] %a" (pp_tele pp_term) g
+      pp_term a pp_spine sp
   | CatV -> pf ppf "Cat"
   | TypV -> pf ppf "U"
 
@@ -319,21 +320,21 @@ let rec eval top loc tm =
   | ObjT c -> ObjV (eval top loc c)
   | HomT (c,s,t) ->
     HomV (eval top loc c, eval top loc s, eval top loc t)
-  | CohT (g,a) ->
+  | CohT (g,a) -> CohV (top,loc,g,a,Emp)
 
-    let rec go g loc k gv m =
-      match g with
-      | Emp -> m loc k gv 
-      | Ext (g',(nm,ict,ty)) ->
-        go g' loc k gv
-          (fun loc' _ gv' ->
-             let ty_v = eval top loc' ty in
-             m (Ext (loc', varV 0)) (k+1)
-               (Ext (gv',(nm,ict,ty_v))))
-          
-    in go g loc (length loc) Emp
-      (fun loc' _ gv' ->
-         CohV (gv', eval top loc' a, Emp))
+    (* let rec go g loc k gv m =
+     *   match g with
+     *   | Emp -> m loc k gv 
+     *   | Ext (g',(nm,ict,ty)) ->
+     *     go g' loc k gv
+     *       (fun loc' _ gv' ->
+     *          let ty_v = eval top loc' ty in
+     *          m (Ext (loc', varV 0)) (k+1)
+     *            (Ext (gv',(nm,ict,ty_v))))
+     *       
+     * in go g loc (length loc) Emp
+     *   (fun loc' _ gv' ->
+     *      CohV (gv', eval top loc' a, Emp)) *)
     
   | CatT -> CatV
   | TypT -> TypV
@@ -356,7 +357,7 @@ and appV t u ict =
   | FlexV (m,sp) -> FlexV (m,Ext(sp,(u,ict)))
   | RigidV (i,sp) -> RigidV (i,Ext(sp,(u,ict)))
   | TopV (nm,sp,tv) -> TopV (nm,Ext(sp,(u,ict)),appV tv u ict)
-  | CohV (g,a,sp) -> CohV (g,a,Ext(sp,(u,ict)))
+  | CohV (top,loc,g,a,sp) -> CohV (top,loc,g,a,Ext(sp,(u,ict)))
   | LamV (_,_,cl) -> cl $$ u
   | PiV (_,_,_,_) -> raise (Eval_error "malformed app: pi")
   | ObjV _ -> raise (Eval_error "malformed app: obj")
@@ -398,18 +399,21 @@ let rec quote k v ufld =
   | PiV (nm,ict,u,cl) -> PiT (nm, ict, quote k u ufld, quote (k+1) (cl $$ varV k) ufld)
   | ObjV c -> ObjT (quote k c ufld)
   | HomV (c,s,t) -> HomT (quote k c ufld, quote k s ufld, quote k t ufld)
-  | CohV (g,a,sp) ->
+  | CohV (_,_,g,a,sp) ->
 
-    let rec go g k gt m =
-      match g with
-      | Emp -> m k gt
-      | Ext (g',(nm,ict,ty)) ->
-        go g' k gt (fun k' gt' ->
-            let tyt = quote k' ty ufld in
-            m (k' + 1) (Ext (gt',(nm,ict,tyt))))
-    in let (gt,at) = go g k Emp
-           (fun k' gt' -> (gt', quote k' a ufld)) in
-    quote_sp k (CohT (gt,at)) sp ufld
+    (* FIXME : this should actually evaluate! *)
+    quote_sp k (CohT (g,a)) sp ufld
+    
+    (* let rec go g k gt m =
+     *   match g with
+     *   | Emp -> m k gt
+     *   | Ext (g',(nm,ict,ty)) ->
+     *     go g' k gt (fun k' gt' ->
+     *         let tyt = quote k' ty ufld in
+     *         m (k' + 1) (Ext (gt',(nm,ict,tyt))))
+     * in let (gt,at) = go g k Emp
+     *        (fun k' gt' -> (gt', quote k' a ufld)) in
+     * quote_sp k (CohT (gt,at)) sp ufld *)
       
   | CatV -> CatT
   | TypV -> TypT
@@ -479,20 +483,23 @@ let rename m pren v =
     | PiV (nm,ict,a,b) -> PiT (nm, ict, go pr a, go (lift pr) (b $$ varV pr.cod))
     | ObjV c -> ObjT (go pr c)
     | HomV (c,s,t) -> HomT (go pr c, go pr s, go pr t)
-    | CohV (g,a,sp) ->
+    | CohV (_,_,g,a,sp) ->
 
-      let rec coh_go g pr gt m =
-        match g with
-        | Emp -> m pr gt
-        | Ext (g',(nm,ict,ty)) ->
-          coh_go g' pr gt (fun pr' gt' ->
-              let tyt = go pr' ty in
-              m (lift pr') (Ext (gt',(nm,ict,tyt))))
-            
-      in let (gt,at) = coh_go g pr Emp
-             (fun pr' gt' -> (gt' , go pr' a))
-             
-      in goSp pr (CohT (gt,at)) sp
+      (* FIXME : evaluate *)
+      goSp pr (CohT (g,a)) sp
+        
+      (* let rec coh_go g pr gt m =
+       *   match g with
+       *   | Emp -> m pr gt
+       *   | Ext (g',(nm,ict,ty)) ->
+       *     coh_go g' pr gt (fun pr' gt' ->
+       *         let tyt = go pr' ty in
+       *         m (lift pr') (Ext (gt',(nm,ict,tyt))))
+       *       
+       * in let (gt,at) = coh_go g pr Emp
+       *        (fun pr' gt' -> (gt' , go pr' a))
+       *        
+       * in goSp pr (CohT (gt,at)) sp *)
         
     | CatV -> CatT
     | TypV -> TypT
@@ -754,8 +761,8 @@ let rec val_free_vars k v =
                       [val_free_vars k c;
                        val_free_vars k s;
                        val_free_vars k t]
-  | CohV (g,a,sp) ->
-    Set.union (val_free_vars (k + length g) a) (sp_vars sp)
+  | CohV (_,l,g,a,sp) ->
+    Set.union (free_vars (length l + length g) a) (sp_vars sp)
   | CatV -> fvs_empty
   | TypV -> fvs_empty 
 
@@ -948,9 +955,9 @@ let check_coh gma g a =
 
               pr "bdim: %d@," bdim;
               pr "pd_dim: %d@," pd_dim;
-              pr "cat_vars: %a@," (list int) (Set.to_list cat_vars);
-              pr "src_vars: %a@," (list int) (Set.to_list src_vars);
-              pr "tgt_vars: %a@," (list int) (Set.to_list tgt_vars);
+              pr "cat_vars: @[%a@]@," (list ~sep:(any ", ") int) (Set.to_list cat_vars);
+              pr "src_vars: @[%a@]@," (list ~sep:(any ", ") int) (Set.to_list src_vars);
+              pr "tgt_vars: @[%a@]@," (list ~sep:(any ", ") int) (Set.to_list tgt_vars);
 
               if (bdim > pd_dim) then
 
@@ -1019,14 +1026,14 @@ let rec check_defs gma defs =
     pr "Checking coherence: %s@," id;
     let* (gt,at) = check_coh gma g a in
     pr "got a result@,";
-    let coh_ty = eval gma.top gma.loc (abstract_tele gt at) in
+    let coh_ty = eval gma.top gma.loc (abstract_tele gt (ObjT at)) in
     let coh_tm = eval gma.top gma.loc (CohT (gt , at)) in
     let coh_ty_nf = term_to_expr Emp (quote gma.lvl coh_ty false) in
-    (* let coh_tm_nf = term_to_expr Emp (quote gma.lvl coh_tm false) in *)
+    let coh_tm_nf = term_to_expr Emp (quote gma.lvl coh_tm false) in
     pr "Coh type: %a@," pp_expr coh_ty_nf;
-    (* pr "Coh term: %a@," pp_expr coh_tm_nf; *)
-    pr "Coh term raw: %a@," pp_term (CohT (gt,at));
-    pr "Coh term val: %a@," pp_value coh_tm; 
+    pr "Coh term: %a@," pp_expr coh_tm_nf;
+    (* pr "Coh term raw: %a@," pp_term (CohT (gt,at));
+     * pr "Coh term val: %a@," pp_value coh_tm;  *)
     (* pr "Coh term nf: %a@," pp_term (quote gma.lvl coh_tm false); *)
     check_defs (define gma id coh_tm coh_ty) ds
 
