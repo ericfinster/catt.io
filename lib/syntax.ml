@@ -89,7 +89,7 @@ let rec pp_expr ppf expr =
   | HomE (c,s,t) ->
     pf ppf "%a | %a => %a" pp_expr c pp_expr s pp_expr t
   | CohE (g,a) ->
-    pf ppf "coh [ %a : %a ]" (pp_tele pp_expr) g pp_expr a
+    pf ppf "coh @[[ %a : %a ]@]" (pp_tele pp_expr) g pp_expr a
   | CatE -> string ppf "Cat"
   | TypE -> string ppf "U"
   | HoleE -> string ppf "_"
@@ -150,6 +150,20 @@ let rec term_to_expr nms tm =
   (* Somewhat dubious, since we lose the implicit application ... *)
   | InsMetaT _ -> HoleE
 
+let rec tele_to_pi tl ty =
+  match tl with
+  | Emp -> ty
+  | Ext (tl',(nm,ict,ty_tm)) ->
+    tele_to_pi tl' (PiT (nm,ict,ty_tm,ty))
+
+let pi_to_tele ty =
+  let rec go tl ty = 
+    match ty with
+    | PiT (nm,ict,a,b) ->
+      go (Ext (tl,(nm,ict,a))) b
+    | _ -> (tl,ty)
+  in go Emp ty
+
 (*****************************************************************************)
 (*                      Pretty printing internal syntax                      *)
 (*****************************************************************************)
@@ -193,10 +207,10 @@ let rec pp_term ppf tm =
       pp_term a pp_term p
   | ObjT c ->
     pf ppf "[%a]" pp_term c
-  | HomT (_,s,t) ->
-    pf ppf "%a => %a" pp_term s pp_term t
+  | HomT (c,s,t) ->
+    pf ppf "%a | %a => %a" pp_term c pp_term s pp_term t
   | CohT (g,a) ->
-    pf ppf "coh [ %a : %a ]" (pp_tele pp_term) g pp_term a
+    pf ppf "coh @[[ %a : %a ]@]" (pp_tele pp_term) g pp_term a
   | CatT -> pf ppf "Cat"
   | TypT -> pf ppf "U"
   | MetaT _ -> pf ppf "_"
@@ -217,7 +231,7 @@ type value =
   | PiV of name * icit * value * closure 
   | ObjV of value
   | HomV of value * value * value
-  | CohV of top_env * loc_env * term tele * term * spine
+  | CohV of value * spine
   (* | CohV of value tele * value * spine *)
   | CatV
   | TypV 
@@ -253,9 +267,9 @@ let rec pp_value ppf v =
     pf ppf "[%a]" pp_value c
   | HomV (_,s,t) ->
     pf ppf "%a => %a" pp_value s pp_value t
-  | CohV (_,_,g,a,sp) -> 
-    pf ppf "coh [ %a : %a ] %a" (pp_tele pp_term) g
-      pp_term a pp_spine sp
+  | CohV (v,sp) -> 
+    pf ppf "coh @[%a@] %a" 
+      pp_value v pp_spine sp
   | CatV -> pf ppf "Cat"
   | TypV -> pf ppf "U"
 
@@ -320,7 +334,7 @@ let rec eval top loc tm =
   | ObjT c -> ObjV (eval top loc c)
   | HomT (c,s,t) ->
     HomV (eval top loc c, eval top loc s, eval top loc t)
-  | CohT (g,a) -> CohV (top,loc,g,a,Emp)
+  | CohT (g,a) -> CohV (eval top loc (tele_to_pi g a),Emp)
 
     (* let rec go g loc k gv m =
      *   match g with
@@ -357,7 +371,7 @@ and appV t u ict =
   | FlexV (m,sp) -> FlexV (m,Ext(sp,(u,ict)))
   | RigidV (i,sp) -> RigidV (i,Ext(sp,(u,ict)))
   | TopV (nm,sp,tv) -> TopV (nm,Ext(sp,(u,ict)),appV tv u ict)
-  | CohV (top,loc,g,a,sp) -> CohV (top,loc,g,a,Ext(sp,(u,ict)))
+  | CohV (v,sp) -> CohV (v,Ext(sp,(u,ict)))
   | LamV (_,_,cl) -> cl $$ u
   | PiV (_,_,_,_) -> raise (Eval_error "malformed app: pi")
   | ObjV _ -> raise (Eval_error "malformed app: obj")
@@ -399,22 +413,12 @@ let rec quote k v ufld =
   | PiV (nm,ict,u,cl) -> PiT (nm, ict, quote k u ufld, quote (k+1) (cl $$ varV k) ufld)
   | ObjV c -> ObjT (quote k c ufld)
   | HomV (c,s,t) -> HomT (quote k c ufld, quote k s ufld, quote k t ufld)
-  | CohV (_,_,g,a,sp) ->
+  | CohV (v,sp) ->
 
-    (* FIXME : this should actually evaluate! *)
+    let pi_tm = quote k v ufld in
+    let (g,a) = pi_to_tele pi_tm in
     quote_sp k (CohT (g,a)) sp ufld
     
-    (* let rec go g k gt m =
-     *   match g with
-     *   | Emp -> m k gt
-     *   | Ext (g',(nm,ict,ty)) ->
-     *     go g' k gt (fun k' gt' ->
-     *         let tyt = quote k' ty ufld in
-     *         m (k' + 1) (Ext (gt',(nm,ict,tyt))))
-     * in let (gt,at) = go g k Emp
-     *        (fun k' gt' -> (gt', quote k' a ufld)) in
-     * quote_sp k (CohT (gt,at)) sp ufld *)
-      
   | CatV -> CatT
   | TypV -> TypT
 
@@ -483,24 +487,12 @@ let rename m pren v =
     | PiV (nm,ict,a,b) -> PiT (nm, ict, go pr a, go (lift pr) (b $$ varV pr.cod))
     | ObjV c -> ObjT (go pr c)
     | HomV (c,s,t) -> HomT (go pr c, go pr s, go pr t)
-    | CohV (_,_,g,a,sp) ->
+    | CohV (v,sp) ->
 
-      (* FIXME : evaluate *)
-      goSp pr (CohT (g,a)) sp
-        
-      (* let rec coh_go g pr gt m =
-       *   match g with
-       *   | Emp -> m pr gt
-       *   | Ext (g',(nm,ict,ty)) ->
-       *     coh_go g' pr gt (fun pr' gt' ->
-       *         let tyt = go pr' ty in
-       *         m (lift pr') (Ext (gt',(nm,ict,tyt))))
-       *       
-       * in let (gt,at) = coh_go g pr Emp
-       *        (fun pr' gt' -> (gt' , go pr' a))
-       *        
-       * in goSp pr (CohT (gt,at)) sp *)
-        
+      let pi_tm = go pr v in
+      let (g,a) = pi_to_tele pi_tm in
+      goSp pr (CohT (g,a)) sp 
+
     | CatV -> CatT
     | TypV -> TypT
 
@@ -520,7 +512,7 @@ let solve top k m sp v =
   let rhs = rename m prn v in
   let sol = eval top Emp (lams (rev (map_suite sp ~f:snd)) rhs) in
   let mctx = ! metacontext in
-  pr "Meta solution : ?%d = %a@," m pp_value sol;
+  (* pr "Meta solution : ?%d = %a@," m pp_value sol; *)
   metacontext := Map.update mctx m ~f:(fun _ -> Solved sol)
 
 type strategy =
@@ -761,8 +753,8 @@ let rec val_free_vars k v =
                       [val_free_vars k c;
                        val_free_vars k s;
                        val_free_vars k t]
-  | CohV (_,l,g,a,sp) ->
-    Set.union (free_vars (length l + length g) a) (sp_vars sp)
+  | CohV (v,sp) ->
+    Set.union (val_free_vars k v) (sp_vars sp)
   | CatV -> fvs_empty
   | TypV -> fvs_empty 
 
@@ -919,12 +911,6 @@ and with_tele gma tl m =
           (Ext (tv,ty_val))
           (Ext (tt,(id,ict,ty_tm))))
 
-let rec abstract_tele tl ty =
-  match tl with
-  | Emp -> ty
-  | Ext (tl',(nm,ict,ty_tm)) ->
-    abstract_tele tl' (PiT (nm,ict,ty_tm,ty))
-
 let check_coh gma g a =
   with_tele gma g (fun gma' gv gt ->
       match ctx_to_pd gv with
@@ -932,17 +918,13 @@ let check_coh gma g a =
 
         pr "Valid pasting context!@,";
         let* a' = check gma' a CatV in
-        pr "return type: %a@," pp_term a';
+        (* pr "return type: %a@," pp_term a'; *)
         let av = eval gma'.top gma'.loc a' in 
         let (ucat,bdim) = underlying_cat av in
         let cat_lvl = (length gma'.loc) - (length gv) in
         let cat_idx = length gv - 1 in 
-        pr "cat_lvl: %d@," cat_lvl;
+        (* pr "cat_lvl: %d@," cat_lvl; *)
         (try unify OneShot gma'.top gma'.lvl (varV cat_lvl) ucat;
-           pr "unification successful@,";
-
-           let a_fvs = val_free_vars (length gma'.loc) av in
-           pr "a_fvs: @[%a@]@," (list ~sep:(any ", ") int) (Set.to_list a_fvs);
            
            (match av with
             | HomV (c,s,t) ->
@@ -953,20 +935,20 @@ let check_coh gma g a =
               let tgt_vars = val_free_vars k t in
               let pd_dim = Pd.dim_pd pd in 
 
-              pr "bdim: %d@," bdim;
-              pr "pd_dim: %d@," pd_dim;
-              pr "cat_vars: @[%a@]@," (list ~sep:(any ", ") int) (Set.to_list cat_vars);
-              pr "src_vars: @[%a@]@," (list ~sep:(any ", ") int) (Set.to_list src_vars);
-              pr "tgt_vars: @[%a@]@," (list ~sep:(any ", ") int) (Set.to_list tgt_vars);
+              (* pr "bdim: %d@," bdim;
+               * pr "pd_dim: %d@," pd_dim;
+               * pr "cat_vars: @[%a@]@," (list ~sep:(any ", ") int) (Set.to_list cat_vars);
+               * pr "src_vars: @[%a@]@," (list ~sep:(any ", ") int) (Set.to_list src_vars);
+               * pr "tgt_vars: @[%a@]@," (list ~sep:(any ", ") int) (Set.to_list tgt_vars); *)
 
               if (bdim > pd_dim) then
 
                 let pd_vars = Set.of_list (module Int) (cat_idx::to_list (Pd.labels pd)) in
                 let tot_vars = Set.union cat_vars (Set.union src_vars tgt_vars) in
 
-                pr "cat_idx: %d@," cat_idx;
-                pr "pd_vars: @[<hov>%a@]@," (list ~sep:(any ", ") int) (Set.to_list pd_vars);
-                pr "tot_vars: @[<hov>%a@]@," (list ~sep:(any ", ") int) (Set.to_list tot_vars);
+                (* pr "cat_idx: %d@," cat_idx;
+                 * pr "pd_vars: @[<hov>%a@]@," (list ~sep:(any ", ") int) (Set.to_list pd_vars);
+                 * pr "tot_vars: @[<hov>%a@]@," (list ~sep:(any ", ") int) (Set.to_list tot_vars); *)
                 
                 if (not (Set.is_subset pd_vars ~of_:tot_vars)) then
                   Error (`FullnessError "coherence case is not full")                 
@@ -1025,16 +1007,15 @@ let rec check_defs gma defs =
     pr "----------------@,";
     pr "Checking coherence: %s@," id;
     let* (gt,at) = check_coh gma g a in
-    pr "got a result@,";
-    let coh_ty = eval gma.top gma.loc (abstract_tele gt (ObjT at)) in
+    let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
     let coh_tm = eval gma.top gma.loc (CohT (gt , at)) in
     let coh_ty_nf = term_to_expr Emp (quote gma.lvl coh_ty false) in
     let coh_tm_nf = term_to_expr Emp (quote gma.lvl coh_tm false) in
     pr "Coh type: %a@," pp_expr coh_ty_nf;
-    pr "Coh term: %a@," pp_expr coh_tm_nf;
     (* pr "Coh term raw: %a@," pp_term (CohT (gt,at));
-     * pr "Coh term val: %a@," pp_value coh_tm;  *)
-    (* pr "Coh term nf: %a@," pp_term (quote gma.lvl coh_tm false); *)
+     * pr "Coh term val: %a@," pp_value coh_tm;
+     * pr "Coh term nf: %a@," pp_term (quote gma.lvl coh_tm false); *)
+    pr "Coh expr: %a@," pp_expr coh_tm_nf;
     check_defs (define gma id coh_tm coh_ty) ds
 
 
