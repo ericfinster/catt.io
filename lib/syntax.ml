@@ -132,25 +132,31 @@ type term =
   | ObjT of term
   | HomT of term * term * term
   | CohT of term tele * term
+  | CylT of term * term * term
+  | BaseT of term
+  | LidT of term
+  | CoreT of term 
+  | ArrT of term
   | CatT
   | TypT
   | MetaT of mvar
   | InsMetaT of mvar 
     
-let rec term_to_expr nms tm = 
+let rec term_to_expr nms tm =
+  let tte = term_to_expr in 
   match tm with
   | VarT i ->
     let nm = db_get i nms in VarE nm
   | TopT nm -> VarE nm
   | LamT (nm,ict,bdy) ->
-    LamE (nm, ict, term_to_expr (Ext (nms,nm)) bdy)
+    LamE (nm, ict, tte (Ext (nms,nm)) bdy)
   | AppT (u,v,ict) ->
-    AppE (term_to_expr nms u, term_to_expr nms v, ict)
+    AppE (tte nms u, tte nms v, ict)
   | PiT (nm,ict,a,b) ->
-    PiE (nm, ict, term_to_expr nms a, term_to_expr (Ext (nms,nm)) b)
-  | ObjT c -> ObjE (term_to_expr nms c)
+    PiE (nm, ict, tte nms a, tte (Ext (nms,nm)) b)
+  | ObjT c -> ObjE (tte nms c)
   | HomT (c,s,t) ->
-    HomE (term_to_expr nms c, term_to_expr nms s, term_to_expr nms t)
+    HomE (tte nms c, tte nms s, tte nms t)
   | CohT (g,a) ->
 
     let rec go g nms m =
@@ -158,14 +164,18 @@ let rec term_to_expr nms tm =
       | Emp -> m nms Emp
       | Ext (g',(nm,ict,ty)) ->
         go g' nms (fun nms' ge' ->
-            let e = term_to_expr nms' ty in
+            let e = tte nms' ty in
             m (Ext (nms',nm))
               (Ext (ge',(nm,ict,e))))
 
-    in let (ge,ae) = go g nms
-           (fun nms' ge' -> (ge' , term_to_expr nms' a))
-    in CohE (ge, ae)
+    in go g nms (fun nms' ge' -> CohE (ge' , tte nms' a))
 
+  | CylT (b,l,c) ->
+    CylE (tte nms b, tte nms l, tte nms c)
+  | BaseT c -> BaseE (tte nms c)
+  | LidT c -> LidE (tte nms c)
+  | CoreT c -> CoreE (tte nms c)
+  | ArrT c -> ArrE (tte nms c)
   | CatT -> CatE 
   | TypT -> TypE
   | MetaT _ -> HoleE
@@ -233,6 +243,12 @@ let rec pp_term ppf tm =
     pf ppf "%a | %a => %a" pp_term c pp_term s pp_term t
   | CohT (g,a) ->
     pf ppf "coh @[[ %a : %a ]@]" (pp_tele pp_term) g pp_term a
+  | CylT (b,l,c) ->
+    pf ppf "[| %a | %a | %a |]" pp_term b pp_term l pp_term c
+  | BaseT c -> pf ppf "base %a" pp_term c
+  | LidT c -> pf ppf "lid %a" pp_term c
+  | CoreT c -> pf ppf "core %a" pp_term c
+  | ArrT c -> pf ppf "Arr %a" pp_term c
   | CatT -> pf ppf "Cat"
   | TypT -> pf ppf "U"
   | MetaT _ -> pf ppf "_"
@@ -254,24 +270,30 @@ type value =
   | ObjV of value
   | HomV of value * value * value
   | CohV of value * spine
-  (* | CohV of value tele * value * spine *)
+  | CylV of value * value * value
+  | ArrV of value
   | CatV
   | TypV 
 
+and spine =
+  | EmpSp
+  | AppSp of spine * value * icit
+  | BaseSp of spine
+  | LidSp of spine
+  | CoreSp of spine
+
 and top_env = (name * value) suite
 and loc_env = value suite
-and spine = (value * icit) suite
-
 and closure =
   | Closure of top_env * loc_env * term
 
-let varV k = RigidV (k,Emp)
+let varV k = RigidV (k,EmpSp)
 
 let rec pp_value ppf v =
   match v with
   | FlexV (m,sp) ->
     pf ppf "?%d %a" m pp_spine sp
-  | RigidV (i,Emp) -> pf ppf "%d" i 
+  | RigidV (i,EmpSp) -> pf ppf "%d" i 
   | RigidV (i,sp) -> pf ppf "%d %a" i pp_spine sp
   | TopV (nm,sp,_) ->
     pf ppf "%s %a" nm pp_spine sp
@@ -292,22 +314,30 @@ let rec pp_value ppf v =
   | CohV (v,sp) -> 
     pf ppf "coh @[%a@] %a" 
       pp_value v pp_spine sp
+  | CylV (b,l,c) ->
+    pf ppf "[| %a | %a | %a |]"
+      pp_value b pp_value l pp_value c
+  | ArrV c ->
+    pf ppf "Arr %a" pp_value c
   | CatV -> pf ppf "Cat"
   | TypV -> pf ppf "U"
 
 and pp_spine ppf sp =
-  let pp_v ppf (v,ict) =
-    match ict with
-    | Expl -> pp_value ppf v
-    | Impl -> pf ppf "{%a}" pp_value v
-  in pp_suite pp_v ppf sp
+  match sp with
+  | EmpSp -> ()
+  | AppSp (sp',v,Expl) ->
+    pf ppf "%a %a" pp_spine sp' pp_value v
+  | AppSp (sp',v,Impl) ->
+    pf ppf "%a {%a}" pp_spine sp' pp_value v
+  | BaseSp sp' -> 
+    pf ppf "base %a" pp_spine sp'
+  | LidSp sp' ->
+    pf ppf "lid %a" pp_spine sp'
+  | CoreSp sp' ->
+    pf ppf "core %a" pp_spine sp'
 
-let pp_top_env =
-  hovbox (pp_suite (parens (pair ~sep:(any " : ") string pp_value)))
-
-let pp_loc_env =
-  hovbox (pp_suite ~sep:comma pp_value)
-
+let pp_top_env = hovbox (pp_suite (parens (pair ~sep:(any " : ") string pp_value)))
+let pp_loc_env = hovbox (pp_suite ~sep:comma pp_value)
 
 (*****************************************************************************)
 (*                           Metavariable Context                            *)
@@ -345,7 +375,7 @@ let rec eval top loc tm =
     (try db_get i loc
      with Lookup_error ->
        raise (Eval_error (str "Index out of range: %d" i)))
-  | TopT nm -> TopV (nm,Emp,(
+  | TopT nm -> TopV (nm,EmpSp,(
       try assoc nm top
       with Lookup_error ->
         raise (Eval_error (str "Unknown id during eval: %s" nm))        
@@ -356,32 +386,20 @@ let rec eval top loc tm =
   | ObjT c -> ObjV (eval top loc c)
   | HomT (c,s,t) ->
     HomV (eval top loc c, eval top loc s, eval top loc t)
-  | CohT (g,a) -> CohV (eval top loc (tele_to_pi g a),Emp)
-
-    (* let rec go g loc k gv m =
-     *   match g with
-     *   | Emp -> m loc k gv 
-     *   | Ext (g',(nm,ict,ty)) ->
-     *     go g' loc k gv
-     *       (fun loc' _ gv' ->
-     *          let ty_v = eval top loc' ty in
-     *          m (Ext (loc', varV 0)) (k+1)
-     *            (Ext (gv',(nm,ict,ty_v))))
-     *       
-     * in go g loc (length loc) Emp
-     *   (fun loc' _ gv' ->
-     *      CohV (gv', eval top loc' a, Emp)) *)
-    
+  | CohT (g,a) -> CohV (eval top loc (tele_to_pi g a),EmpSp)
+  | CylT (b,l,c) -> CylV (eval top loc b, eval top loc l, eval top loc c)
+  | BaseT c -> baseV (eval top loc c)
+  | LidT c -> lidV (eval top loc c)
+  | CoreT c -> coreV (eval top loc c)
+  | ArrT c -> ArrV (eval top loc c)
   | CatT -> CatV
   | TypT -> TypV
   | MetaT m -> metaV m
-  | InsMetaT m ->
-    (* pr "Expanding meta %d with local context: %a@," m pp_loc_env loc;  *)
-    appLocV loc (metaV m)
+  | InsMetaT m -> appLocV loc (metaV m)
 
 and metaV m =
   match lookup_meta m with
-  | Unsolved -> FlexV (m, Emp)
+  | Unsolved -> FlexV (m, EmpSp)
   | Solved v -> v 
 
 and ($$) c v =
@@ -390,33 +408,59 @@ and ($$) c v =
 
 and appV t u ict =
   match t with
-  | FlexV (m,sp) -> FlexV (m,Ext(sp,(u,ict)))
-  | RigidV (i,sp) -> RigidV (i,Ext(sp,(u,ict)))
-  | TopV (nm,sp,tv) -> TopV (nm,Ext(sp,(u,ict)),appV tv u ict)
-  | CohV (v,sp) -> CohV (v,Ext(sp,(u,ict)))
+  | FlexV (m,sp) -> FlexV (m,AppSp(sp,u,ict))
+  | RigidV (i,sp) -> RigidV (i,AppSp(sp,u,ict))
+  | TopV (nm,sp,tv) -> TopV (nm,AppSp(sp,u,ict),appV tv u ict)
+  | CohV (v,sp) -> CohV (v,AppSp(sp,u,ict))
   | LamV (_,_,cl) -> cl $$ u
-  | PiV (_,_,_,_) -> raise (Eval_error "malformed app: pi")
-  | ObjV _ -> raise (Eval_error "malformed app: obj")
-  | HomV (_,_,_) -> raise (Eval_error "malformed app: hom")
-  | CatV -> raise (Eval_error "malformed app: cat")
-  | TypV -> raise (Eval_error "malformed app: typ")
+  | _ -> raise (Eval_error "malformed application")
+
+and baseV v =
+  match v with
+  | FlexV (m,sp) -> FlexV (m,BaseSp sp)
+  | RigidV (i,sp) -> RigidV (i,BaseSp sp)
+  | TopV (nm,sp,tv) -> TopV (nm,BaseSp sp, baseV tv)
+  | CohV (ga,sp) -> CohV (ga,BaseSp sp)
+  | CylV (b,_,_) -> b 
+  | _ -> raise (Eval_error "malformed base projection")
+
+and lidV v =
+  match v with
+  | FlexV (m,sp) -> FlexV (m,LidSp sp)
+  | RigidV (i,sp) -> RigidV (i,LidSp sp)
+  | TopV (nm,sp,tv) -> TopV (nm,LidSp sp, lidV tv)
+  | CohV (ga,sp) -> CohV (ga,LidSp sp)
+  | CylV (_,l,_) -> l
+  | _ -> raise (Eval_error "malformed lid projection")
+
+and coreV v =
+  match v with
+  | FlexV (m,sp) -> FlexV (m,CoreSp sp)
+  | RigidV (i,sp) -> RigidV (i,CoreSp sp)
+  | TopV (nm,sp,tv) -> TopV (nm,CoreSp sp, coreV tv)
+  | CohV (ga,sp) -> CohV (ga,CoreSp sp)
+  | CylV (_,_,c) -> c
+  | _ -> raise (Eval_error "malformed core projection")
 
 and appLocV loc v =
   match loc with
   | Emp -> v
   | Ext (loc',u) -> appV (appLocV loc' v) u Expl
 
-let rec appSpV v sp =
+let rec runSpV v sp =
   match sp with
-  | Emp -> v
-  | Ext (sp',(u,ict)) -> appV (appSpV v sp') u ict
+  | EmpSp -> v
+  | AppSp (sp',u,ict) -> appV (runSpV v sp') u ict
+  | BaseSp sp' -> baseV (runSpV v sp')
+  | LidSp sp' -> lidV (runSpV v sp')
+  | CoreSp sp' -> coreV (runSpV v sp')
 
 let rec force_meta v =
   match v with
   | FlexV (m,sp) ->
     (match lookup_meta m with
      | Unsolved -> FlexV (m,sp)
-     | Solved v -> force_meta (appSpV v sp))
+     | Solved v -> force_meta (runSpV v sp))
   | _ -> v
 
 (*****************************************************************************)
@@ -426,29 +470,38 @@ let rec force_meta v =
 let lvl_to_idx k l = k - l - 1
 
 let rec quote k v ufld =
+  let qc x = quote k x ufld in
+  let qcs x s = quote_sp k x s ufld in 
   match v with
-  | FlexV (m,sp) -> quote_sp k (MetaT m) sp ufld
-  | RigidV (l,sp) -> quote_sp k (VarT (lvl_to_idx k l)) sp ufld
-  | TopV (_,_,tv) when ufld -> quote k tv ufld
-  | TopV (nm,sp,_) -> quote_sp k (TopT nm) sp ufld
+  | FlexV (m,sp) -> qcs (MetaT m) sp 
+  | RigidV (l,sp) -> qcs (VarT (lvl_to_idx k l)) sp 
+  | TopV (_,_,tv) when ufld -> qc tv 
+  | TopV (nm,sp,_) -> qcs (TopT nm) sp 
   | LamV (nm,ict,cl) -> LamT (nm, ict, quote (k+1) (cl $$ varV k) ufld)
-  | PiV (nm,ict,u,cl) -> PiT (nm, ict, quote k u ufld, quote (k+1) (cl $$ varV k) ufld)
-  | ObjV c -> ObjT (quote k c ufld)
-  | HomV (c,s,t) -> HomT (quote k c ufld, quote k s ufld, quote k t ufld)
+  | PiV (nm,ict,u,cl) -> PiT (nm, ict, qc u, quote (k+1) (cl $$ varV k) ufld)
+  | ObjV c -> ObjT (qc c)
+  | HomV (c,s,t) -> HomT (qc c, qc s, qc t)
   | CohV (v,sp) ->
 
     let pi_tm = quote k v ufld in
     let (g,a) = pi_to_tele pi_tm in
-    quote_sp k (CohT (g,a)) sp ufld
-    
+    qcs (CohT (g,a)) sp 
+
+  | CylV (b,l,c) -> CylT (qc b, qc l, qc c)
+  | ArrV c -> ArrT (qc c)
   | CatV -> CatT
   | TypV -> TypT
 
 and quote_sp k t sp ufld =
+  let qc x = quote k x ufld in
+  let qcs x s = quote_sp k x s ufld in 
   match sp with
-  | Emp -> t
-  | Ext (sp',(u,ict)) ->
-    AppT (quote_sp k t sp' ufld, quote k u ufld, ict)
+  | EmpSp -> t
+  | AppSp (sp',u,ict) ->
+    AppT (qcs t sp',qc u,ict)
+  | BaseSp sp' -> BaseT (qcs t sp')
+  | LidSp sp' -> LidT (qcs t sp')
+  | CoreSp sp' -> CoreT (qcs t sp')
 
 let nf top loc tm =
   quote (length loc) (eval top loc tm) true
@@ -474,26 +527,30 @@ let lift pren = {
 exception Unify_error of string
     
 let invert cod sp =
-  let rec go = function
-    | Emp -> (0, Map.empty (module Int))
-    | Ext (sp',(u,_)) ->
+
+  let rec go sp =
+    match sp with
+    | EmpSp -> (0, Map.empty (module Int))
+    | AppSp (sp',u,_) ->
       let (dom, ren) = go sp' in
       (match force_meta u with
-       | RigidV (l,Emp) ->
+       | RigidV (l,EmpSp) ->
          (match Map.add ren ~key:l ~data:dom  with
           | `Ok ren' -> (dom + 1,ren')
           | `Duplicate -> raise (Unify_error "non-linear pattern"))
-       | _ -> raise (Unify_error "meta-var applied to non-bound-variable")) in 
-  let (dom,ren) = go sp in
-  { dom = dom ; cod = cod ; ren = ren }
+       | _ -> raise (Unify_error "meta-var applied to non-bound-variable"))
+
+    (* TODO: More sophisticated unification here? *)
+    | BaseSp _ -> raise (Unify_error "base projected spine")
+    | LidSp _ -> raise (Unify_error "lid projected spine")
+    | CoreSp _ -> raise (Unify_error "core projected spine")
+
+  in let (dom,ren) = go sp
+  in { dom = dom ; cod = cod ; ren = ren }
 
 let rename m pren v =
 
-  let rec goSp pr v = function
-    | Emp -> v
-    | Ext (sp,(u,ict)) -> AppT (goSp pr v sp, go pr u, ict)
-
-  and go pr v = match force_meta v with
+  let rec go pr v = match force_meta v with
     | FlexV (m',sp) ->
       if (m <> m') then
         goSp pr (MetaT m') sp
@@ -513,26 +570,37 @@ let rename m pren v =
 
       let pi_tm = go pr v in
       let (g,a) = pi_to_tele pi_tm in
-      goSp pr (CohT (g,a)) sp 
-
+      goSp pr (CohT (g,a)) sp
+        
+    | CylV (b,l,c) -> CylT (go pr b, go pr l, go pr c)
+    | ArrV c -> ArrT (go pr c)
     | CatV -> CatT
     | TypV -> TypT
 
+  and goSp pr v sp =
+    match sp with
+    | EmpSp -> v
+    | AppSp (sp',u,ict) -> AppT (goSp pr v sp', go pr u, ict)
+    | BaseSp sp' -> BaseT (goSp pr v sp')
+    | LidSp sp' -> LidT (goSp pr v sp')
+    | CoreSp sp' -> CoreT (goSp pr v sp')
+
   in go pren v
 
-let lams icts t =
-  let rec go k icts t =
-    match icts with
-    | Emp -> t
-    | Ext (is,i) -> 
-      let nm = Printf.sprintf "x%d" (k+1) in
-      LamT (nm, i, go (k+1) is t) 
-  in go 0 icts t
+let rec lams k sp t =
+  match sp with
+  | EmpSp -> t
+  | AppSp (sp',_,ict) ->
+    let nm = Printf.sprintf "x%d" k in
+    lams (k+1) sp' (LamT (nm,ict,t))
+  | BaseSp sp' -> lams k sp' t
+  | LidSp sp' -> lams k sp' t
+  | CoreSp sp' -> lams k sp' t
 
 let solve top k m sp v =
   let prn = invert k sp in
   let rhs = rename m prn v in
-  let sol = eval top Emp (lams (rev (map_suite sp ~f:snd)) rhs) in
+  let sol = eval top Emp (lams 0 sp rhs) in
   let mctx = ! metacontext in
   (* pr "Meta solution : ?%d = %a@," m pp_value sol; *)
   metacontext := Map.update mctx m ~f:(fun _ -> Solved sol)
@@ -600,10 +668,16 @@ let rec unify stgy top l t u =
 
 and unifySp stgy top l sp sp' =
   match (sp,sp') with
-  | (Emp,Emp) -> ()
-  | (Ext (s,(u,_)),Ext(s',(u',_))) ->
+  | (EmpSp, EmpSp) -> ()
+  | (AppSp (s,u,_), AppSp (s',u',_)) ->
     unifySp stgy top l s s';
     unify stgy top l u u'
+  | (BaseSp s , BaseSp s') ->
+    unifySp stgy top l s s'
+  | (LidSp s , LidSp s') ->
+    unifySp stgy top l s s'
+  | (CoreSp s , CoreSp s') ->
+    unifySp stgy top l s s'
   | _ -> raise (Unify_error "spine mismatch")
 
 (*****************************************************************************)
@@ -672,7 +746,7 @@ let ctx_to_pd loc =
     match loc with
     | Emp -> Error "Empty context is not a pasting diagram"
     | Ext(Emp,_) -> Error "Singleton context is not a pasting diagram"
-    | Ext(Ext(Emp,CatV),ObjV (RigidV (0,Emp))) ->
+    | Ext(Ext(Emp,CatV),ObjV (RigidV (0,EmpSp))) ->
       Ok (Pd.Br (l,Emp),varV 0,varV 1,2,0)
     | Ext(Ext(loc',tobj),fobj) ->
 
@@ -756,31 +830,48 @@ let rec free_vars k tm =
       | Emp -> free_vars k a
       | Ext (g',_) -> go (k+1) g'
     in go k g
+  | CylT (b,l,c) ->
+    Set.union (free_vars k b) (Set.union (free_vars k l) (free_vars k c))
+  | BaseT c -> free_vars k c
+  | LidT c -> free_vars k c
+  | CoreT c -> free_vars k c
+  | ArrT c -> free_vars k c
   | CatT -> fvs_empty
   | TypT -> fvs_empty
   | MetaT _ -> fvs_empty
   | InsMetaT _ -> fvs_empty
 
-let rec val_free_vars k v =
-  let sp_vars sp =
-    Set.union_list (module Int)
-      (to_list (map_suite sp ~f:(fun (v',_) -> val_free_vars k v'))) in 
+let rec free_vars_val k v =
+  let fvc x = free_vars_val k x in 
+  let sp_vars sp = free_vars_sp k sp in 
   match force_meta v with
   | FlexV (_,sp) -> sp_vars sp
   | RigidV (l,sp) -> Set.add (sp_vars sp) (lvl_to_idx k l) 
   | TopV (_,sp,_) -> sp_vars sp
   | LamV (_,_,Closure (_,loc,tm)) -> free_vars (length loc) tm
   | PiV (_,_,a,Closure (_,loc,b)) ->
-    Set.union (val_free_vars k a) (free_vars (length loc) b)
-  | ObjV c -> val_free_vars k c
-  | HomV (c,s,t) -> Set.union_list (module Int)
-                      [val_free_vars k c;
-                       val_free_vars k s;
-                       val_free_vars k t]
+    Set.union (free_vars_val k a) (free_vars (length loc) b)
+  | ObjV c -> free_vars_val k c
+  | HomV (c,s,t) ->
+    Set.union_list (module Int) [fvc c; fvc s; fvc t]
   | CohV (v,sp) ->
-    Set.union (val_free_vars k v) (sp_vars sp)
+    Set.union (free_vars_val k v) (sp_vars sp)
+  | CylV (b,l,c) ->
+    Set.union_list (module Int) [fvc b; fvc l; fvc c]
+  | ArrV c -> fvc c
   | CatV -> fvs_empty
   | TypV -> fvs_empty 
+
+and free_vars_sp k sp =
+  let fvc x = free_vars_val k x in 
+  let fvcs x = free_vars_sp k x in 
+  match sp with
+  | EmpSp -> fvs_empty
+  | AppSp (sp',u,_) ->
+    Set.union (fvcs sp') (fvc u)
+  | BaseSp sp' -> fvcs sp'
+  | LidSp sp' -> fvcs sp'
+  | CoreSp sp' -> fvcs sp'
 
 (*****************************************************************************)
 (*                                Typechecking                               *)
@@ -912,22 +1003,9 @@ and infer gma expr =
     Ok (HomT (c',s',t'), CatV)
 
   | CohE (g,a) ->
-
     let* (gt,at) = check_coh gma g a in
     let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
     Ok (CohT (gt,at) , coh_ty)
-
-    
-    (* let coh_tm = eval gma.top gma.loc (CohT (gt , at)) in
-     * let coh_ty_nf = term_to_expr Emp (quote gma.lvl coh_ty false) in
-     * let coh_tm_nf = term_to_expr Emp (quote gma.lvl coh_tm false) in
-     * pr "Coh type: %a@," pp_expr coh_ty_nf;
-     * (\* pr "Coh term raw: %a@," pp_term (CohT (gt,at));
-     *  * pr "Coh term val: %a@," pp_value coh_tm;
-     *  * pr "Coh term nf: %a@," pp_term (quote gma.lvl coh_tm false); *\)
-     * pr "Coh expr: %a@," pp_expr coh_tm_nf;
-     * check_defs (define gma id coh_tm coh_ty) ds *)
-    
 
   | CylE (_,_,_) -> Error `InternalError
   | BaseE _ -> Error `InternalError
@@ -976,9 +1054,9 @@ and check_coh gma g a =
             | HomV (c,s,t) ->
 
               let k = length gma'.loc in 
-              let cat_vars = val_free_vars k c in
-              let src_vars = val_free_vars k s in
-              let tgt_vars = val_free_vars k t in
+              let cat_vars = free_vars_val k c in
+              let src_vars = free_vars_val k s in
+              let tgt_vars = free_vars_val k t in
               let pd_dim = Pd.dim_pd pd in 
 
               (* pr "bdim: %d@," bdim;
