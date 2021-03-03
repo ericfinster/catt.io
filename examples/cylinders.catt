@@ -14,8 +14,9 @@ let cyl2 {C : Cat} (x :: Arr C) : [ C ]
 let cyl3 {C : Cat} (x :: Arr C) : [ base x => lid x ]
   = core x
 
-let cyl4 {C : Cat} (x :: C) (y : C) (f : x => y) : | Arr C | 
-  = [| x | y | f |]
+# Change the syntax ....
+let cyl4 {C : Cat} (x :: C) (y : C) (f : x => y) : [ Arr C ]
+  = cyl x y f 
 
 let cyl5 {C : Cat} (x :: Arr C) (y :: Arr C) (f :: x => y) : [ base x => base y ]
   = base f
@@ -27,4 +28,18 @@ let cyl6 {C : Cat} (x :: Arr C) (y :: Arr C) (f :: x => y)
   : [ comp (base f) (core y) =>
       comp (core x) (lid f) ]
   = core f
-  
+
+let cyl7 {C : Cat}
+    (x0 :: C) (y0 :: C) (f0 :: x0 => y0)
+    (x1 :: C) (y1 :: C) (f1 :: x1 => y1)
+    (x_c :: x0 => x1)
+    (y_c :: y0 => y1)
+    (f_c :: `[ comp 1 0 1 ] f0 y_c => `[ comp 1 0 1 ] x_c f1)
+  : [ cyl x0 x1 x_c => cyl y0 y1 y_c ]
+  = cyl f0 f1 f_c 
+
+
+
+
+
+

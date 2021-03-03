@@ -10,8 +10,7 @@
 %token LAMBDA COLON DBLCOLON EQUAL DOT
 %token LPAR RPAR LBR RBR LBRKT RBRKT
 %token VBAR DBLARROW ARROW HOLE
-%token LBRKTBAR RBRKTBAR BAR
-%token BASE CORE LID
+%token CYL BASE CORE LID
 %token <string> IDENT 
 %token EOF
 
@@ -99,7 +98,7 @@ expr3:
     { LidE e }
   | CORE e = expr3
     { CoreE e }
-  | LBRKTBAR b = expr BAR l = expr BAR c = expr RBRKTBAR
+  | CYL b = expr3 l = expr3 c = expr3
     { CylE (b,l,c) }
   | ARR c = expr3
     { ArrE c }

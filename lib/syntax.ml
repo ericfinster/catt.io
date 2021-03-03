@@ -95,8 +95,9 @@ let rec pp_expr_gen show_imp ppf expr =
     pf ppf "(%s : %a) -> %a" nm
       ppe dom ppe cod
   | ObjE e -> pf ppf "[%a]" ppe e
-  | HomE (c,s,t) ->
-    pf ppf "%a | %a => %a" ppe c ppe s ppe t
+  | HomE (_,s,t) ->
+    (* pf ppf "%a | %a => %a" ppe c ppe s ppe t *)
+    pf ppf "%a => %a" ppe s ppe t
   | CohE (g,a) ->
     pf ppf "coh @[[ %a : %a ]@]" (pp_tele ppe) g ppe a
   | CylE (b,l,c) ->
@@ -472,7 +473,7 @@ let lvl_to_idx k l = k - l - 1
 let rec quote k v ufld =
   let qc x = quote k x ufld in
   let qcs x s = quote_sp k x s ufld in 
-  match v with
+  match force_meta v with
   | FlexV (m,sp) -> qcs (MetaT m) sp 
   | RigidV (l,sp) -> qcs (VarT (lvl_to_idx k l)) sp 
   | TopV (_,_,tv) when ufld -> qc tv 
@@ -717,6 +718,9 @@ let define gma nm tm ty = {
   types = Ext (gma.types,(nm,(Defined,ty)));
 }
 
+let names gma =
+  map_suite gma.types ~f:fst
+    
 (*****************************************************************************)
 (*                           Context/Pd Conversion                           *)
 (*****************************************************************************)
@@ -874,6 +878,26 @@ and free_vars_sp k sp =
   | CoreSp sp' -> fvcs sp'
 
 (*****************************************************************************)
+(*                                 Cylinders                                 *)
+(*****************************************************************************)
+
+let rec base_type cat =
+  match cat with
+  | ArrV c -> Ok c
+  | HomV (cat',s,t) ->
+    let* bc = base_type cat' in
+    Ok (HomV (bc, baseV s, baseV t))
+  | _ -> Error `InternalError
+
+let rec lid_type cat =
+  match cat with 
+  | ArrV c -> Ok c
+  | HomV (cat',s,t) ->
+    let* bc = lid_type cat' in
+    Ok (HomV (bc, lidV s, lidV t))
+  | _ -> Error `InternalError
+
+(*****************************************************************************)
 (*                                Typechecking                               *)
 (*****************************************************************************)
 
@@ -927,7 +951,19 @@ let rec check gma expr typ =
     (* pr "non-canonical lambda@,"; *)
     let* bdy = check (bind gma nm a) t (b $$ varV gma.lvl) in
     Ok (LamT (nm,Impl,bdy))
-  
+
+  | (CylE (b,l,c) , ObjV cat) ->
+
+    let* b_typ = base_type cat in 
+    let* b' = check gma b b_typ in
+    let bv = eval gma.top gma.loc b' in
+    let* l_typ = lid_type cat in 
+    let* l' = check gma l l_typ in
+    let lv = eval gma.top gma.loc l' in
+    (* And now, the harder one .... *)
+    let* c' = check gma c (ObjV (HomV (cat,bv,lv))) in
+    Ok (CylT (b',l',c'))
+
   | (HoleE , _) -> (* pr "fresh meta@,"; *)
     let mv = fresh_meta () in Ok mv
   
@@ -938,10 +974,11 @@ let rec check gma expr typ =
     let* (e',inferred) = insert gma (infer gma e) in
     try unify OneShot gma.top gma.lvl expected inferred ; Ok e'
     with Unify_error _ ->
-      let inferred_nf = quote gma.lvl inferred false in
-      let expected_nf = quote gma.lvl expected false in 
+      let nms = names gma in 
+      let inferred_nf = term_to_expr nms (quote gma.lvl inferred false) in
+      let expected_nf = term_to_expr nms (quote gma.lvl expected false) in 
       let msg = str "@[<v>Type mismatch:@,Expression: %a@,Expected: %a@,Inferred: %a@,@]"
-          pp_expr e pp_term expected_nf pp_term inferred_nf
+          pp_expr e pp_expr expected_nf pp_expr inferred_nf
       in Error (`TypeMismatch msg) 
 
 and infer gma expr = 
@@ -1012,9 +1049,9 @@ and infer gma expr =
   | LidE _ -> Error `InternalError
   | CoreE _ -> Error `InternalError
 
-  | ArrE _ -> Error `InternalError
-    (* let* c' = check gma c CatV in
-     * Ok (ArrT c' , CatV) *)
+  | ArrE c -> 
+    let* c' = check gma c CatV in
+    Ok (ArrT c' , CatV)
       
   | CatE -> Ok (CatT , TypV)
   | TypE -> Ok (TypT , TypV)

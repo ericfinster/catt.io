@@ -30,9 +30,7 @@ rule token = parse
   | "}"          { RBR }
   | "["          { LBRKT }
   | "]"          { RBRKT }
-  | "[|"         { LBRKTBAR }
-  | "|]"         { RBRKTBAR }
-  | "|"          { BAR }
+  | "cyl"        { CYL }
   | "base"       { BASE }
   | "lid"        { LID }
   | "core"       { CORE }
