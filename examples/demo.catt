@@ -48,4 +48,11 @@ coh assoc {C : Cat}
     {w :: C} (h :: z => w)
   : comp f (comp g h) =>
     comp (comp f g) h
-    
+
+coh horiz {C : Cat}
+    {x :: C}
+    {y :: C} {f :: x => y}
+             {g :: x => y} (a :: f => g)
+    {z :: C} {h :: y => z}
+       	     {k :: y => z} (b :: h => k)
+  : comp f h => comp g k 
