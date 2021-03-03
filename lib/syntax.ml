@@ -896,10 +896,10 @@ and infer gma expr =
     let* t' = check gma t (ObjV cv) in
     Ok (HomT (c',s',t'), CatV)
   
-  | CohE (_,_) -> Error `InternalError
-    (* with_tele gma g (fun _ _ -> 
-     *     raise (Typing_error "not done")
-     *   ) *)
+  | CohE (_,_) ->
+    let* (gt,at) = check_coh gma g a in
+    let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
+    Ok (CohT (gt,at) , coh_ty)
   
   | CatE -> Ok (CatT , TypV)
   | TypE -> Ok (TypT , TypV)
@@ -920,7 +920,7 @@ and with_tele gma tl m =
           (Ext (tv,ty_val))
           (Ext (tt,(id,ict,ty_tm))))
 
-let check_coh gma g a =
+and check_coh gma g a =
   with_tele gma g (fun gma' gv gt ->
       match ctx_to_pd gv with
       | Ok (pd,_,_,_,_) ->
