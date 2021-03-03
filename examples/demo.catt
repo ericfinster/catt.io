@@ -13,22 +13,12 @@
 # let cons : (A : U) -> A -> List A -> List A
 #   = \A. \x. \xs. \L. \cons. \nil. cons x (xs _ cons nil)
 
-
-# Types: U
-# Categories: Cat
-
-# "Type of objects"
-# [ - ] : Cat -> Type
-
-# "=>" Hom category
-
 # let cattest1 (C : Cat) : U = [ C ]
 # let cattest2 (C : Cat) (x :: C) (y :: C) : Cat = x => y
 # let cattest3 (C : Cat) (x :: C) (y :: C) : U = [ x => y ]
 # let cattest4 (C : Cat) (x :: C) (y :: C)
 #   (f :: x => y) (g :: x => y)
 #   : Cat = f => g
-
 
 coh id {C : Cat} (x :: C)
   : x => x
@@ -85,7 +75,7 @@ coh vert {C : Cat}
   
 # this shows that unification can automatically
 # detect suspensions!
-let vert_alt  {C : Cat}
+let vert_alt {C : Cat}
     {x :: C}
     {y :: C} {f :: x => y}
        	     {g :: x => y} (a :: f => g)

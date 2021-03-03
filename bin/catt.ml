@@ -8,7 +8,7 @@
 open Format
 
 open Catt.Io
-open Catt.Syntax
+open Catt.Typecheck
 
 (*****************************************************************************)
 (*                                  Options                                  *)

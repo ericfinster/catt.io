@@ -1,6 +1,6 @@
 %{
 
-    open Syntax
+    open Expr 
     open Suite
        
 %} 
@@ -15,7 +15,7 @@
 %token EOF
 
 %start prog
-%type <Syntax.defn list> prog
+%type <Expr.defn list> prog
 
 %%
 
