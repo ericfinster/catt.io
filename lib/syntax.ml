@@ -911,8 +911,24 @@ and infer gma expr =
     let* t' = check gma t (ObjV cv) in
     Ok (HomT (c',s',t'), CatV)
 
-  (* FIXME : finish coherence inference! *)
-  | CohE (_,_) -> Error `InternalError
+  | CohE (g,a) ->
+
+    let* (gt,at) = check_coh gma g a in
+    let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
+    Ok (CohT (gt,at) , coh_ty)
+
+    
+    (* let coh_tm = eval gma.top gma.loc (CohT (gt , at)) in
+     * let coh_ty_nf = term_to_expr Emp (quote gma.lvl coh_ty false) in
+     * let coh_tm_nf = term_to_expr Emp (quote gma.lvl coh_tm false) in
+     * pr "Coh type: %a@," pp_expr coh_ty_nf;
+     * (\* pr "Coh term raw: %a@," pp_term (CohT (gt,at));
+     *  * pr "Coh term val: %a@," pp_value coh_tm;
+     *  * pr "Coh term nf: %a@," pp_term (quote gma.lvl coh_tm false); *\)
+     * pr "Coh expr: %a@," pp_expr coh_tm_nf;
+     * check_defs (define gma id coh_tm coh_ty) ds *)
+    
+
   | CylE (_,_,_) -> Error `InternalError
   | BaseE _ -> Error `InternalError
   | LidE _ -> Error `InternalError
@@ -941,7 +957,7 @@ and with_tele gma tl m =
           (Ext (tv,ty_val))
           (Ext (tt,(id,ict,ty_tm))))
 
-let check_coh gma g a =
+and check_coh gma g a =
   with_tele gma g (fun gma' gv gt ->
       match ctx_to_pd gv with
       | Ok (pd,_,_,_,_) ->
