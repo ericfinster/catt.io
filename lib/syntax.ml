@@ -577,7 +577,9 @@ let rec unify stgy top l t u =
     unify stgy top l s s';
     unify stgy top l t t'
 
-  (* FIXME! Coherence case ... *)
+  | (CohV (ga,sp), CohV (ga',sp')) ->
+    unify stgy top l ga ga';
+    unifySp stgy top l sp sp'
 
   | _ -> raise (Unify_error "could not unify")
 
