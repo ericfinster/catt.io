@@ -30,6 +30,12 @@ rule token = parse
   | "}"          { RBR }
   | "["          { LBRKT }
   | "]"          { RBRKT }
+  | "[|"         { LBRKTBAR }
+  | "|]"         { RBRKTBAR }
+  | "|"          { BAR }
+  | "base"       { BASE }
+  | "lid"        { LID }
+  | "core"       { CORE }
   | ":"          { COLON }
   | "::"         { DBLCOLON }
   | "="          { EQUAL }
@@ -38,6 +44,7 @@ rule token = parse
   | "_"          { HOLE }
   | "|"          { VBAR }
   | "U"          { TYPE }
+  | "Arr"        { ARR } 
   | "Cat"        { CAT }
 
   (* Identifiers *)

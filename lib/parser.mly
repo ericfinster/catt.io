@@ -6,10 +6,12 @@
 %} 
 
 %token LET COH
-%token TYPE CAT
+%token TYPE CAT ARR
 %token LAMBDA COLON DBLCOLON EQUAL DOT
 %token LPAR RPAR LBR RBR LBRKT RBRKT
 %token VBAR DBLARROW ARROW HOLE
+%token LBRKTBAR RBRKTBAR BAR
+%token BASE CORE LID
 %token <string> IDENT 
 %token EOF
 
@@ -91,6 +93,16 @@ expr3:
     { VarE id }
   | LBRKT c = expr RBRKT
     { ObjE c }
+  | BASE e = expr3
+    { BaseE e }
+  | LID e = expr3
+    { LidE e }
+  | CORE e = expr3
+    { CoreE e }
+  | LBRKTBAR b = expr BAR l = expr BAR c = expr RBRKTBAR
+    { CylE (b,l,c) }
+  | ARR c = expr3
+    { ArrE c }
   | LPAR t = expr RPAR
     { t }
 

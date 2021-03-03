@@ -1,0 +1,30 @@
+#
+#  cylinders.catt - playing with cylinder types
+#
+
+# Just need to figure out how we are going to deal
+# with cylinders and what-have you.
+
+let cyl1 {C : Cat} (x :: Arr C) : [ C ]
+  = base x
+
+let cyl2 {C : Cat} (x :: Arr C) : [ C ]
+  = lid x
+
+let cyl3 {C : Cat} (x :: Arr C) : [ base x => lid x ]
+  = core x
+
+let cyl4 {C : Cat} (x :: C) (y : C) (f : x => y) : | Arr C | 
+  = [| x | y | f |]
+
+let cyl5 {C : Cat} (x :: Arr C) (y :: Arr C) (f :: x => y) : [ base x => base y ]
+  = base f
+
+let cyl6 {C : Cat} (x :: Arr C) (y :: Arr C) (f :: x => y) : [ lid x => lid y ]
+  = lid f
+
+let cyl6 {C : Cat} (x :: Arr C) (y :: Arr C) (f :: x => y)
+  : [ comp (base f) (core y) =>
+      comp (core x) (lid f) ]
+  = core f
+  

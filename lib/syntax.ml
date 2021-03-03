@@ -31,7 +31,12 @@ type expr =
   | PiE of name * icit * expr * expr
   | ObjE of expr
   | HomE of expr * expr * expr
-  | CohE of expr tele * expr 
+  | CohE of expr tele * expr
+  | CylE of expr * expr * expr
+  | BaseE of expr
+  | LidE of expr
+  | CoreE of expr 
+  | ArrE of expr
   | CatE
   | TypE
   | HoleE
@@ -94,6 +99,16 @@ let rec pp_expr_gen show_imp ppf expr =
     pf ppf "%a | %a => %a" ppe c ppe s ppe t
   | CohE (g,a) ->
     pf ppf "coh @[[ %a : %a ]@]" (pp_tele ppe) g ppe a
+  | CylE (b,l,c) ->
+    pf ppf "[| %a | %a | %a |]" ppe b ppe l ppe c 
+  | BaseE c ->
+    pf ppf "base %a" ppe c
+  | LidE c ->
+    pf ppf "lid %a" ppe c
+  | CoreE c ->
+    pf ppf "core %a" ppe c 
+  | ArrE c ->
+    pf ppf "Arr %a" ppe c
   | CatE -> string ppf "Cat"
   | TypE -> string ppf "U"
   | HoleE -> string ppf "_"
@@ -895,12 +910,18 @@ and infer gma expr =
     let* s' = check gma s (ObjV cv) in
     let* t' = check gma t (ObjV cv) in
     Ok (HomT (c',s',t'), CatV)
-  
+
+  (* FIXME : finish coherence inference! *)
   | CohE (_,_) -> Error `InternalError
-    (* with_tele gma g (fun _ _ -> 
-     *     raise (Typing_error "not done")
-     *   ) *)
-  
+  | CylE (_,_,_) -> Error `InternalError
+  | BaseE _ -> Error `InternalError
+  | LidE _ -> Error `InternalError
+  | CoreE _ -> Error `InternalError
+
+  | ArrE _ -> Error `InternalError
+    (* let* c' = check gma c CatV in
+     * Ok (ArrT c' , CatV) *)
+      
   | CatE -> Ok (CatT , TypV)
   | TypE -> Ok (TypT , TypV)
   
