@@ -56,3 +56,10 @@ coh horiz {C : Cat}
     {z :: C} {h :: y => z}
        	     {k :: y => z} (b :: h => k)
   : comp f h => comp g k 
+
+coh vert {C : Cat}
+    {x :: C}
+    {y :: C} {f :: x => y}
+       	     {g :: x => y} (a :: f => g)
+	     {h :: x => y} (b :: g => h)
+  : f => h 	    
