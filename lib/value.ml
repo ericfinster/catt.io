@@ -45,6 +45,19 @@ and closure =
 let varV k = RigidV (k,EmpSp)
 
 (*****************************************************************************)
+(*                           Pd to Value Telescope                           *)
+(*****************************************************************************)
+
+let pd_to_value_tele pd = 
+  let mk_cat = CatV in 
+  let mk_obj c = ObjV c in 
+  let mk_hom c s t = HomV (c,s,t) in 
+  let mk_nm _ k = str "x%d" k in 
+  let mk_var _ k = varV k in 
+  let mk_base_cat = varV 0 in 
+  pd_to_tele mk_cat mk_obj mk_hom mk_nm mk_var mk_base_cat pd 
+
+(*****************************************************************************)
 (*                              Pretty Printing                              *)
 (*****************************************************************************)
 
@@ -97,3 +110,4 @@ and pp_spine ppf sp =
 
 let pp_top_env = hovbox (pp_suite (parens (pair ~sep:(any " : ") string pp_value)))
 let pp_loc_env = hovbox (pp_suite ~sep:comma pp_value)
+

@@ -20,6 +20,11 @@ type 'a suite =
 
 let (|>) a b = Ext (a, b)
 
+let is_empty s =
+  match s with
+  | Emp -> true
+  | _ -> false
+    
 let rec length s =
   match s with
   | Emp -> 0

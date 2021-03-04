@@ -44,7 +44,11 @@ coh unit_l {C : Cat}
     {x :: C}
     {y :: C} (f :: x => y)
   : comp (id x) f => f
-  
+
+# Abbreviated syntax: 
+# coh unit_l [ x(y,f) ]
+#   : comp (id x) f => f 
+
 coh unit_r {C : Cat}
     {x :: C}
     {y :: C} (f :: x => y)
@@ -58,6 +62,10 @@ coh assoc {C : Cat}
   : comp f (comp g h) =>
     comp (comp f g) h
 
+# coh assoc [ x(y,f)(z,g)(w,h) ]
+#   : comp f (comp g h) =>
+#     comp (comp f g) h 
+  
 coh horiz {C : Cat}
     {x :: C}
     {y :: C} {f :: x => y}
@@ -66,13 +74,16 @@ coh horiz {C : Cat}
        	     {k :: y => z} (b :: h => k)
   : comp f h => comp g k 
 
+# coh horiz [ x(y,f(g,a))(z,h(k,b)) ]
+#   : comp f h => comp g k 
+
 coh vert {C : Cat}
     {x :: C}
     {y :: C} {f :: x => y}
        	     {g :: x => y} (a :: f => g)
 	     {h :: x => y} (b :: g => h)
   : f => h
-  
+
 # this shows that unification can automatically
 # detect suspensions!
 let vert_alt {C : Cat}

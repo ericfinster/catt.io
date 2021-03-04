@@ -1,6 +1,6 @@
 (*****************************************************************************)
 (*                                                                           *)
-(*                                   Syntax                                  *)
+(*                           Typechecking Routines                           *)
 (*                                                                           *)
 (*****************************************************************************)
 
@@ -128,20 +128,20 @@ let ctx_to_pd loc =
 (*                                   Debug                                   *)
 (*****************************************************************************)
 
-let rec quote_tele ufld typs =
+let rec quote_types ufld typs =
   match typs with
   | Emp -> (Emp,0)
   | Ext (typs', (nm, (Defined,typ))) ->
-    let (res_typs, l) = quote_tele ufld typs' in
+    let (res_typs, l) = quote_types ufld typs' in
     let typ_tm = quote l typ ufld in
     (Ext (res_typs,(nm,typ_tm)),l)
   | Ext (typs', (nm, (_,typ))) ->
-    let (res_typs, l) = quote_tele ufld typs' in
+    let (res_typs, l) = quote_types ufld typs' in
     let typ_tm = quote l typ ufld in
     (Ext (res_typs,(nm, typ_tm)),l+1)
     
 let dump_ctx ufld gma =
-  let (tl,_) = quote_tele ufld gma.types in 
+  let (tl,_) = quote_types ufld gma.types in 
   pr "Context: @[<hov>%a@]@,"
     (pp_suite (parens (pair ~sep:(any " : ") string pp_term))) tl
 
@@ -233,6 +233,14 @@ let rec lid_type cat =
     let* bc = lid_type cat' in
     Ok (HomV (bc, lidV s, lidV t))
   | _ -> Error `InternalError
+
+
+(* Okay, now we're cooking! *)
+let pd_to_term_tele pd =
+  quote_tele (pd_to_value_tele pd) 
+
+(* We just need the return type! *)
+
 
 (*****************************************************************************)
 (*                                Typechecking                               *)

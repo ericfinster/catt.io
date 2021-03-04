@@ -151,5 +151,15 @@ and quote_sp k t sp ufld =
   | LidSp sp' -> LidT (qcs t sp')
   | CoreSp sp' -> CoreT (qcs t sp')
 
+let quote_tele tl = 
+  let rec go tl = 
+    match tl with
+    | Emp -> (Emp,0)
+    | Ext (typs',(nm,ict,typ)) ->
+      let (r,k) = go typs' in
+      let ty_tm = quote k typ true in
+      (Ext (r,(nm,ict,ty_tm)),k+1)
+  in fst (go tl)
+
 let nf top loc tm =
   quote (length loc) (eval top loc tm) true
