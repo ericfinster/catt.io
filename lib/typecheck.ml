@@ -239,8 +239,78 @@ let rec lid_type cat =
 let pd_to_term_tele pd =
   quote_tele (pd_to_value_tele pd) 
 
-(* We just need the return type! *)
+let rec app_suite v s =
+  match s with
+  | Emp -> v
+  | Ext (s',(ict,u)) -> AppT (app_suite v s', u, ict)
 
+let pd_args pd =
+  let open Pd in
+  
+  let rec pd_args_br args br =
+    match br with
+    | Br (v,brs) ->
+      let ict = if (is_empty brs) then Expl else Impl in
+      pd_args_brs (Ext (args,(ict,v))) brs
+
+  and pd_args_brs args brs =
+    match brs with
+    | Emp -> args
+    | Ext (brs',(v,br)) ->
+      let args' = pd_args_brs args brs' in
+      pd_args_br (Ext (args',(Impl,v))) br 
+
+  in pd_args_br Emp pd 
+
+    
+let unbiased_comp pd cat =
+  let open Pd in
+
+  let rec build_type cohs bdy =
+    match (cohs , bdy) with
+    | (Emp, Emp) -> cat
+    | (Ext (c',coh_opt), Ext (b',(s,t))) ->
+      let c = build_type c' b' in
+      let src_args = pd_args s in
+      let tgt_args = pd_args t in 
+      (match coh_opt with
+       | None -> HomT (c, snd (head src_args), snd (head tgt_args))
+       | Some coh ->
+         let src = app_suite coh (pd_args s) in
+         let tgt = app_suite coh (pd_args t) in
+         HomT (c, src, tgt)
+      )
+    | _ -> raise (Failure "length mismatch")
+
+  in 
+
+  
+  let rec go bdy pd =
+    if (is_disc pd) then
+      Ext (map_suite bdy ~f:(fun _ -> None),None)
+    else match bdy with
+      | Emp -> Ext (Emp , None)  
+      | Ext (bdy',(s,t)) ->
+
+        let cohs = go bdy' s in
+
+        (* pr "Source: @[%a@]\n" (pp_pd pp_term) s;
+         * pr "Target: @[%a@]\n" (pp_pd pp_term) t; *)
+
+        let tele = quote_tele (pd_to_value_tele pd) in
+        let ret_typ = build_type cohs (Ext (bdy',(s,t))) in
+        (* pr "Return type: %a\n" pp_term ret_typ; *)
+        let my_coh = CohT (tele, ret_typ) in 
+
+        Ext (cohs, Some my_coh)
+
+  in match go (boundary pd) pd with
+  | Emp -> snd (head (pd_args pd))
+  | Ext (_,None) -> snd (head (pd_args pd))
+  | Ext (_,Some coh) -> coh
+
+let ucomp_test pd =
+  pr "%a" pp_term (unbiased_comp (pd_to_idx pd) (VarT 0))
 
 (*****************************************************************************)
 (*                                Typechecking                               *)

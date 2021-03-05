@@ -93,7 +93,46 @@ let pi_to_tele ty =
     | _ -> (tl,ty)
   in go Emp ty
 
+(* labels a pd with deBruijn levels *)
+let pd_to_lvl pd =
+  let open Pd in
 
+  let rec pd_to_lvl_br k br =
+    match br with
+    | Br (_,brs) ->
+      let (k', brs') = pd_to_lvl_brs (k+1) brs
+      in (k', Br (VarT k, brs'))
+
+  and pd_to_lvl_brs k brs =
+    match brs with
+    | Emp -> (k,Emp)
+    | Ext (bs,(_,b)) ->
+      let (k', bs') = pd_to_lvl_brs k bs in
+      let (k'', b') = pd_to_lvl_br (k'+1) b in 
+      (k'', Ext (bs',(VarT k', b')))
+
+  in snd (pd_to_lvl_br 0 pd)
+
+(* label a pasting diagram with deBruijn indices *)
+let pd_to_idx pd = 
+  let open Pd in
+
+  let rec pd_to_idx_br k br =
+    match br with
+    | Br (_,brs) ->
+      let (l, brs') = pd_to_idx_brs k brs in
+      (l+1, Br (VarT l, brs'))
+
+  and pd_to_idx_brs k brs =
+    match brs with
+    | Emp -> (k,Emp)
+    | Ext (brs',(_,br)) ->
+      let (k', br') = pd_to_idx_br k br in
+      let (k'', brs'') = pd_to_idx_brs (k'+1) brs' in
+      (k'', Ext (brs'',(VarT k',br')))
+
+  in snd (pd_to_idx_br 0 pd)
+  
 (*****************************************************************************)
 (*                              Pretty Printing                              *)
 (*****************************************************************************)

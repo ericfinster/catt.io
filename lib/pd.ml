@@ -5,8 +5,10 @@
 (*****************************************************************************)
 
 open Suite
-(* open Mtl *)
-       
+
+(* Monadic bind for errors in scope *)
+let (let*) m f = Base.Result.bind m ~f 
+
 type 'a pd =
   | Br of 'a * ('a * 'a pd) suite
 
@@ -20,6 +22,13 @@ let rec dim_pd pd =
   | Br (_,brs) ->
     let f d (_,b) = max d (dim_pd b) in 
     1 + fold_left f (-1) brs 
+
+let rec is_disc pd =
+  match pd with
+  | Br (_,Emp) -> true
+  | Br (_,Ext(Emp,(_,pd'))) -> is_disc pd'
+  | _ -> false
+  
 
 (* Truncate to the provided dimension.  The boolean
    flag dir is true for the source direction, false
@@ -36,6 +45,13 @@ let rec truncate dir d pd =
       )
     else Br (a, map_suite brs ~f:(fun (l,b) -> (l,truncate dir (d-1) b)))
 
+let boundary pd =
+  let d = dim_pd pd in
+  let r = range 0 (d-1) in
+  map_suite r
+    ~f:(fun i -> (truncate true i pd,
+                  truncate false i pd))
+      
 let rec append_leaves pd lvs =
   match pd with
   | Br (l,Emp) -> Ext (lvs,l)
@@ -76,9 +92,7 @@ let rec zip_with_addr_lcl addr pd =
 let zip_with_addr pd =
   zip_with_addr_lcl Emp pd
 
-
 let rec insert pd d lbl nbr =
-  let open Base.Result.Monad_infix in
   match pd with
   | Br (a,brs) ->
     if (d <= 0) then
@@ -86,7 +100,7 @@ let rec insert pd d lbl nbr =
     else match brs with
       | Emp -> Error "Depth overflow"
       | Ext(bs,(b,br)) ->
-        insert br (d-1) lbl nbr >>= fun rbr -> 
+        let* rbr = insert br (d-1) lbl nbr in 
         Ok (Br (a,Ext(bs,(b,rbr))))
 
 
@@ -94,102 +108,111 @@ let rec insert pd d lbl nbr =
 (*                                   Zipper                                  *)
 (*****************************************************************************)
 
-(* type 'a pd_ctx = 'a * 'a * ('a * 'a pd) suite * ('a * 'a pd) list 
- * type 'a pd_zip = 'a pd_ctx suite * 'a pd
- * 
- * let visit d (ctx, fcs) =
- *   match fcs with
- *   | Br (s,brs) ->
- *     let* (l,(t,b),r) = open_at d brs in
- *     Ok (Ext (ctx,(s,t,l,r)), b)
- * 
- * let rec seek addr pz =
- *   match addr with
- *   | Emp -> Ok pz
- *   | Ext(addr',d) ->
- *     let* pz' = seek addr' pz in
- *     visit d pz'
- * 
- * let rec addr_of (ctx, fcs) =
- *   match ctx with
- *   | Emp -> Emp
- *   | Ext(ctx',(s,t,l,r)) ->
- *     Ext (addr_of (ctx', Br (s, close (l,(t,fcs),r))), length l)
- * 
- * let rec pd_close (ctx, fcs) =
- *   match ctx with
- *   | Emp -> fcs
- *   | Ext(ctx',(s,t,l,r)) ->
- *     pd_close (ctx', Br (s, close (l,(t,fcs),r)))
- * 
- * let pd_drop (ctx, _) =
- *   match ctx with
- *   | Emp -> Fail "Cannot drop root"
- *   | Ext(ctx',(s,_,l,r)) ->
- *     Ok (ctx', Br(s, append_list l r))
- * 
- * let parent (ctx,fcs) =
- *   match ctx with
- *   | Emp -> Fail "No parent in empty context"
- *   | Ext(ctx',(s,t,l,r)) ->
- *     Ok (ctx', Br (s, close (l,(t,fcs),r)))
- * 
- * let sibling_right (ctx,fcs) =
- *   match ctx with
- *   | Ext(ctx',(s,t,l,(t',fcs')::rs)) ->
- *     Ok (Ext (ctx',(s,t',Ext (l,(t,fcs)),rs)), fcs')
- *   | _ -> Fail "No right sibling"
- * 
- * let sibling_left (ctx,fcs) =
- *   match ctx with
- *   | Ext(ctx',(s,t,Ext(l,(t',fcs')),r)) ->
- *     Ok (Ext (ctx',(s,t',l,(t,fcs)::r)), fcs')
- *   | _ -> Fail "No left sibling"
- * 
- * let rec to_rightmost_leaf (ctx,fcs) =
- *   match fcs with
- *   | Br (_,Emp) -> Ok (ctx, fcs)
- *   | Br (s,Ext(brs,(t,b))) ->
- *     to_rightmost_leaf
- *       (Ext (ctx,(s,t,brs,[])), b)
- * 
- * let rec to_leftmost_leaf (ctx,fcs) =
- *   match fcs with
- *   | Br (_,Emp) -> Ok (ctx, fcs)
- *   | Br (s,brs) ->
- *     let* (_,(t,b),r) = open_leftmost brs in
- *     to_leftmost_leaf
- *       (Ext(ctx,(s,t,Emp,r)),b)
- * 
- * let rec parent_sibling_left z =
- *   sibling_left z <||>
- *   (parent z >>= parent_sibling_left) <||>
- *   Fail "No more left siblings"
- * 
- * let rec parent_sibling_right z =
- *   sibling_right z <||>
- *   (parent z >>= parent_sibling_right) <||>
- *   Fail "No more right siblings"
- * 
- * let leaf_right z =
- *   parent_sibling_right z >>=
- *   to_leftmost_leaf
- * 
- * let leaf_left z =
- *   parent_sibling_left z >>=
- *   to_rightmost_leaf
- * 
- * let insert_at addr b pd =
- *   match addr with
- *   | Emp -> Fail "Empty address for insertion"
- *   | Ext(base,dir) ->
- *     let* (ctx, fcs) = seek base (Emp, pd) in 
- *     let* newfcs =
- *       (match fcs with
- *        | Br (a,brs) ->
- *          let* (l,br,r) = open_at dir brs in
- *          Ok (Br (a, close (l,b,br::r)))) in
- *     Ok (pd_close (ctx, newfcs)) *)
+type 'a pd_ctx = 'a * 'a * ('a * 'a pd) suite * ('a * 'a pd) list 
+type 'a pd_zip = 'a pd_ctx suite * 'a pd
+
+let visit d (ctx, fcs) =
+  match fcs with
+  | Br (s,brs) ->
+    let* (l,(t,b),r) = open_at d brs in
+    Ok (Ext (ctx,(s,t,l,r)), b)
+
+let rec seek addr pz =
+  match addr with
+  | Emp -> Ok pz
+  | Ext(addr',d) ->
+    let* pz' = seek addr' pz in
+    visit d pz'
+
+let rec addr_of (ctx, fcs) =
+  match ctx with
+  | Emp -> Emp
+  | Ext(ctx',(s,t,l,r)) ->
+    Ext (addr_of (ctx', Br (s, close (l,(t,fcs),r))), length l)
+
+let rec pd_close (ctx, fcs) =
+  match ctx with
+  | Emp -> fcs
+  | Ext(ctx',(s,t,l,r)) ->
+    pd_close (ctx', Br (s, close (l,(t,fcs),r)))
+
+let pd_drop (ctx, _) =
+  match ctx with
+  | Emp -> Error "Cannot drop root"
+  | Ext(ctx',(s,_,l,r)) ->
+    Ok (ctx', Br(s, append_list l r))
+
+let parent (ctx,fcs) =
+  match ctx with
+  | Emp -> Error "No parent in empty context"
+  | Ext(ctx',(s,t,l,r)) ->
+    Ok (ctx', Br (s, close (l,(t,fcs),r)))
+
+let sibling_right (ctx,fcs) =
+  match ctx with
+  | Ext(ctx',(s,t,l,(t',fcs')::rs)) ->
+    Ok (Ext (ctx',(s,t',Ext (l,(t,fcs)),rs)), fcs')
+  | _ -> Error "No right sibling"
+
+let sibling_left (ctx,fcs) =
+  match ctx with
+  | Ext(ctx',(s,t,Ext(l,(t',fcs')),r)) ->
+    Ok (Ext (ctx',(s,t',l,(t,fcs)::r)), fcs')
+  | _ -> Error "No left sibling"
+
+let rec to_rightmost_leaf (ctx,fcs) =
+  match fcs with
+  | Br (_,Emp) -> Ok (ctx, fcs)
+  | Br (s,Ext(brs,(t,b))) ->
+    to_rightmost_leaf
+      (Ext (ctx,(s,t,brs,[])), b)
+
+let rec to_leftmost_leaf (ctx,fcs) =
+  match fcs with
+  | Br (_,Emp) -> Ok (ctx, fcs)
+  | Br (s,brs) ->
+    let* (_,(t,b),r) = open_leftmost brs in
+    to_leftmost_leaf
+      (Ext(ctx,(s,t,Emp,r)),b)
+
+let (<||>) m n = if (Base.Result.is_ok m) then m else n 
+    
+let rec parent_sibling_left z =
+  let open Base.Result.Monad_infix in 
+  sibling_left z <||>
+  (parent z >>= parent_sibling_left) <||>
+  Error "No more left siblings"
+
+let rec parent_sibling_right z =
+  let open Base.Result.Monad_infix in 
+  sibling_right z <||>
+  (parent z >>= parent_sibling_right) <||>
+  Error "No more right siblings"
+
+let leaf_right z =
+  let open Base.Result.Monad_infix in 
+  parent_sibling_right z >>=
+  to_leftmost_leaf
+
+let leaf_left z =
+  let open Base.Result.Monad_infix in 
+  parent_sibling_left z >>=
+  to_rightmost_leaf
+
+let insert_at ?before:(bf=true) addr b pd =
+  match addr with
+  | Emp -> Error "Empty address for insertion"
+  | Ext(base,dir) ->
+    let* (ctx, fcs) = seek base (Emp, pd) in 
+    let* newfcs =
+      (match fcs with
+       | Br (a,brs) ->
+         let* (l,br,r) = open_at dir brs in
+         if bf then 
+           Ok (Br (a, close (l,b,br::r)))
+         else
+           Ok (Br (a, close (Ext (l,br),b,r)))) in 
+    Ok (pd_close (ctx, newfcs))
 
 (*****************************************************************************)
 (*                              Instances                                    *)
@@ -229,8 +252,15 @@ let rec map_pd pd ~f =
 let rec pp_pd f ppf pd =
   match pd with
   | Br (s,brs) ->
-    Fmt.pf ppf "Br (%a, %a)" f s
-      (pp_suite (Fmt.parens (Fmt.pair f (pp_pd f)))) brs
+    Fmt.pf ppf "(%a|%a)" f s
+      (pp_suite ~sep:Fmt.nop (Fmt.parens (Fmt.pair f (pp_pd f)))) brs
+
+(* a simple parenthetic representation of a pasting diagram *)
+let rec pp_tr ppf pd =
+  match pd with
+  | Br (_,brs) ->
+    Fmt.pf ppf "%a" (Fmt.parens (pp_suite ~sep:Fmt.nop pp_tr))
+      (map_suite brs ~f:snd) 
 
 (*****************************************************************************)
 (*                      Substitution of Pasting Diagrams                     *)
@@ -251,13 +281,38 @@ let rec join_pd d pd =
     let jr (_,b) = join_pd (d+1) b in
     fold_left (merge d) p (map_suite brs ~f:jr)
 
+let blank pd = map_pd pd ~f:(fun _ -> ()) 
+let subst pd sub = map_pd pd ~f:(fun id -> Suite.assoc id sub) 
+
+(*****************************************************************************)
+(*                                  Families                                 *)
+(*****************************************************************************)
+
 let rec disc n =
   if (n <= 0) then Br ((), Emp)
   else Br ((), Ext (Emp, ((), disc (n-1))))
 
-let blank pd = map_pd pd ~f:(fun _ -> ()) 
-let subst pd sub = map_pd pd ~f:(fun id -> Suite.assoc id sub) 
+let whisk m i n =
+  if (m < 1 || n < 1) then
+    Error "disc dim too low"
+  else if (i > (n-1) && i > (m-1)) then
+    Error "invalid gluing dim"
+  else if (m >= n) then
+    let mdisc = disc m in
+    let codisc = disc (n-i-1) in
+    let addr = repeat (i+1) 0 in
+    insert_at ~before:false addr ((),codisc) mdisc
+  else
+    let ndisc = disc n in
+    let codisc = disc (m-i-1) in
+    let addr = repeat (i+1) 0 in
+    insert_at addr ((),codisc) ndisc
 
+let whisk_test m i n =
+  match whisk m i n with
+  | Ok pd -> pp_tr Fmt.stdout pd
+  | Error msg -> Fmt.pr "%s" msg
+         
 (*****************************************************************************)
 (*                                  Examples                                 *)
 (*****************************************************************************)

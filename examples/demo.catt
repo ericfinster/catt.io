@@ -2,7 +2,7 @@
 #  demo.catt - new syntax demo and whatnot
 #
 
-# let id {A : U} (a : A) : A = a
+let identity {A : U} (a : A) : A = a
 # let bad (A : U) (B : U) (a : A) (b : B) : B = a
 
 # Some impredicative encodings
@@ -38,7 +38,7 @@ let precomp {C : Cat} {x :: C} {y :: C} {z :: C} (f :: x => y)
 
 let postcomp {C : Cat} {x :: C} {y :: C} {z :: C} (g :: y => z)
   : [ x => y ] -> [ x => z ]
-  = \f. comp g f
+  = \f. comp f g
   
 coh unit_l {C : Cat}
     {x :: C}

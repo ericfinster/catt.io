@@ -24,6 +24,11 @@ let is_empty s =
   match s with
   | Emp -> true
   | _ -> false
+
+let head s =
+  match s with
+  | Ext(_,a) -> a
+  | _ -> raise (Failure "head on empty")
     
 let rec length s =
   match s with
@@ -77,6 +82,15 @@ let zip_with_idx s =
       let (s'', i) = zip_with_idx_pr s' in
       (Ext (s'',(i,x)), i+1)
   in fst (zip_with_idx_pr s)
+
+let rec range i j =
+  if (i > j) then Emp
+  else Ext (range i (j-1), j)
+
+let rec repeat n x =
+  if (n = 0) then
+    Emp
+  else Ext (repeat (n-1) x , x)
 
 exception Lookup_error
   
@@ -153,41 +167,42 @@ let rev s =
 (*                                   Zipper                                  *)
 (*****************************************************************************)
 
-(* open MonadSyntax(ErrMnd(struct type t = string end))
- *     
- * type 'a suite_zip = ('a suite * 'a * 'a list)
- * 
- * let close (l,a,r) =
- *   append_list (Ext(l,a)) r
- * 
- * let open_rightmost s =
- *   match s with
- *   | Emp -> Fail "Empty suite on open"
- *   | Ext (s',a) -> Ok (s',a,[])
- * 
- * let move_left (l,a,r) =
- *   match l with
- *   | Emp -> Fail "No left element"
- *   | Ext (l',a') -> Ok (l',a',a::r)
- * 
- * let move_right (l,a,r) =
- *   match r with
- *   | [] ->  Fail "No right element"
- *   | a'::r' -> Ok (Ext (l,a),a',r')
- * 
- * let rec move_left_n n z =
- *   if (n<=0) then Ok z else
- *     move_left z >>= move_left_n (n-1)
- * 
- * let open_leftmost s =
- *   let n = length s in
- *   open_rightmost s >>= move_left_n (n-1)
- * 
- * let open_at k s =
- *   let l = length s in
- *   if (k+1>l) then
- *     Fail "Out of range"
- *   else open_rightmost s >>= move_left_n (l-k-1) *)
+type 'a suite_zip = ('a suite * 'a * 'a list)
+
+let close (l,a,r) =
+  append_list (Ext(l,a)) r
+
+let open_rightmost s =
+  match s with
+  | Emp -> Error "Empty suite on open"
+  | Ext (s',a) -> Ok (s',a,[])
+
+let move_left (l,a,r) =
+  match l with
+  | Emp -> Error "No left element"
+  | Ext (l',a') -> Ok (l',a',a::r)
+
+let move_right (l,a,r) =
+  match r with
+  | [] ->  Error "No right element"
+  | a'::r' -> Ok (Ext (l,a),a',r')
+
+let rec move_left_n n z =
+  let open Base.Result.Monad_infix in 
+  if (n<=0) then Ok z else
+    move_left z >>= move_left_n (n-1)
+
+let open_leftmost s =
+  let open Base.Result.Monad_infix in 
+  let n = length s in
+  open_rightmost s >>= move_left_n (n-1)
+
+let open_at k s =
+  let open Base.Result.Monad_infix in 
+  let l = length s in
+  if (k+1>l) then
+    Error "Out of range"
+  else open_rightmost s >>= move_left_n (l-k-1)
 
 (*****************************************************************************)
 (*                               Instances                                   *)
