@@ -91,18 +91,7 @@ let rec zip_with_addr_lcl addr pd =
 
 let zip_with_addr pd =
   zip_with_addr_lcl Emp pd
-
-let rec insert pd d lbl nbr =
-  match pd with
-  | Br (a,brs) ->
-    if (d <= 0) then
-      Ok (Br (a, Ext(brs,(lbl,nbr))))
-    else match brs with
-      | Emp -> Error "Depth overflow"
-      | Ext(bs,(b,br)) ->
-        let* rbr = insert br (d-1) lbl nbr in 
-        Ok (Br (a,Ext(bs,(b,rbr))))
-
+  
 
 (*****************************************************************************)
 (*                                   Zipper                                  *)
@@ -215,6 +204,25 @@ let insert_at ?before:(bf=true) addr b pd =
     Ok (pd_close (ctx, newfcs))
 
 (*****************************************************************************)
+(*                          Left and Right Insertion                         *)
+(*****************************************************************************)
+
+let rec insert_right pd d lbl nbr =
+  match pd with
+  | Br (a,brs) ->
+    if (d <= 0) then
+      Ok (Br (a, Ext(brs,(lbl,nbr))))
+    else match brs with
+      | Emp -> Error "Depth overflow"
+      | Ext(bs,(b,br)) ->
+        let* rbr = insert_right br (d-1) lbl nbr in 
+        Ok (Br (a,Ext(bs,(b,rbr))))
+
+let insert_left pd d lbl nbr =
+  let addr = repeat (d+1) 0 in
+  insert_at addr (lbl,nbr) pd 
+  
+(*****************************************************************************)
 (*                              Instances                                    *)
 (*****************************************************************************)
 
@@ -262,6 +270,37 @@ let rec pp_tr ppf pd =
     Fmt.pf ppf "%a" (Fmt.parens (pp_suite ~sep:Fmt.nop pp_tr))
       (map_suite brs ~f:snd) 
 
+
+(*****************************************************************************)
+(*                              Pd Construction                              *)
+(*****************************************************************************)
+
+let rec disc n =
+  if (n <= 0) then Br ((), Emp)
+  else Br ((), Ext (Emp, ((), disc (n-1))))
+
+let whisk_left n i pd =
+  if (i < 0 || i > (n-1)) then
+    Error "dimension out of range"
+  else let nbr = disc (n-i-1) in
+    insert_left pd i () nbr
+
+let whisk_right pd i n = 
+  if (i < 0 || i > (n-1)) then 
+    Error "dimension out of range"
+  else let nbr = disc (n-i-1) in
+    insert_right pd i () nbr
+      
+let rec comp_seq s =
+  match s with
+  | [] -> Error "invalid comp seq"
+  | n::[] -> Ok (disc n)
+  | n::i::s' ->
+    let* pd = comp_seq s' in
+    whisk_left n i pd
+
+let whisk m i n = comp_seq [m;i;n] 
+
 (*****************************************************************************)
 (*                      Substitution of Pasting Diagrams                     *)
 (*****************************************************************************)
@@ -283,35 +322,6 @@ let rec join_pd d pd =
 
 let blank pd = map_pd pd ~f:(fun _ -> ()) 
 let subst pd sub = map_pd pd ~f:(fun id -> Suite.assoc id sub) 
-
-(*****************************************************************************)
-(*                                  Families                                 *)
-(*****************************************************************************)
-
-let rec disc n =
-  if (n <= 0) then Br ((), Emp)
-  else Br ((), Ext (Emp, ((), disc (n-1))))
-
-let whisk m i n =
-  if (m < 1 || n < 1) then
-    Error "disc dim too low"
-  else if (i > (n-1) && i > (m-1)) then
-    Error "invalid gluing dim"
-  else if (m >= n) then
-    let mdisc = disc m in
-    let codisc = disc (n-i-1) in
-    let addr = repeat (i+1) 0 in
-    insert_at ~before:false addr ((),codisc) mdisc
-  else
-    let ndisc = disc n in
-    let codisc = disc (m-i-1) in
-    let addr = repeat (i+1) 0 in
-    insert_at addr ((),codisc) ndisc
-
-let whisk_test m i n =
-  match whisk m i n with
-  | Ok pd -> pp_tr Fmt.stdout pd
-  | Error msg -> Fmt.pr "%s" msg
          
 (*****************************************************************************)
 (*                                  Examples                                 *)

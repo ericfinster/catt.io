@@ -30,6 +30,7 @@ let pp_error ppf e =
   | `PastingError msg -> Fmt.pf ppf "Error while checking pasting context: %s" msg
   | `FullnessError msg -> Fmt.pf ppf "Fullness error: %s" msg 
   | `IcityMismatch (_, _) -> Fmt.pf ppf "Icity mismatch"
+  | `NotImplemented f -> Fmt.pf ppf "Feature not implemented: %s" f
   | `InternalError -> Fmt.pf ppf "Internal Error"
 
 let () = 

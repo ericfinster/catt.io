@@ -2,7 +2,7 @@
 #  demo.catt - new syntax demo and whatnot
 #
 
-let identity {A : U} (a : A) : A = a
+# let identity {A : U} (a : A) : A = a
 # let bad (A : U) (B : U) (a : A) (b : B) : B = a
 
 # Some impredicative encodings
@@ -29,16 +29,16 @@ coh comp {C : Cat}
     {z :: C} (g :: y => z)
   : x => z
 
-let twice {C : Cat} {x :: C} (f :: x => x) : [ x => x ]
-    = comp f f
+# let twice {C : Cat} {x :: C} (f :: x => x) : [ x => x ]
+#     = comp f f
 
-let precomp {C : Cat} {x :: C} {y :: C} {z :: C} (f :: x => y)
-  : [ y => z ] -> [ x => z ]
-  = comp f 
+# let precomp {C : Cat} {x :: C} {y :: C} {z :: C} (f :: x => y)
+#   : [ y => z ] -> [ x => z ]
+#   = comp f 
 
-let postcomp {C : Cat} {x :: C} {y :: C} {z :: C} (g :: y => z)
-  : [ x => y ] -> [ x => z ]
-  = \f. comp f g
+# let postcomp {C : Cat} {x :: C} {y :: C} {z :: C} (g :: y => z)
+#   : [ x => y ] -> [ x => z ]
+#   = \f. comp f g
   
 coh unit_l {C : Cat}
     {x :: C}
@@ -77,6 +77,8 @@ coh horiz {C : Cat}
 # coh horiz [ x(y,f(g,a))(z,h(k,b)) ]
 #   : comp f h => comp g k 
 
+[ x(y,f(g,u)(h,v))(z,j) ]
+
 coh vert {C : Cat}
     {x :: C}
     {y :: C} {f :: x => y}
@@ -86,11 +88,12 @@ coh vert {C : Cat}
 
 # this shows that unification can automatically
 # detect suspensions!
-let vert_alt {C : Cat}
-    {x :: C}
-    {y :: C} {f :: x => y}
-       	     {g :: x => y} (a :: f => g)
-	     {h :: x => y} (b :: g => h)
-  : [ f => h ]
-  = comp a b
+# let vert_alt {C : Cat}
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#        	     {g :: x => y} (a :: f => g)
+# 	     {h :: x => y} (b :: g => h)
+#   : [ f => h ]
+#   = comp a b
+
 

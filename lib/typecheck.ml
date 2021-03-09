@@ -119,7 +119,7 @@ let ctx_to_pd loc =
               pp_value fty
           in Error msg
 
-        else let* pd' = Pd.insert pd tdim (l+1)
+        else let* pd' = Pd.insert_right pd tdim (l+1)
                  (Pd.Br (l, Emp)) in
           Ok (pd', fty, varV (k+1), k+2, tdim+1)
   in go 0 loc
@@ -234,7 +234,6 @@ let rec lid_type cat =
     Ok (HomV (bc, lidV s, lidV t))
   | _ -> Error `InternalError
 
-
 (* Okay, now we're cooking! *)
 let pd_to_term_tele pd =
   quote_tele (pd_to_value_tele pd) 
@@ -261,14 +260,15 @@ let pd_args pd =
       pd_args_br (Ext (args',(Impl,v))) br 
 
   in pd_args_br Emp pd 
-
     
 let unbiased_comp pd cat =
   let open Pd in
 
   let rec build_type cohs bdy =
     match (cohs , bdy) with
-    | (Emp, Emp) -> cat
+    | (Emp, Emp) ->
+      (* This also needs to change ... *)
+      cat
     | (Ext (c',coh_opt), Ext (b',(s,t))) ->
       let c = build_type c' b' in
       let src_args = pd_args s in
@@ -284,33 +284,24 @@ let unbiased_comp pd cat =
 
   in 
 
-  
-  let rec go bdy pd =
+  let rec go pd d =
     if (is_disc pd) then
-      Ext (map_suite bdy ~f:(fun _ -> None),None)
-    else match bdy with
-      | Emp -> Ext (Emp , None)  
-      | Ext (bdy',(s,t)) ->
+      repeat (d+1) None
+    else
+      let src = truncate true (d-1) pd in
+      let cohs = go src (d-1) in
+      (* pr "About to handle: %a\n" pp_tr pd; *)
+      let g = quote_tele (pd_to_value_tele pd) in
+      (* pr "tele: %a\n" (pp_tele pp_term) g; *)
+      let a = build_type cohs (boundary (pd_to_idx pd)) in
+      (* pr "return type is: %a\n" pp_term a; *)
+      Ext (cohs, Some (CohT (g,a)))
 
-        let cohs = go bdy' s in
-
-        (* pr "Source: @[%a@]\n" (pp_pd pp_term) s;
-         * pr "Target: @[%a@]\n" (pp_pd pp_term) t; *)
-
-        let tele = quote_tele (pd_to_value_tele pd) in
-        let ret_typ = build_type cohs (Ext (bdy',(s,t))) in
-        (* pr "Return type: %a\n" pp_term ret_typ; *)
-        let my_coh = CohT (tele, ret_typ) in 
-
-        Ext (cohs, Some my_coh)
-
-  in match go (boundary pd) pd with
+  in match go pd (dim_pd pd) with
   | Emp -> snd (head (pd_args pd))
   | Ext (_,None) -> snd (head (pd_args pd))
   | Ext (_,Some coh) -> coh
 
-let ucomp_test pd =
-  pr "%a" pp_term (unbiased_comp (pd_to_idx pd) (VarT 0))
 
 (*****************************************************************************)
 (*                                Typechecking                               *)
@@ -344,7 +335,8 @@ type typing_error = [
   | `IcityMismatch of icit * icit
   | `TypeMismatch of string
   | `PastingError of string
-  | `FullnessError of string 
+  | `FullnessError of string
+  | `NotImplemented of string
   | `InternalError
 ]
 
@@ -459,10 +451,10 @@ and infer gma expr =
     let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
     Ok (CohT (gt,at) , coh_ty)
 
-  | CylE (_,_,_) -> Error `InternalError
-  | BaseE _ -> Error `InternalError
-  | LidE _ -> Error `InternalError
-  | CoreE _ -> Error `InternalError
+  | CylE (_,_,_) -> Error (`NotImplemented "Infer CylE")
+  | BaseE _ -> Error (`NotImplemented "Infer BaseE")
+  | LidE _ -> Error (`NotImplemented "Infer LidE")
+  | CoreE _ -> Error (`NotImplemented "Infer CoreE")
 
   | ArrE c -> 
     let* c' = check gma c CatV in
@@ -470,7 +462,9 @@ and infer gma expr =
       
   | CatE -> Ok (CatT , TypV)
   | TypE -> Ok (TypT , TypV)
-  
+
+  | QuotE _ -> Error (`NotImplemented "Infer QuotE")
+
   | HoleE ->
     let a = eval gma.top gma.loc (fresh_meta ()) in
     let t = fresh_meta () in
@@ -564,7 +558,7 @@ let rec abstract_tele_with_tm tl ty tm =
               
 let rec check_defs gma defs =
   match defs with
-  | [] -> Ok gma
+  | [] -> additional_tests () ; Ok gma
   | (TermDef (id,tl,ty,tm))::ds ->
     pr "----------------@,";
     pr "Checking definition: %s@," id;
@@ -576,8 +570,8 @@ let rec check_defs gma defs =
     pr "Checking complete for %s@," id;
     let tm_nf = term_to_expr Emp (quote (gma.lvl) tm_val false) in
     let ty_nf = term_to_expr Emp (quote (gma.lvl) ty_val false) in
-    pr "Type: %a@," pp_expr ty_nf;
-    pr "Term: %a@," pp_expr tm_nf;
+    pr "Type: @[<hov>%a@]@," pp_expr ty_nf;
+    pr "Term: @[<hov>%a@]@," pp_expr tm_nf;
     check_defs (define gma id tm_val ty_val) ds
   | (CohDef (id,g,a))::ds ->
     pr "----------------@,";
@@ -585,13 +579,26 @@ let rec check_defs gma defs =
     let* (gt,at) = check_coh gma g a in
     let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
     let coh_tm = eval gma.top gma.loc (CohT (gt , at)) in
-    let coh_ty_nf = term_to_expr Emp (quote gma.lvl coh_ty false) in
+    (* let coh_ty_nf = term_to_expr Emp (quote gma.lvl coh_ty false) in *)
     let coh_tm_nf = term_to_expr Emp (quote gma.lvl coh_tm false) in
-    pr "Coh type: %a@," pp_expr coh_ty_nf;
+    (* pr "Coh type: @[<hov>%a@]@," pp_expr coh_ty_nf; *)
     (* pr "Coh term raw: %a@," pp_term (CohT (gt,at));
      * pr "Coh term val: %a@," pp_value coh_tm;
      * pr "Coh term nf: %a@," pp_term (quote gma.lvl coh_tm false); *)
-    pr "Coh expr: %a@," pp_expr coh_tm_nf;
+    pr "Coh expr: @[<hov>%a@]@," pp_expr coh_tm_nf;
     check_defs (define gma id coh_tm coh_ty) ds
 
+and additional_tests _ = ()
+  (* pr "----------------@,";
+   * let s = [3;0;3] in 
+   * match Pd.comp_seq s with
+   * | Ok pd ->
+   *   let pd_lvl = pd_to_lvl pd in 
+   *   let pd_idx = pd_to_idx pd in
+   *   let nms = map_suite (Pd.labels pd_lvl) ~f:(fun i -> str "x%a" pp_term i) in
+   *   let utm = unbiased_comp pd_idx (VarT (length nms)) in 
+   *   let uexp = term_to_expr (append (singleton "C") nms) utm in
+   *   (\* pr "%a\n" pp_term utm; *\)
+   *   pr "ucomp: @[<hov>%a@]@," pp_expr uexp
+   * | Error s -> pr "error: %s" s *)
 

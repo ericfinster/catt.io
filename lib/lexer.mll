@@ -17,6 +17,7 @@
 }
 
 let space = ' ' | '\t' | '\r'
+let int = '-'? ['0'-'9'] ['0'-'9']*
 
 rule token = parse
 
@@ -30,10 +31,13 @@ rule token = parse
   | "}"          { RBR }
   | "["          { LBRKT }
   | "]"          { RBRKT }
+  | "`["         { QUOTBRKT }
   | "cyl"        { CYL }
   | "base"       { BASE }
   | "lid"        { LID }
   | "core"       { CORE }
+  | "ucomp"      { UCOMP }
+  | "compseq"    { COMPSEQ }
   | ":"          { COLON }
   | "::"         { DBLCOLON }
   | "="          { EQUAL }
@@ -48,6 +52,9 @@ rule token = parse
   (* Identifiers *)
   | (['a'-'z''A'-'Z''0'-'9']['a'-'z''A'-'Z''0'-'9''_']* as str) { IDENT str }
 
+  (* Integers *)
+  | int                      { INT (int_of_string (Lexing.lexeme lexbuf)) }
+  
   (* Comment and layout *)
   | space+                   { token lexbuf }
   | "#"[^'\n']*              { token lexbuf }

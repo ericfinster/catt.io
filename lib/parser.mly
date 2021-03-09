@@ -8,10 +8,12 @@
 %token LET COH
 %token TYPE CAT ARR
 %token LAMBDA COLON DBLCOLON EQUAL DOT
-%token LPAR RPAR LBR RBR LBRKT RBRKT
+%token LPAR RPAR LBR RBR LBRKT RBRKT QUOTBRKT
 %token VBAR DBLARROW ARROW HOLE
 %token CYL BASE CORE LID
-%token <string> IDENT 
+%token UCOMP COMPSEQ
+%token <string> IDENT
+%token <int> INT
 %token EOF
 
 %start prog
@@ -30,6 +32,12 @@ defn:
     { TermDef (id,tl,ty,tm) }
   | COH id = IDENT tl = tele COLON c = expr
     { CohDef (id,tl,c) }
+
+/* Add separators and so on ... */
+suite(X):
+  | { Emp }
+  | s = suite(X) x = X
+    { Ext (s,x) }
 
 tele:
   |
@@ -102,6 +110,17 @@ expr3:
     { CylE (b,l,c) }
   | ARR c = expr3
     { ArrE c }
+  | c = quot_cmd
+    { QuotE c } 
   | LPAR t = expr RPAR
     { t }
 
+paren_pd:
+  | LPAR brs = suite(paren_pd) RPAR
+    { ((),Pd.Br ((),brs)) }
+
+quot_cmd:
+  | QUOTBRKT UCOMP pd = paren_pd RBRKT
+    { UComp (snd pd) }
+  | QUOTBRKT COMPSEQ d = nonempty_list(INT) RBRKT
+    { CompSeq d }
