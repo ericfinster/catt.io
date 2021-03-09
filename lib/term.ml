@@ -22,6 +22,7 @@ type term =
   | LamT of name * icit * term
   | AppT of term * term * icit
   | PiT of name * icit * term * term
+  | QuotT of quot_cmd
   | ObjT of term
   | HomT of term * term * term
   | CohT of term tele * term
@@ -39,6 +40,8 @@ type term =
 (*                              Utility Routines                             *)
 (*****************************************************************************)
 
+let lvl_to_idx k l = k - l - 1
+
 let rec term_to_expr nms tm =
   let tte = term_to_expr in 
   match tm with
@@ -51,6 +54,7 @@ let rec term_to_expr nms tm =
     AppE (tte nms u, tte nms v, ict)
   | PiT (nm,ict,a,b) ->
     PiE (nm, ict, tte nms a, tte (Ext (nms,nm)) b)
+  | QuotT c -> QuotE c
   | ObjT c -> ObjE (tte nms c)
   | HomT (c,s,t) ->
     HomE (tte nms c, tte nms s, tte nms t)
@@ -132,7 +136,85 @@ let pd_to_idx pd =
       (k'', Ext (brs'',(VarT k',br')))
 
   in snd (pd_to_idx_br 0 pd)
+
+let pd_to_term_tele pd =
+  let open Pd in
+  let k = length (labels pd) in 
+  let mk_cat = CatT in 
+  let mk_obj c = ObjT c in 
+  let mk_hom c s t = HomT (c,s,t) in 
+  let mk_nm _ l = str "x%d" l in 
+  let mk_var _ l = VarT (lvl_to_idx k l) in 
+  let mk_base_cat = VarT (k-1) in 
+  pd_to_tele mk_cat mk_obj mk_hom mk_nm mk_var mk_base_cat pd
+
+(*****************************************************************************)
+(*                       Unbiased Composite Generation                       *)
+(*****************************************************************************)
+
+let rec app_suite v s =
+  match s with
+  | Emp -> v
+  | Ext (s',(ict,u)) -> AppT (app_suite v s', u, ict)
+
+let pd_args pd =
+  let open Pd in
   
+  let rec pd_args_br args br =
+    match br with
+    | Br (v,brs) ->
+      let ict = if (is_empty brs) then Expl else Impl in
+      pd_args_brs (Ext (args,(ict,v))) brs
+
+  and pd_args_brs args brs =
+    match brs with
+    | Emp -> args
+    | Ext (brs',(v,br)) ->
+      let args' = pd_args_brs args brs' in
+      pd_args_br (Ext (args',(Impl,v))) br 
+
+  in pd_args_br Emp pd 
+    
+let unbiased_comp : unit Pd.pd -> term = fun pd -> 
+  let open Pd in
+
+  let rec build_type cohs bdy cat =
+    match (cohs , bdy) with
+    | (Emp, Emp) -> cat
+    | (Ext (c',coh_opt), Ext (b',(s,t))) ->
+      let c = build_type c' b' cat in
+      let src_args = pd_args s in
+      let tgt_args = pd_args t in 
+      (match coh_opt with
+       | None -> HomT (c, snd (head src_args), snd (head tgt_args))
+       | Some coh ->
+         let src = app_suite coh (pd_args s) in
+         let tgt = app_suite coh (pd_args t) in
+         HomT (c, src, tgt)
+      )
+    | _ -> raise (Failure "length mismatch")
+
+  in 
+
+  let rec go pd d =
+    if (is_disc pd) then
+      repeat (d+1) None
+    else
+      let src = truncate true (d-1) pd in
+      let cohs = go (pd_to_idx src) (d-1) in
+      (* pr "About to handle: %a\n" pp_tr pd; *)
+      let g = pd_to_term_tele pd in
+      (* pr "tele: %a\n" (pp_tele pp_term) g; *)
+      let a = build_type cohs (boundary pd) (VarT (length g - 1)) in
+      (* pr "return type is: %a\n" pp_term a; *)
+      Ext (cohs, Some (CohT (g,a)))
+
+  in let pdi = pd_to_idx pd
+  in match go pdi (dim_pd pd) with
+  | Emp -> snd (head (pd_args pdi))
+  | Ext (_,None) -> snd (head (pd_args pdi))
+  | Ext (_,Some coh) -> coh
+
 (*****************************************************************************)
 (*                              Pretty Printing                              *)
 (*****************************************************************************)
@@ -174,6 +256,8 @@ let rec pp_term ppf tm =
   | PiT (nm,Expl,a,p) ->
     pf ppf "(%s : %a) -> %a" nm
       pp_term a pp_term p
+  | QuotT c ->
+    pf ppf "`[ %a ]" pp_quot_cmd c
   | ObjT c ->
     pf ppf "[%a]" pp_term c
   | HomT (c,s,t) ->

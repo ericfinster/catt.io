@@ -162,6 +162,9 @@ let rec free_vars k tm =
     Set.union (free_vars k u) (free_vars k v)
   | PiT (_,_,a,b) ->
     Set.union (free_vars k a) (free_vars (k+1) b)
+  (* This could be more complicated later on  *)
+  | QuotT (PComp _) -> fvs_empty
+  | QuotT (SComp _) -> fvs_empty
   | ObjT c -> free_vars k c
   | HomT (c,s,t) ->
     Set.union (free_vars k c) (Set.union (free_vars k s) (free_vars k t))
@@ -192,6 +195,7 @@ let rec free_vars_val k v =
   | LamV (_,_,Closure (_,loc,tm)) -> free_vars (length loc) tm
   | PiV (_,_,a,Closure (_,loc,b)) ->
     Set.union (free_vars_val k a) (free_vars (length loc) b)
+  | QuotV (_,sp,_) -> sp_vars sp 
   | ObjV c -> free_vars_val k c
   | HomV (c,s,t) ->
     Set.union_list (module Int) [fvc c; fvc s; fvc t]
@@ -234,75 +238,6 @@ let rec lid_type cat =
     Ok (HomV (bc, lidV s, lidV t))
   | _ -> Error `InternalError
 
-(* Okay, now we're cooking! *)
-let pd_to_term_tele pd =
-  quote_tele (pd_to_value_tele pd) 
-
-let rec app_suite v s =
-  match s with
-  | Emp -> v
-  | Ext (s',(ict,u)) -> AppT (app_suite v s', u, ict)
-
-let pd_args pd =
-  let open Pd in
-  
-  let rec pd_args_br args br =
-    match br with
-    | Br (v,brs) ->
-      let ict = if (is_empty brs) then Expl else Impl in
-      pd_args_brs (Ext (args,(ict,v))) brs
-
-  and pd_args_brs args brs =
-    match brs with
-    | Emp -> args
-    | Ext (brs',(v,br)) ->
-      let args' = pd_args_brs args brs' in
-      pd_args_br (Ext (args',(Impl,v))) br 
-
-  in pd_args_br Emp pd 
-    
-let unbiased_comp pd cat =
-  let open Pd in
-
-  let rec build_type cohs bdy =
-    match (cohs , bdy) with
-    | (Emp, Emp) ->
-      (* This also needs to change ... *)
-      cat
-    | (Ext (c',coh_opt), Ext (b',(s,t))) ->
-      let c = build_type c' b' in
-      let src_args = pd_args s in
-      let tgt_args = pd_args t in 
-      (match coh_opt with
-       | None -> HomT (c, snd (head src_args), snd (head tgt_args))
-       | Some coh ->
-         let src = app_suite coh (pd_args s) in
-         let tgt = app_suite coh (pd_args t) in
-         HomT (c, src, tgt)
-      )
-    | _ -> raise (Failure "length mismatch")
-
-  in 
-
-  let rec go pd d =
-    if (is_disc pd) then
-      repeat (d+1) None
-    else
-      let src = truncate true (d-1) pd in
-      let cohs = go src (d-1) in
-      (* pr "About to handle: %a\n" pp_tr pd; *)
-      let g = quote_tele (pd_to_value_tele pd) in
-      (* pr "tele: %a\n" (pp_tele pp_term) g; *)
-      let a = build_type cohs (boundary (pd_to_idx pd)) in
-      (* pr "return type is: %a\n" pp_term a; *)
-      Ext (cohs, Some (CohT (g,a)))
-
-  in match go pd (dim_pd pd) with
-  | Emp -> snd (head (pd_args pd))
-  | Ext (_,None) -> snd (head (pd_args pd))
-  | Ext (_,Some coh) -> coh
-
-
 (*****************************************************************************)
 (*                                Typechecking                               *)
 (*****************************************************************************)
@@ -337,6 +272,7 @@ type typing_error = [
   | `PastingError of string
   | `FullnessError of string
   | `NotImplemented of string
+  | `BadCohQuot of string
   | `InternalError
 ]
 
@@ -463,7 +399,19 @@ and infer gma expr =
   | CatE -> Ok (CatT , TypV)
   | TypE -> Ok (TypT , TypV)
 
-  | QuotE _ -> Error (`NotImplemented "Infer QuotE")
+  (* We just have empty names here.  Is that right? *)
+              
+  (* Also, you shouldn't have to convert back to expressions, but we
+     don't have an internal typechecker for the moment.... *)
+
+  (* Of course, in principle, you could also generate expressions ... *)
+
+  | QuotE (PComp pd) -> infer gma (term_to_expr Emp (unbiased_comp pd))
+
+  | QuotE (SComp ds) ->
+    (match Pd.comp_seq ds with
+     | Ok pd -> infer gma (term_to_expr Emp (unbiased_comp pd))
+     | Error _ -> Error (`BadCohQuot "invalid comp seqence"))
 
   | HoleE ->
     let a = eval gma.top gma.loc (fresh_meta ()) in

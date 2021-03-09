@@ -11,7 +11,7 @@
 %token LPAR RPAR LBR RBR LBRKT RBRKT QUOTBRKT
 %token VBAR DBLARROW ARROW HOLE
 %token CYL BASE CORE LID
-%token UCOMP COMPSEQ
+%token SCOMP PCOMP
 %token <string> IDENT
 %token <int> INT
 %token EOF
@@ -120,7 +120,7 @@ paren_pd:
     { ((),Pd.Br ((),brs)) }
 
 quot_cmd:
-  | QUOTBRKT UCOMP pd = paren_pd RBRKT
-    { UComp (snd pd) }
-  | QUOTBRKT COMPSEQ d = nonempty_list(INT) RBRKT
-    { CompSeq d }
+  | QUOTBRKT PCOMP pd = paren_pd RBRKT
+    { PComp (snd pd) }
+  | QUOTBRKT SCOMP d = nonempty_list(INT) RBRKT
+    { SComp d }

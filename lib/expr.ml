@@ -22,8 +22,8 @@ type name = string
 type 'a tele = (name * icit * 'a) suite
 
 type quot_cmd =
-  | UComp of unit pd 
-  | CompSeq of int list
+  | PComp of unit pd 
+  | SComp of int list
         
 type expr =
   | VarE of name
@@ -164,6 +164,13 @@ let pp_tele pp_el ppf tl =
     | Impl -> pf ppf "{%s : %a}" nm pp_el t
   in pp_suite pp_trpl ppf tl 
 
+let pp_quot_cmd ppf c =
+  match c with
+  | PComp pd ->
+    pf ppf "pcomp %a" pp_tr pd 
+  | SComp ds ->
+    pf ppf "scomp %a" (list int) ds 
+
 let rec pp_expr_gen show_imp ppf expr =
   let ppe = pp_expr_gen show_imp in 
   match expr with
@@ -192,7 +199,7 @@ let rec pp_expr_gen show_imp ppf expr =
   | PiE (nm,Expl,dom,cod) ->
     pf ppf "(%s : %a) -> %a" nm
       ppe dom ppe cod
-  | QuotE _ -> pf ppf "quot"
+  | QuotE c -> pf ppf "`[ %a ]" pp_quot_cmd c
   | ObjE e -> pf ppf "[%a]" ppe e
   | HomE (_,s,t) ->
     (* pf ppf "%a | %a => %a" ppe c ppe s ppe t *)

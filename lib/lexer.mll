@@ -36,8 +36,8 @@ rule token = parse
   | "base"       { BASE }
   | "lid"        { LID }
   | "core"       { CORE }
-  | "ucomp"      { UCOMP }
-  | "compseq"    { COMPSEQ }
+  | "scomp"      { SCOMP }
+  | "pcomp"      { PCOMP }
   | ":"          { COLON }
   | "::"         { DBLCOLON }
   | "="          { EQUAL }

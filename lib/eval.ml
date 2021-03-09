@@ -31,6 +31,12 @@ let rec eval top loc tm =
   | LamT (nm,ict,u) -> LamV (nm, ict, Closure (top,loc,u))
   | AppT (u,v,ict) -> appV (eval top loc u) (eval top loc v) ict
   | PiT (nm,ict,u,v) -> PiV (nm, ict, eval top loc u, Closure (top,loc,v))
+  | QuotT (PComp pd) ->
+    QuotV (PComp pd, EmpSp, eval top loc (unbiased_comp pd))
+  | QuotT (SComp ds) ->
+    (match Pd.comp_seq ds with
+     | Ok pd -> QuotV (SComp ds, EmpSp, eval top loc (unbiased_comp pd))
+     | Error s -> raise (Eval_error (str "Invalid comp sequence: %s" s)))
   | ObjT c -> ObjV (eval top loc c)
   | HomT (c,s,t) ->
     HomV (eval top loc c, eval top loc s, eval top loc t)
@@ -115,8 +121,6 @@ let rec force_meta v =
 (*                                  Quoting                                  *)
 (*****************************************************************************)
 
-let lvl_to_idx k l = k - l - 1
-
 let rec quote k v ufld =
   let qc x = quote k x ufld in
   let qcs x s = quote_sp k x s ufld in 
@@ -127,6 +131,8 @@ let rec quote k v ufld =
   | TopV (nm,sp,_) -> qcs (TopT nm) sp 
   | LamV (nm,ict,cl) -> LamT (nm, ict, quote (k+1) (cl $$ varV k) ufld)
   | PiV (nm,ict,u,cl) -> PiT (nm, ict, qc u, quote (k+1) (cl $$ varV k) ufld)
+  | QuotV (_,_,tv) when ufld -> qc tv
+  | QuotV (cmd,sp,_) -> qcs (QuotT cmd) sp 
   | ObjV c -> ObjT (qc c)
   | HomV (c,s,t) -> HomT (qc c, qc s, qc t)
   | CohV (v,sp) ->
