@@ -896,7 +896,7 @@ and infer gma expr =
     let* t' = check gma t (ObjV cv) in
     Ok (HomT (c',s',t'), CatV)
   
-  | CohE (_,_) ->
+  | CohE (g,a) ->
     let* (gt,at) = check_coh gma g a in
     let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
     Ok (CohT (gt,at) , coh_ty)
