@@ -31,12 +31,10 @@ let rec eval top loc tm =
   | LamT (nm,ict,u) -> LamV (nm, ict, Closure (top,loc,u))
   | AppT (u,v,ict) -> appV (eval top loc u) (eval top loc v) ict
   | PiT (nm,ict,u,v) -> PiV (nm, ict, eval top loc u, Closure (top,loc,v))
-  | QuotT (PComp pd) ->
-    QuotV (PComp pd, EmpSp, eval top loc (unbiased_comp pd))
-  | QuotT (SComp ds) ->
-    (match Pd.comp_seq ds with
-     | Ok pd -> QuotV (SComp ds, EmpSp, eval top loc (unbiased_comp pd))
-     | Error s -> raise (Eval_error (str "Invalid comp sequence: %s" s)))
+  | QuotT (PCompRes (pd,g,a)) ->
+    QuotV (PCompRes (pd,g,a), EmpSp, eval top loc (CohT (g,a)))
+  | QuotT (SCompRes (ds,g,a)) ->
+    QuotV (SCompRes (ds,g,a), EmpSp, eval top loc (CohT (g,a)))    
   | ObjT c -> ObjV (eval top loc c)
   | HomT (c,s,t) ->
     HomV (eval top loc c, eval top loc s, eval top loc t)
@@ -132,7 +130,7 @@ let rec quote k v ufld =
   | LamV (nm,ict,cl) -> LamT (nm, ict, quote (k+1) (cl $$ varV k) ufld)
   | PiV (nm,ict,u,cl) -> PiT (nm, ict, qc u, quote (k+1) (cl $$ varV k) ufld)
   | QuotV (_,_,tv) when ufld -> qc tv
-  | QuotV (cmd,sp,_) -> qcs (QuotT cmd) sp 
+  | QuotV (res,sp,_) -> qcs (QuotT res) sp 
   | ObjV c -> ObjT (qc c)
   | HomV (c,s,t) -> HomT (qc c, qc s, qc t)
   | CohV (v,sp) ->

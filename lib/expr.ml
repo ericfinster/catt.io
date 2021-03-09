@@ -144,6 +144,75 @@ let expr_tele_to_pd tl =
   in go 0 tl
 
 (*****************************************************************************)
+(*                       Unbiased Composite Generation                       *)
+(*****************************************************************************)
+
+let rec app_suite v s =
+  match s with
+  | Emp -> v
+  | Ext (s',(ict,u)) -> AppE (app_suite v s', u, ict)
+
+let pd_args cat pd =
+  let open Pd in
+  
+  let rec pd_args_br args br =
+    match br with
+    | Br (v,brs) ->
+      let ict = if (is_empty brs) then Expl else Impl in
+      pd_args_brs (Ext (args,(ict,v))) brs
+
+  and pd_args_brs args brs =
+    match brs with
+    | Emp -> args
+    | Ext (brs',(v,br)) ->
+      let args' = pd_args_brs args brs' in
+      pd_args_br (Ext (args',(Impl,v))) br 
+
+  in pd_args_br (Ext (Emp,(Impl,cat))) pd 
+    
+let unbiased_comp : unit Pd.pd -> expr = fun pd -> 
+  let open Pd in
+
+  let with_vars pd = pd_lvl_map pd (fun l -> str "x%d" l) in
+  
+  let rec build_type cohs bdy cat =
+    match (cohs , bdy) with
+    | (Emp, Emp) -> cat
+    | (Ext (c',coh_opt), Ext (b',(s,t))) ->
+      let c = build_type c' b' cat in
+      let src_args = pd_args cat s in
+      let tgt_args = pd_args cat t in 
+      (match coh_opt with
+       | None -> HomE (c, snd (head src_args), snd (head tgt_args))
+       | Some coh ->
+         let src = app_suite coh src_args in
+         let tgt = app_suite coh tgt_args in
+         HomE (c, src, tgt)
+      )
+    | _ -> raise (Failure "length mismatch")
+
+  in 
+
+  let rec go pd d =
+    if (is_disc pd) then
+      repeat (d+1) None
+    else
+      let src = truncate true (d-1) pd in
+      let cohs = go (with_vars src) (d-1) in
+      (* pr "About to handle: %a\n" pp_tr pd; *)
+      let g = pd_to_expr_tele pd in
+      (* pr "tele: %a\n" (pp_tele pp_term) g; *)
+      let a = build_type cohs (boundary (map_pd pd ~f:(fun s -> VarE s))) (VarE "C") in
+      (* pr "return type is: %a\n" pp_term a; *)
+      Ext (cohs, Some (CohE (g,a)))
+
+  in let pdv = with_vars pd 
+  in match go pdv (dim_pd pd) with
+  | Emp -> VarE (head (labels pdv))
+  | Ext (_,None) -> VarE (head (labels pdv))
+  | Ext (_,Some coh) -> coh
+
+(*****************************************************************************)
 (*                         Pretty Printing Raw Syntax                        *)
 (*****************************************************************************)
            
@@ -201,16 +270,19 @@ let rec pp_expr_gen show_imp ppf expr =
       ppe dom ppe cod
   | QuotE c -> pf ppf "`[ %a ]" pp_quot_cmd c
   | ObjE e -> pf ppf "[%a]" ppe e
-  | HomE (_,s,t) ->
-    (* pf ppf "%a | %a => %a" ppe c ppe s ppe t *)
-    pf ppf "%a => %a" ppe s ppe t
+  | HomE (c,s,t) ->
+    pf ppf "%a | %a => %a" ppe c ppe s ppe t
+    (* pf ppf "%a => %a" ppe s ppe t *)
   | CohE (g,a) ->
-    (match expr_tele_to_pd g with
-     | Ok (pd,_,_,_,_) ->
-       pf ppf "@[<hov>@[<hov>coh [ %a : @]@[<hov>%a ]@]@]"
-         (pp_pd string) pd ppe a
-     | Error _ -> 
-       pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a)
+    (* (match expr_tele_to_pd g with
+     *  | Ok (pd,_,_,_,_) ->
+     *    pf ppf "@[<hov>@[<hov>coh [ %a : @]@[<hov>%a ]@]@]"
+     *      (pp_pd string) pd ppe a
+     *  | Error _ -> 
+     *    pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a) *)
+    
+    pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a
+    
    | CylE (b,l,c) ->
     pf ppf "[| %a | %a | %a |]" ppe b ppe l ppe c 
   | BaseE c ->

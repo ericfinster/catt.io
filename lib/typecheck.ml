@@ -81,16 +81,22 @@ let unobj v =
   | ObjV v' -> Ok v'
   | _ -> Error (str "Not a type of objects: %a" pp_value v)
 
-let ctx_to_pd loc = 
+(* Hmmm.  We are hard-coded to be in the empty context here .... *)
+let ctx_to_pd i loc = 
   let rec go l loc =
     (* pr "Trying pasting context: @[<hov>%a@]@," (pp_suite pp_value) loc; *)
     match loc with
     | Emp -> Error "Empty context is not a pasting diagram"
     | Ext(Emp,_) -> Error "Singleton context is not a pasting diagram"
-    | Ext(Ext(Emp,CatV),ObjV (RigidV (0,EmpSp))) ->
-      Ok (Pd.Br (l,Emp),varV 0,varV 1,2,0)
+    | Ext(Ext(Emp,CatV),ObjV (RigidV (i',EmpSp))) ->
+      if (i = i') then 
+        Ok (Pd.Br (l,Emp),varV i,varV (i+1),i+2,0)
+      else Error "Wrong base category for object"
     | Ext(Ext(loc',tobj),fobj) ->
 
+      (* pr "tobj: %a@," pp_value tobj;
+       * pr "fobj: %a@," pp_value fobj; *)
+      
       let* tty = unobj tobj in
       let* fty = unobj fobj in
 
@@ -163,8 +169,8 @@ let rec free_vars k tm =
   | PiT (_,_,a,b) ->
     Set.union (free_vars k a) (free_vars (k+1) b)
   (* This could be more complicated later on  *)
-  | QuotT (PComp _) -> fvs_empty
-  | QuotT (SComp _) -> fvs_empty
+  | QuotT (PCompRes _) -> fvs_empty
+  | QuotT (SCompRes _) -> fvs_empty
   | ObjT c -> free_vars k c
   | HomT (c,s,t) ->
     Set.union (free_vars k c) (Set.union (free_vars k s) (free_vars k t))
@@ -277,9 +283,10 @@ type typing_error = [
 ]
 
 let rec check gma expr typ = 
-  (* let typ_tm = quote gma.lvl typ false in
-   * pr "Checking %a has type %a@," pp_expr expr pp_term typ_tm ;
-   * dump_ctx true gma; *)
+  let typ_tm = quote gma.lvl typ false in
+  let typ_expr = term_to_expr (names gma) typ_tm in 
+  pr "Checking %a has type %a@," pp_expr_with_impl expr pp_expr_with_impl typ_expr ;
+  (* dump_ctx true gma; *)
   match (expr, force_meta typ) with
   
   | (e , TopV (_,_,tv)) ->
@@ -383,8 +390,10 @@ and infer gma expr =
     Ok (HomT (c',s',t'), CatV)
 
   | CohE (g,a) ->
+    pr "Inferring a coherence: @[<hov>%a@]@," pp_expr (CohE (g,a));
     let* (gt,at) = check_coh gma g a in
     let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
+    pr "Finished with coherence: @[<hov>%a@]@," pp_expr (CohE (g,a));
     Ok (CohT (gt,at) , coh_ty)
 
   | CylE (_,_,_) -> Error (`NotImplemented "Infer CylE")
@@ -399,18 +408,17 @@ and infer gma expr =
   | CatE -> Ok (CatT , TypV)
   | TypE -> Ok (TypT , TypV)
 
-  (* We just have empty names here.  Is that right? *)
+  (* So, something about the arguments not being generated correctly *)
               
-  (* Also, you shouldn't have to convert back to expressions, but we
-     don't have an internal typechecker for the moment.... *)
-
-  (* Of course, in principle, you could also generate expressions ... *)
-
-  | QuotE (PComp pd) -> infer gma (term_to_expr Emp (unbiased_comp pd))
+  | QuotE (PComp pd) ->
+    pr "inferring a pasting composite: %a@," Pd.pp_tr pd;
+    let e = unbiased_comp pd in
+    pr "expr: @[<hov>%a@]@," pp_expr_with_impl e; 
+    infer gma e
 
   | QuotE (SComp ds) ->
     (match Pd.comp_seq ds with
-     | Ok pd -> infer gma (term_to_expr Emp (unbiased_comp pd))
+     | Ok pd -> infer gma (unbiased_comp pd)
      | Error _ -> Error (`BadCohQuot "invalid comp seqence"))
 
   | HoleE ->
@@ -431,12 +439,13 @@ and with_tele gma tl m =
 
 and check_coh gma g a =
   with_tele gma g (fun gma' gv gt ->
-      match ctx_to_pd gv with
+      match ctx_to_pd (length gma.loc) gv with
       | Ok (pd,_,_,_,_) ->
-
+        
         pr "Valid pasting context!@,";
+        pr "Going to check return type: @[%a@]@," pp_expr a;
         let* a' = check gma' a CatV in
-        (* pr "return type: %a@," pp_term a'; *)
+        pr "return type: %a@," pp_term a';
         let av = eval gma'.top gma'.loc a' in 
         let (ucat,bdim) = underlying_cat av in
         let cat_lvl = (length gma'.loc) - (length gv) in

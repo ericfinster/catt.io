@@ -20,8 +20,8 @@
 #   (f :: x => y) (g :: x => y)
 #   : Cat = f => g
 
-coh id {C : Cat} (x :: C)
-  : x => x
+# coh id {C : Cat} (x :: C)
+#   : x => x
 
 coh comp {C : Cat}
     {x :: C}
@@ -40,51 +40,49 @@ coh comp {C : Cat}
 #   : [ x => y ] -> [ x => z ]
 #   = \f. comp f g
   
-coh unit_l {C : Cat}
-    {x :: C}
-    {y :: C} (f :: x => y)
-  : comp (id x) f => f
+# coh unit_l {C : Cat}
+#     {x :: C}
+#     {y :: C} (f :: x => y)
+#   : comp (id x) f => f
 
 # Abbreviated syntax: 
 # coh unit_l [ x(y,f) ]
 #   : comp (id x) f => f 
 
-coh unit_r {C : Cat}
-    {x :: C}
-    {y :: C} (f :: x => y)
-  : comp f (id y) => f
+# coh unit_r {C : Cat}
+#     {x :: C}
+#     {y :: C} (f :: x => y)
+#   : comp f (id y) => f
   
-coh assoc {C : Cat}
-    {x :: C}
-    {y :: C} (f :: x => y)
-    {z :: C} (g :: y => z)
-    {w :: C} (h :: z => w)
-  : comp f (comp g h) =>
-    comp (comp f g) h
+# coh assoc {C : Cat}
+#     {x :: C}
+#     {y :: C} (f :: x => y)
+#     {z :: C} (g :: y => z)
+#     {w :: C} (h :: z => w)
+#   : comp f (comp g h) =>
+#     comp (comp f g) h
 
 # coh assoc [ x(y,f)(z,g)(w,h) ]
 #   : comp f (comp g h) =>
 #     comp (comp f g) h 
   
-coh horiz {C : Cat}
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} (a :: f => g)
-    {z :: C} {h :: y => z}
-       	     {k :: y => z} (b :: h => k)
-  : comp f h => comp g k 
+# coh horiz {C : Cat}
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (a :: f => g)
+#     {z :: C} {h :: y => z}
+#        	     {k :: y => z} (b :: h => k)
+#   : comp f h => comp g k 
 
 # coh horiz [ x(y,f(g,a))(z,h(k,b)) ]
 #   : comp f h => comp g k 
 
-[ x(y,f(g,u)(h,v))(z,j) ]
-
-coh vert {C : Cat}
-    {x :: C}
-    {y :: C} {f :: x => y}
-       	     {g :: x => y} (a :: f => g)
-	     {h :: x => y} (b :: g => h)
-  : f => h
+# coh vert {C : Cat}
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#        	     {g :: x => y} (a :: f => g)
+# 	     {h :: x => y} (b :: g => h)
+#   : f => h
 
 # this shows that unification can automatically
 # detect suspensions!
@@ -96,4 +94,21 @@ coh vert {C : Cat}
 #   : [ f => h ]
 #   = comp a b
 
+# let scomp_test {C : Cat}
+#     {x :: C}
+#     {y :: C} (f :: x => y)
+#     {z :: C} (g :: y => z)
+#   : [ x => z ]
+#   = `[ pcomp (()()) ] f g
 
+let horiz_test {C : Cat}
+    {x :: C}
+    {y :: C} {f :: x => y}
+             {g :: x => y} (a :: f => g)
+    {z :: C} {h :: y => z}
+       	     {k :: y => z} (b :: h => k)
+  : [ comp f h => comp g k ]
+  = `[ pcomp ((())(())) ] a b
+
+# let id_test {C : Cat} (x :: C) : [ x => x ]
+#   = (coh [ {D : Cat} (x :: D) :  x => x ]) x
