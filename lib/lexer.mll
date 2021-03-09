@@ -50,10 +50,10 @@ rule token = parse
   | "Cat"        { CAT }
 
   (* Identifiers *)
-  | (['a'-'z''A'-'Z''0'-'9']['a'-'z''A'-'Z''0'-'9''_']* as str) { IDENT str }
+  | (['a'-'z''A'-'Z']['a'-'z''A'-'Z''0'-'9''_']* as str) { IDENT str }
 
   (* Integers *)
-  | int                      { INT (int_of_string (Lexing.lexeme lexbuf)) }
+  | int as i              { INT (Base.Int.of_string i) }
   
   (* Comment and layout *)
   | space+                   { token lexbuf }

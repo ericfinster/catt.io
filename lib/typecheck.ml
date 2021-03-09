@@ -545,7 +545,8 @@ let rec check_defs gma defs =
     pr "Coh expr: @[<hov>%a@]@," pp_expr coh_tm_nf;
     check_defs (define gma id coh_tm coh_ty) ds
 
-and additional_tests _ = ()
+and additional_tests _ =
+  let _ = Int.of_string "45" in ()
   (* pr "----------------@,";
    * let s = [3;0;3] in 
    * match Pd.comp_seq s with

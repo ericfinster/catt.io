@@ -122,5 +122,5 @@ paren_pd:
 quot_cmd:
   | QUOTBRKT PCOMP pd = paren_pd RBRKT
     { PComp (snd pd) }
-  | QUOTBRKT SCOMP d = nonempty_list(INT) RBRKT
-    { SComp d }
+  | QUOTBRKT SCOMP ds = INT+ RBRKT
+    { SComp ds }
