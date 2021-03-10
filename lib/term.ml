@@ -22,7 +22,7 @@ type term =
   | LamT of name * icit * term
   | AppT of term * term * icit
   | PiT of name * icit * term * term
-  | QuotT of quot_res
+  | QuotT of quot_cmd * term
   | ObjT of term
   | HomT of term * term * term
   | CohT of term tele * term
@@ -36,9 +36,9 @@ type term =
   | MetaT of mvar
   | InsMetaT of mvar 
 
-and quot_res =
-  | PCompRes of unit Pd.pd * term tele * term
-  | SCompRes of int list * term tele * term 
+(* and quot_res =
+ *   | PCompRes of unit Pd.pd * term tele * term
+ *   | SCompRes of int list * term tele * term  *)
 
 (*****************************************************************************)
 (*                              Utility Routines                             *)
@@ -58,8 +58,7 @@ let rec term_to_expr nms tm =
     AppE (tte nms u, tte nms v, ict)
   | PiT (nm,ict,a,b) ->
     PiE (nm, ict, tte nms a, tte (Ext (nms,nm)) b)
-  | QuotT (PCompRes (pd,_,_)) -> QuotE (PComp pd)
-  | QuotT (SCompRes (ds,_,_)) -> QuotE (SComp ds) 
+  | QuotT (cmd,_) -> QuotE cmd
   | ObjT c -> ObjE (tte nms c)
   | HomT (c,s,t) ->
     HomE (tte nms c, tte nms s, tte nms t)
@@ -102,46 +101,8 @@ let pi_to_tele ty =
     | _ -> (tl,ty)
   in go Emp ty
 
-(* labels a pd with deBruijn levels *)
-let pd_to_lvl pd =
-  let open Pd in
-
-  let rec pd_to_lvl_br k br =
-    match br with
-    | Br (_,brs) ->
-      let (k', brs') = pd_to_lvl_brs (k+1) brs
-      in (k', Br (VarT k, brs'))
-
-  and pd_to_lvl_brs k brs =
-    match brs with
-    | Emp -> (k,Emp)
-    | Ext (bs,(_,b)) ->
-      let (k', bs') = pd_to_lvl_brs k bs in
-      let (k'', b') = pd_to_lvl_br (k'+1) b in 
-      (k'', Ext (bs',(VarT k', b')))
-
-  in snd (pd_to_lvl_br 0 pd)
-
-(* label a pasting diagram with deBruijn indices *)
-let pd_to_idx pd = 
-  let open Pd in
-
-  let rec pd_to_idx_br k br =
-    match br with
-    | Br (_,brs) ->
-      let (l, brs') = pd_to_idx_brs k brs in
-      (l+1, Br (VarT l, brs'))
-
-  and pd_to_idx_brs k brs =
-    match brs with
-    | Emp -> (k,Emp)
-    | Ext (brs',(_,br)) ->
-      let (k', br') = pd_to_idx_br k br in
-      let (k'', brs'') = pd_to_idx_brs (k'+1) brs' in
-      (k'', Ext (brs'',(VarT k',br')))
-
-  in snd (pd_to_idx_br 0 pd)
-
+(* FIXME: This routine is broken because it needs deBruijn lifting to
+   work correctly. *)
 let pd_to_term_tele pd =
   let mk_cat = CatT in 
   let mk_obj c = ObjT c in 
@@ -192,10 +153,8 @@ let rec pp_term ppf tm =
   | PiT (nm,Expl,a,p) ->
     pf ppf "(%s : %a) -> %a" nm
       pp_term a pp_term p
-  | QuotT (PCompRes (pd,_,_)) ->
-    pf ppf "`[ %a ]" pp_quot_cmd (PComp pd)
-  | QuotT (SCompRes (ds,_,_)) ->
-    pf ppf "`[ %a ]" pp_quot_cmd (SComp ds)
+  | QuotT (cmd,_) ->
+    pf ppf "`[ %a ]" pp_quot_cmd cmd
   | ObjT c ->
     pf ppf "[%a]" pp_term c
   | HomT (c,s,t) ->

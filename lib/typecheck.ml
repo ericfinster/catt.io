@@ -169,8 +169,7 @@ let rec free_vars k tm =
   | PiT (_,_,a,b) ->
     Set.union (free_vars k a) (free_vars (k+1) b)
   (* This could be more complicated later on  *)
-  | QuotT (PCompRes _) -> fvs_empty
-  | QuotT (SCompRes _) -> fvs_empty
+  | QuotT (_,_) -> fvs_empty
   | ObjT c -> free_vars k c
   | HomT (c,s,t) ->
     Set.union (free_vars k c) (Set.union (free_vars k s) (free_vars k t))
@@ -283,9 +282,9 @@ type typing_error = [
 ]
 
 let rec check gma expr typ = 
-  let typ_tm = quote gma.lvl typ false in
-  let typ_expr = term_to_expr (names gma) typ_tm in 
-  pr "Checking %a has type %a@," pp_expr_with_impl expr pp_expr_with_impl typ_expr ;
+  (* let typ_tm = quote gma.lvl typ false in
+   * let typ_expr = term_to_expr (names gma) typ_tm in 
+   * pr "Checking %a has type %a@," pp_expr_with_impl expr pp_expr_with_impl typ_expr ; *)
   (* dump_ctx true gma; *)
   match (expr, force_meta typ) with
   
@@ -390,10 +389,10 @@ and infer gma expr =
     Ok (HomT (c',s',t'), CatV)
 
   | CohE (g,a) ->
-    pr "Inferring a coherence: @[<hov>%a@]@," pp_expr (CohE (g,a));
+    (* pr "Inferring a coherence: @[<hov>%a@]@," pp_expr (CohE (g,a)); *)
     let* (gt,at) = check_coh gma g a in
     let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
-    pr "Finished with coherence: @[<hov>%a@]@," pp_expr (CohE (g,a));
+    (* pr "Finished with coherence: @[<hov>%a@]@," pp_expr (CohE (g,a)); *)
     Ok (CohT (gt,at) , coh_ty)
 
   | CylE (_,_,_) -> Error (`NotImplemented "Infer CylE")
@@ -408,18 +407,21 @@ and infer gma expr =
   | CatE -> Ok (CatT , TypV)
   | TypE -> Ok (TypT , TypV)
 
-  (* So, something about the arguments not being generated correctly *)
-              
+  (* You need to grab the return here and give back the meta term
+     so that you don't unfold automatically ... *)
   | QuotE (PComp pd) ->
-    pr "inferring a pasting composite: %a@," Pd.pp_tr pd;
+    (* pr "inferring a pasting composite: %a@," Pd.pp_tr pd; *)
     let e = unbiased_comp pd in
-    pr "expr: @[<hov>%a@]@," pp_expr_with_impl e; 
-    infer gma e
+    (* pr "expr: @[<hov>%a@]@," pp_expr_with_impl e;  *)
+    let* (t,typ) = infer gma e in
+    Ok (QuotT (PComp pd, t), typ)
 
   | QuotE (SComp ds) ->
     (match Pd.comp_seq ds with
-     | Ok pd -> infer gma (unbiased_comp pd)
-     | Error _ -> Error (`BadCohQuot "invalid comp seqence"))
+     | Ok pd ->
+       let* (t,typ) = infer gma (unbiased_comp pd) in
+       Ok (QuotT (SComp ds,t),typ)
+     | Error _ -> Error (`BadCohQuot "invalid comp sequence"))
 
   | HoleE ->
     let a = eval gma.top gma.loc (fresh_meta ()) in
@@ -442,10 +444,10 @@ and check_coh gma g a =
       match ctx_to_pd (length gma.loc) gv with
       | Ok (pd,_,_,_,_) ->
         
-        pr "Valid pasting context!@,";
-        pr "Going to check return type: @[%a@]@," pp_expr a;
+        (* pr "Valid pasting context!@,";
+         * pr "Going to check return type: @[%a@]@," pp_expr a; *)
         let* a' = check gma' a CatV in
-        pr "return type: %a@," pp_term a';
+        (* pr "return type: %a@," pp_term a'; *)
         let av = eval gma'.top gma'.loc a' in 
         let (ucat,bdim) = underlying_cat av in
         let cat_lvl = (length gma'.loc) - (length gv) in

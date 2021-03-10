@@ -170,7 +170,7 @@ let pd_args cat pd =
 
   in pd_args_br (Ext (Emp,(Impl,cat))) pd 
     
-let unbiased_comp : unit Pd.pd -> expr = fun pd -> 
+let unbiased_comp pd = 
   let open Pd in
 
   let with_vars pd = pd_lvl_map pd (fun l -> str "x%d" l) in
@@ -184,9 +184,9 @@ let unbiased_comp : unit Pd.pd -> expr = fun pd ->
       let tgt_args = pd_args cat t in 
       (match coh_opt with
        | None -> HomE (c, snd (head src_args), snd (head tgt_args))
-       | Some coh ->
-         let src = app_suite coh src_args in
-         let tgt = app_suite coh tgt_args in
+       | Some (g,a) ->
+         let src = app_suite (CohE (g,a)) src_args in
+         let tgt = app_suite (CohE (g,a)) tgt_args in
          HomE (c, src, tgt)
       )
     | _ -> raise (Failure "length mismatch")
@@ -204,13 +204,13 @@ let unbiased_comp : unit Pd.pd -> expr = fun pd ->
       (* pr "tele: %a\n" (pp_tele pp_term) g; *)
       let a = build_type cohs (boundary (map_pd pd ~f:(fun s -> VarE s))) (VarE "C") in
       (* pr "return type is: %a\n" pp_term a; *)
-      Ext (cohs, Some (CohE (g,a)))
-
+      Ext (cohs, Some (g,a))
+        
   in let pdv = with_vars pd 
   in match go pdv (dim_pd pd) with
   | Emp -> VarE (head (labels pdv))
   | Ext (_,None) -> VarE (head (labels pdv))
-  | Ext (_,Some coh) -> coh
+  | Ext (_,Some (g,a)) -> CohE (g,a)
 
 (*****************************************************************************)
 (*                         Pretty Printing Raw Syntax                        *)
@@ -238,7 +238,7 @@ let pp_quot_cmd ppf c =
   | PComp pd ->
     pf ppf "pcomp %a" pp_tr pd 
   | SComp ds ->
-    pf ppf "scomp %a" (list int) ds 
+    pf ppf "scomp %a" (list ~sep:(any " ") int) ds 
 
 let rec pp_expr_gen show_imp ppf expr =
   let ppe = pp_expr_gen show_imp in 

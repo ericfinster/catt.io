@@ -31,10 +31,7 @@ let rec eval top loc tm =
   | LamT (nm,ict,u) -> LamV (nm, ict, Closure (top,loc,u))
   | AppT (u,v,ict) -> appV (eval top loc u) (eval top loc v) ict
   | PiT (nm,ict,u,v) -> PiV (nm, ict, eval top loc u, Closure (top,loc,v))
-  | QuotT (PCompRes (pd,g,a)) ->
-    QuotV (PCompRes (pd,g,a), EmpSp, eval top loc (CohT (g,a)))
-  | QuotT (SCompRes (ds,g,a)) ->
-    QuotV (SCompRes (ds,g,a), EmpSp, eval top loc (CohT (g,a)))    
+  | QuotT (cmd,tm) -> QuotV (cmd, EmpSp, eval top loc tm)
   | ObjT c -> ObjV (eval top loc c)
   | HomT (c,s,t) ->
     HomV (eval top loc c, eval top loc s, eval top loc t)
@@ -65,6 +62,7 @@ and appV t u ict =
   | TopV (nm,sp,tv) -> TopV (nm,AppSp(sp,u,ict),appV tv u ict)
   | CohV (v,sp) -> CohV (v,AppSp(sp,u,ict))
   | LamV (_,_,cl) -> cl $$ u
+  | QuotV (cmd,sp,tv) -> QuotV (cmd,AppSp(sp,u,ict),tv)
   | _ -> raise (Eval_error "malformed application")
 
 and baseV v =
@@ -73,6 +71,7 @@ and baseV v =
   | RigidV (i,sp) -> RigidV (i,BaseSp sp)
   | TopV (nm,sp,tv) -> TopV (nm,BaseSp sp, baseV tv)
   | CohV (ga,sp) -> CohV (ga,BaseSp sp)
+  | QuotV (cmd,sp,tv) -> QuotV (cmd, BaseSp sp, tv)
   | CylV (b,_,_) -> b 
   | _ -> raise (Eval_error "malformed base projection")
 
@@ -82,6 +81,7 @@ and lidV v =
   | RigidV (i,sp) -> RigidV (i,LidSp sp)
   | TopV (nm,sp,tv) -> TopV (nm,LidSp sp, lidV tv)
   | CohV (ga,sp) -> CohV (ga,LidSp sp)
+  | QuotV (cmd,sp,tv) -> QuotV (cmd, LidSp sp, tv)
   | CylV (_,l,_) -> l
   | _ -> raise (Eval_error "malformed lid projection")
 
@@ -91,6 +91,7 @@ and coreV v =
   | RigidV (i,sp) -> RigidV (i,CoreSp sp)
   | TopV (nm,sp,tv) -> TopV (nm,CoreSp sp, coreV tv)
   | CohV (ga,sp) -> CohV (ga,CoreSp sp)
+  | QuotV (cmd,sp,tv) -> QuotV (cmd, CoreSp sp, tv)
   | CylV (_,_,c) -> c
   | _ -> raise (Eval_error "malformed core projection")
 
@@ -129,8 +130,8 @@ let rec quote k v ufld =
   | TopV (nm,sp,_) -> qcs (TopT nm) sp 
   | LamV (nm,ict,cl) -> LamT (nm, ict, quote (k+1) (cl $$ varV k) ufld)
   | PiV (nm,ict,u,cl) -> PiT (nm, ict, qc u, quote (k+1) (cl $$ varV k) ufld)
-  | QuotV (_,_,tv) when ufld -> qc tv
-  | QuotV (res,sp,_) -> qcs (QuotT res) sp 
+  | QuotV (_,sp,tv) when ufld -> qcs (qc tv) sp 
+  | QuotV (cmd,sp,tv) -> qcs (QuotT (cmd, qc tv)) sp 
   | ObjV c -> ObjT (qc c)
   | HomV (c,s,t) -> HomT (qc c, qc s, qc t)
   | CohV (v,sp) ->

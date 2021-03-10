@@ -22,7 +22,7 @@ type value =
   | TopV of name * spine * value 
   | LamV of name * icit * closure
   | PiV of name * icit * value * closure
-  | QuotV of quot_res * spine * value 
+  | QuotV of quot_cmd * spine * value 
   | ObjV of value
   | HomV of value * value * value
   | CohV of value * spine
@@ -80,10 +80,8 @@ let rec pp_value ppf v =
   | PiV (nm,Impl,a,Closure (_,_,bdy)) -> 
     pf ppf "{%s : %a} -> <%a>" nm
       pp_value a pp_term bdy
-  | QuotV (PCompRes (pd,_,_),sp,_) ->
-    pf ppf "`[ %a ] %a" pp_quot_cmd (PComp pd) pp_spine sp 
-  | QuotV (SCompRes (ds,_,_),sp,_) ->
-    pf ppf "`[ %a ] %a" pp_quot_cmd (SComp ds) pp_spine sp 
+  | QuotV (cmd,sp,_) ->
+    pf ppf "`[ %a ] %a" pp_quot_cmd cmd pp_spine sp 
   | ObjV c ->
     pf ppf "[%a]" pp_value c
   | HomV (_,s,t) ->
