@@ -243,6 +243,17 @@ let rec lid_type cat =
     Ok (HomV (bc, lidV s, lidV t))
   | _ -> Error `InternalError
 
+(* let rec core_type base lid cat =
+ *   match cat with
+ *   | ArrV c -> Ok (HomV (c, base, lid))
+ *   | HomV (_, _, _) ->
+ *     let* pd = Pd.comp_seq [2;1;2] in
+ *     let _ = unbiased_comp pd in
+ *     
+ *     (\* Here, s and t are supposed to themselves be cylinders. *\)
+ *     Error "blorp"
+ *   | _ -> Error "double blorp" *)
+
 (*****************************************************************************)
 (*                                Typechecking                               *)
 (*****************************************************************************)

@@ -13,11 +13,14 @@ open Suite
 (*                              Type Definitions                             *)
 (*****************************************************************************)
 
+type lvl = int
+type idx = int
+type mvar = int
+type name = string
+
 type icit =
   | Impl
   | Expl
-
-type name = string
 
 type 'a tele = (name * icit * 'a) suite
 
@@ -51,39 +54,70 @@ type defn =
 (*                Generic Pasting Diagram to Telescope Routine               *)
 (*****************************************************************************)
 
-let pd_to_tele mk_cat mk_obj mk_hom mk_nm mk_var mk_base_cat pd =
+module type TeleGen = sig
+  
+  type s
+  type l 
+  
+  val lift : int -> s -> s
+  val cat : s
+  val obj : s -> s
+  val hom : s -> s -> s -> s
+  val nm : l -> lvl -> string
+  val var : l -> lvl -> s
+  val base_cat : s
+    
+end
+
+module PdToTele(G : TeleGen) = struct
+  open G
 
   let rec pd_to_tele_br tl cat src tgt k br =
     match br with
     | Br (l,brs) ->
-      let cat' = mk_hom cat src tgt in
+      let cat' = hom cat src tgt in
       let ict = if (Suite.is_empty brs) then Expl else Impl in
-      let (tl',_,k') = pd_to_tele_brs (Ext (tl,(mk_nm l k,ict,mk_obj cat')))
-          cat' (mk_var l k) (k+1) brs in 
-      (tl',tgt,k')
+      let ntl = Ext (tl,(nm l k,ict,obj cat')) in
+      let (tl',_,k') = pd_to_tele_brs ntl
+          (lift 1 cat') (var l k)
+          (k+1) brs in
+      (tl' , lift (k'-k) tgt, k')
 
   and pd_to_tele_brs tl cat src k brs =
     match brs with
-    | Emp -> (tl,src,k)
+    | Emp -> (tl, src, k)
     | Ext (brs',(l,br)) ->
       let (tl',src',k') = pd_to_tele_brs tl cat src k brs' in
-      pd_to_tele_br (Ext (tl',(mk_nm l k',Impl,mk_obj cat))) cat src' (mk_var l k') (k'+1) br 
+      let cat' = lift (k'-k) cat in
+      let v' = var l k' in
+      let ntl = Ext (tl',(nm l k',Impl,obj cat')) in
+      pd_to_tele_br ntl
+        (lift 1 cat')
+        (lift 1 src') 
+        v' (k'+1) br
 
-  in match pd with
-  | Br (l,brs) ->
-    let ict = if (Suite.is_empty brs) then Expl else Impl in
-    let (tl,_,_) = pd_to_tele_brs
-        (Emp |> ("C",Impl,mk_cat) |> (mk_nm l 1,ict,mk_obj mk_base_cat))
-        (mk_base_cat) (mk_var l 1) 2 brs in tl
+  let pd_to_tele pd =
+    match pd with
+    | Br (l,brs) ->
+      let ict = if (Suite.is_empty brs) then Expl else Impl in
+      let (tl,_,_) = pd_to_tele_brs
+          (Emp |> ("C",Impl,cat) |> (nm l 1, ict, obj base_cat))
+          (lift 1 base_cat) (var l 1) 2 brs in tl
+  
+end
 
 let pd_to_expr_tele : string pd -> expr tele = fun pd ->
-  let mk_cat = CatE in 
-  let mk_obj c = ObjE c in 
-  let mk_hom c s t = HomE (c,s,t) in 
-  let mk_nm l _ = l in 
-  let mk_var l _ = VarE l in 
-  let mk_base_cat = VarE "C" in 
-  pd_to_tele mk_cat mk_obj mk_hom mk_nm mk_var mk_base_cat pd 
+  let open PdToTele(struct
+      type s = expr
+      type l = string
+      let lift _  t = t
+      let cat = CatE
+      let obj c = ObjE c
+      let hom c s t = HomE (c,s,t)
+      let nm l _ = l
+      let var l _ = VarE l
+      let base_cat = VarE "C" 
+    end) in pd_to_tele pd 
 
 (*****************************************************************************)
 (*                        Expr Tele to Pasting Diagram                       *)

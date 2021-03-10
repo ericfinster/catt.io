@@ -13,9 +13,6 @@ open Suite
 (*                              Type Definitions                             *)
 (*****************************************************************************)
 
-type idx = int
-type mvar = int
-
 type term =
   | VarT of idx
   | TopT of name 
@@ -36,15 +33,53 @@ type term =
   | MetaT of mvar
   | InsMetaT of mvar 
 
-(* and quot_res =
- *   | PCompRes of unit Pd.pd * term tele * term
- *   | SCompRes of int list * term tele * term  *)
+(*****************************************************************************)
+(*                              DeBrujin Lifting                             *)
+(*****************************************************************************)
 
-(*****************************************************************************)
-(*                              Utility Routines                             *)
-(*****************************************************************************)
+let rec db_lift_by l k tm =
+  let lft = db_lift_by l k in 
+  match tm with
+  | VarT i ->
+    if (i >= l) then VarT (k+i) else VarT i
+  | TopT nm -> TopT nm
+  | LamT (nm,ict,tm) ->
+    LamT (nm, ict, db_lift_by (l+1) k tm)
+  | AppT (u,v,ict) -> AppT (lft u, lft v, ict)
+  | PiT (nm,ict,a,b) ->
+    PiT (nm,ict,lft a, db_lift_by (l+1) k b)
+  | QuotT (cmd,tm) -> QuotT (cmd, lft tm)
+  | ObjT tm -> ObjT (lft tm)
+  | HomT (c,s,t) -> HomT (lft c, lft s, lft t)
+  | CohT (g,a) -> 
+
+    let rec go g l m =
+      match g with
+      | Emp -> m Emp l 
+      | Ext (g',(nm,ict,tm)) ->
+        go g' l (fun rg rl ->
+            let tm' = db_lift_by rl k tm in
+            m (Ext (rg,(nm,ict,tm'))) (rl+1))
+
+    in go g l (fun g' l' -> CohT (g', db_lift_by l' k a))
+
+  | CylT (b,l,c) -> CylT (lft b, lft l, lft c)
+  | BaseT t -> BaseT (lft t)
+  | LidT t -> LidT (lft t)
+  | CoreT t -> CoreT (lft t)
+  | ArrT c -> ArrT (lft c)
+  | CatT -> CatT
+  | TypT -> TypT
+  | MetaT m -> MetaT m
+  | InsMetaT m -> InsMetaT m 
+
+let db_lift l t = db_lift_by l 1 t
 
 let lvl_to_idx k l = k - l - 1
+
+(*****************************************************************************)
+(*                            Terms to Expressions                           *)
+(*****************************************************************************)
 
 let rec term_to_expr nms tm =
   let tte = term_to_expr in 
@@ -87,6 +122,10 @@ let rec term_to_expr nms tm =
   (* Somewhat dubious, since we lose the implicit application ... *)
   | InsMetaT _ -> HoleE
 
+(*****************************************************************************)
+(*                                 Telescopes                                *)
+(*****************************************************************************)
+    
 let rec tele_to_pi tl ty =
   match tl with
   | Emp -> ty
@@ -101,16 +140,22 @@ let pi_to_tele ty =
     | _ -> (tl,ty)
   in go Emp ty
 
-(* FIXME: This routine is broken because it needs deBruijn lifting to
-   work correctly. *)
-let pd_to_term_tele pd =
-  let mk_cat = CatT in 
-  let mk_obj c = ObjT c in 
-  let mk_hom c s t = HomT (c,s,t) in 
-  let mk_nm _ l = str "x%d" l in 
-  let mk_var _ l = VarT l in 
-  let mk_base_cat = VarT 0 in
-  pd_to_tele mk_cat mk_obj mk_hom mk_nm mk_var mk_base_cat pd 
+(*****************************************************************************)
+(*                       Pasting Diagrams to Telescopes                      *)
+(*****************************************************************************)
+
+let pd_to_term_tele : unit Pd.pd -> term tele = fun pd ->
+  let open PdToTele(struct
+      type s = term
+      type l = unit
+      let lift i t = db_lift_by 0 i t
+      let cat = CatT
+      let obj c = ObjT c
+      let hom c s t = HomT (c,s,t)
+      let nm _ k = str "x%d" k
+      let var _ _ = VarT 0
+      let base_cat = VarT 0
+    end) in pd_to_tele pd 
 
 (*****************************************************************************)
 (*                              Pretty Printing                              *)

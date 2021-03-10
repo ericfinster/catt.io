@@ -34,7 +34,7 @@ let cyl7 {C : Cat}
     (x1 :: C) (y1 :: C) (f1 :: x1 => y1)
     (x_c :: x0 => x1)
     (y_c :: y0 => y1)
-    (f_c :: `[ comp 1 0 1 ] f0 y_c => `[ comp 1 0 1 ] x_c f1)
+    (f_c :: `[ scomp 1 0 1 ] f0 y_c => `[ scomp 1 0 1 ] x_c f1)
   : [ cyl x0 x1 x_c => cyl y0 y1 y_c ]
   = cyl f0 f1 f_c 
 

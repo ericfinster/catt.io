@@ -6,6 +6,7 @@
 
 open Fmt
 open Base
+open Expr
 open Value
 open Term
 open Eval

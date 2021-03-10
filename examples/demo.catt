@@ -108,7 +108,7 @@ let horiz_test {C : Cat}
     {z :: C} {h :: y => z}
        	     {k :: y => z} (b :: h => k)
   : [ comp f h => comp g k ]
-  = `[ scomp 2 0 2 ] a b
+  = `[ pcomp ((())(())) ] a b
 
 # let id_test {C : Cat} (x :: C) : [ x => x ]
 #   = (coh [ {D : Cat} (x :: D) :  x => x ]) x
