@@ -422,7 +422,7 @@ and infer gma expr =
      so that you don't unfold automatically ... *)
   | QuotE (PComp pd) ->
     (* pr "inferring a pasting composite: %a@," Pd.pp_tr pd; *)
-    let e = unbiased_comp pd in
+    let e = unbiased_comp_expr pd in
     (* pr "expr: @[<hov>%a@]@," pp_expr_with_impl e;  *)
     let* (t,typ) = infer gma e in
     Ok (QuotT (PComp pd, t), typ)
@@ -430,7 +430,7 @@ and infer gma expr =
   | QuotE (SComp ds) ->
     (match Pd.comp_seq ds with
      | Ok pd ->
-       let* (t,typ) = infer gma (unbiased_comp pd) in
+       let* (t,typ) = infer gma (unbiased_comp_expr pd) in
        Ok (QuotT (SComp ds,t),typ)
      | Error _ -> Error (`BadCohQuot "invalid comp sequence"))
 

@@ -57,72 +57,170 @@ type defn =
 module type TeleGen = sig
   
   type s
-  type l 
   
   val lift : int -> s -> s
   val cat : s
   val obj : s -> s
   val hom : s -> s -> s -> s
-  val nm : l -> lvl -> string
-  val var : l -> lvl -> s
-  val base_cat : s
-    
+  val var : lvl -> lvl -> s
+  val coh : s tele -> s -> s
+  val app : s -> s -> icit -> s
+
+  (* label a pasting diagram with variables *)
+  val pd_vars : lvl -> 'a pd -> s pd
+  
 end
 
 module PdToTele(G : TeleGen) = struct
   open G
 
-  let rec pd_to_tele_br tl cat src tgt k br =
+  let rec pd_to_tele_br nm_gen var_gen tl cat src tgt k br =
     match br with
     | Br (l,brs) ->
       let cat' = hom cat src tgt in
       let ict = if (Suite.is_empty brs) then Expl else Impl in
-      let ntl = Ext (tl,(nm l k,ict,obj cat')) in
-      let (tl',_,k') = pd_to_tele_brs ntl
-          (lift 1 cat') (var l k)
+      let ntl = Ext (tl,(nm_gen l k,ict,obj cat')) in
+      let (tl',_,k') = pd_to_tele_brs nm_gen var_gen ntl
+          (lift 1 cat') (var_gen l k)
           (k+1) brs in
       (tl' , lift (k'-k) tgt, k')
 
-  and pd_to_tele_brs tl cat src k brs =
+  and pd_to_tele_brs nm_gen var_gen tl cat src k brs =
     match brs with
     | Emp -> (tl, src, k)
     | Ext (brs',(l,br)) ->
-      let (tl',src',k') = pd_to_tele_brs tl cat src k brs' in
+      let (tl',src',k') = pd_to_tele_brs nm_gen var_gen tl cat src k brs' in
       let cat' = lift (k'-k) cat in
-      let v' = var l k' in
-      let ntl = Ext (tl',(nm l k',Impl,obj cat')) in
-      pd_to_tele_br ntl
+      let v' = var_gen l k' in
+      let ntl = Ext (tl',(nm_gen l k',Impl,obj cat')) in
+      pd_to_tele_br nm_gen var_gen ntl
         (lift 1 cat')
         (lift 1 src') 
         v' (k'+1) br
 
-  let pd_to_tele pd =
+  let pd_to_tele nm_gen var_gen bcat pd =
     match pd with
     | Br (l,brs) ->
       let ict = if (Suite.is_empty brs) then Expl else Impl in
-      let (tl,_,_) = pd_to_tele_brs
-          (Emp |> ("C",Impl,cat) |> (nm l 1, ict, obj base_cat))
-          (lift 1 base_cat) (var l 1) 2 brs in tl
+      let (tl,_,_) = pd_to_tele_brs nm_gen var_gen
+          (Emp |> ("C",Impl,cat) |> (nm_gen l 1, ict, obj bcat))
+          (lift 1 bcat) (var_gen l 1) 2 brs in tl
   
 end
 
+module ExprGen = struct
+  type s = expr
+  let lift _ t = t
+  let cat = CatE
+  let obj c = ObjE c
+  let var _ l = VarE (str "x%d" l)
+  let hom c s t = HomE (c,s,t)
+  let coh g a = CohE (g,a)
+  let app u v ict = AppE (u,v,ict)
+  let pd_vars k pd = pd_lvl_map pd 
+      (fun _ k' -> VarE (str "x%d" (k+k')))
+end
+
 let pd_to_expr_tele : string pd -> expr tele = fun pd ->
-  let open PdToTele(struct
-      type s = expr
-      type l = string
-      let lift _  t = t
-      let cat = CatE
-      let obj c = ObjE c
-      let hom c s t = HomE (c,s,t)
-      let nm l _ = l
-      let var l _ = VarE l
-      let base_cat = VarE "C" 
-    end) in pd_to_tele pd 
+  let open PdToTele(ExprGen) in
+  let nm_gen lbl _ = lbl in
+  let var_gen lbl _ = VarE lbl in
+  pd_to_tele nm_gen var_gen (VarE "C") pd 
+
+(*****************************************************************************)
+(*                       Unbiased Composite Generation                       *)
+(*****************************************************************************)
+
+let pd_args cat pd =
+  let open Pd in
+  
+  let rec pd_args_br args br =
+    match br with
+    | Br (v,brs) ->
+      let ict = if (is_empty brs) then Expl else Impl in
+      pd_args_brs (Ext (args,(ict,v))) brs
+
+  and pd_args_brs args brs =
+    match brs with
+    | Emp -> args
+    | Ext (brs',(v,br)) ->
+      let args' = pd_args_brs args brs' in
+      pd_args_br (Ext (args',(Impl,v))) br 
+
+  in pd_args_br (Ext (Emp,(Impl,cat))) pd 
+
+module UnbiasedComp(G : TeleGen) = struct
+  open G
+  open PdToTele(G)
+  
+  let rec app_suite v s =
+    match s with
+    | Emp -> v
+    | Ext (s',(ict,u)) -> app (app_suite v s') u ict
+
+  let rec build_type cohs bdy cat =
+    match (cohs , bdy) with
+    | (Emp, Emp) -> cat
+    | (Ext (c',coh_opt), Ext (b',(s,t))) ->
+      let c = build_type c' b' cat in
+      let src_args = pd_args cat s in
+      let tgt_args = pd_args cat t in 
+      (match coh_opt with
+       | None -> hom c (snd (head src_args)) (snd (head tgt_args))
+       | Some (g,a) ->
+         let src = app_suite (coh g a) src_args in
+         let tgt = app_suite (coh g a) tgt_args in
+         hom c src tgt
+      )
+    | _ -> raise (Failure "length mismatch")
+
+
+  let unbiased_comp nm_gen var_gen bcat pd = 
+  
+    let rec go pd dim =
+      if (is_disc pd) then
+        repeat (dim+1) None
+      else
+        let src = truncate true (dim-1) pd in
+        let cohs = go src (dim-1) in
+        (* pr "About to handle: %a\n" pp_tr pd; *)
+        let g = pd_to_tele nm_gen var_gen bcat pd in
+        (* pr "tele: %a\n" (pp_tele pp_term) g; *)
+        let ncat = lift (length g - 1) bcat in 
+        let a = build_type cohs (boundary (pd_vars 1 pd)) ncat in
+        (* pr "return type is: %a\n" pp_term a; *)
+        Ext (cohs, Some (g,a))
+
+    in match go pd (dim_pd pd) with
+    | Emp ->
+      let k = length (labels pd) in var k 0 
+    | Ext (_,None) ->
+      let k = length (labels pd) in var k 0 
+    | Ext (_, Some (g,a)) -> coh g a
+  
+end
+
+(* This version is broken because name generation in positive
+   codimension causes the top-level variables to be wrong.  Don't
+   immediately see a simple fix ... *)
+
+(* let named_unbiased_comp_expr : string pd -> expr = fun pd -> 
+ *   let open UnbiasedComp(ExprGen) in 
+ *   let nm_gen lbl _ = lbl in
+ *   let var_gen lbl _ = VarE lbl in
+ *   unbiased_comp nm_gen var_gen (VarE "C") pd  *)
+
+let unbiased_comp_expr : 'a pd -> expr = fun pd ->
+  let open UnbiasedComp(ExprGen) in
+  let nm_gen _ k = str "x%d" k in
+  let var_gen _ k = VarE (str "x%d" k) in
+  unbiased_comp nm_gen var_gen (VarE "C") pd 
 
 (*****************************************************************************)
 (*                        Expr Tele to Pasting Diagram                       *)
 (*****************************************************************************)
 
+(* FIXME: Can this also be generic? *)
 let (let*) m f = Base.Result.bind m ~f 
 
 let rec unhom e =
@@ -176,75 +274,6 @@ let expr_tele_to_pd tl =
     | _ -> Error "malformed pasting context"
              
   in go 0 tl
-
-(*****************************************************************************)
-(*                       Unbiased Composite Generation                       *)
-(*****************************************************************************)
-
-let rec app_suite v s =
-  match s with
-  | Emp -> v
-  | Ext (s',(ict,u)) -> AppE (app_suite v s', u, ict)
-
-let pd_args cat pd =
-  let open Pd in
-  
-  let rec pd_args_br args br =
-    match br with
-    | Br (v,brs) ->
-      let ict = if (is_empty brs) then Expl else Impl in
-      pd_args_brs (Ext (args,(ict,v))) brs
-
-  and pd_args_brs args brs =
-    match brs with
-    | Emp -> args
-    | Ext (brs',(v,br)) ->
-      let args' = pd_args_brs args brs' in
-      pd_args_br (Ext (args',(Impl,v))) br 
-
-  in pd_args_br (Ext (Emp,(Impl,cat))) pd 
-    
-let unbiased_comp pd = 
-  let open Pd in
-
-  let with_vars pd = pd_lvl_map pd (fun l -> str "x%d" l) in
-  
-  let rec build_type cohs bdy cat =
-    match (cohs , bdy) with
-    | (Emp, Emp) -> cat
-    | (Ext (c',coh_opt), Ext (b',(s,t))) ->
-      let c = build_type c' b' cat in
-      let src_args = pd_args cat s in
-      let tgt_args = pd_args cat t in 
-      (match coh_opt with
-       | None -> HomE (c, snd (head src_args), snd (head tgt_args))
-       | Some (g,a) ->
-         let src = app_suite (CohE (g,a)) src_args in
-         let tgt = app_suite (CohE (g,a)) tgt_args in
-         HomE (c, src, tgt)
-      )
-    | _ -> raise (Failure "length mismatch")
-
-  in 
-
-  let rec go pd d =
-    if (is_disc pd) then
-      repeat (d+1) None
-    else
-      let src = truncate true (d-1) pd in
-      let cohs = go (with_vars src) (d-1) in
-      (* pr "About to handle: %a\n" pp_tr pd; *)
-      let g = pd_to_expr_tele pd in
-      (* pr "tele: %a\n" (pp_tele pp_term) g; *)
-      let a = build_type cohs (boundary (map_pd pd ~f:(fun s -> VarE s))) (VarE "C") in
-      (* pr "return type is: %a\n" pp_term a; *)
-      Ext (cohs, Some (g,a))
-        
-  in let pdv = with_vars pd 
-  in match go pdv (dim_pd pd) with
-  | Emp -> VarE (head (labels pdv))
-  | Ext (_,None) -> VarE (head (labels pdv))
-  | Ext (_,Some (g,a)) -> CohE (g,a)
 
 (*****************************************************************************)
 (*                         Pretty Printing Raw Syntax                        *)

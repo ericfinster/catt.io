@@ -144,18 +144,45 @@ let pi_to_tele ty =
 (*                       Pasting Diagrams to Telescopes                      *)
 (*****************************************************************************)
 
+(* module ExprGen = struct
+ *   type s = expr
+ *   let lift _ t = t
+ *   let cat = CatE
+ *   let obj c = ObjE c
+ *   let var _ l = VarE (str "x%d" l)
+ *   let hom c s t = HomE (c,s,t)
+ *   let coh g a = CohE (g,a)
+ *   let app u v ict = AppE (u,v,ict)
+ *   let pd_vars k pd = pd_lvl_map pd 
+ *       (fun _ k' -> VarE (str "x%d" (k+k')))
+ * end *)
+
+module TermGen = struct
+  type s = term
+  let lift i t = db_lift_by 0 i t
+  let cat = CatT
+  let obj c = ObjT c
+  let hom c s t = HomT (c,s,t)
+  let var k l = VarT (k - l + 1)
+  let coh g a = CohT (g,a)
+  let app u v ict = AppT (u,v,ict)
+
+  let pd_vars _ pd =
+    Pd.pd_idx_map pd (fun _ i -> VarT i)
+      
+end
+
 let pd_to_term_tele : unit Pd.pd -> term tele = fun pd ->
-  let open PdToTele(struct
-      type s = term
-      type l = unit
-      let lift i t = db_lift_by 0 i t
-      let cat = CatT
-      let obj c = ObjT c
-      let hom c s t = HomT (c,s,t)
-      let nm _ k = str "x%d" k
-      let var _ _ = VarT 0
-      let base_cat = VarT 0
-    end) in pd_to_tele pd 
+  let open PdToTele(TermGen) in
+  let nm_gen _ k = str "x%d" k in
+  let var_gen _ _ = VarT 0 in
+  pd_to_tele nm_gen var_gen (VarT 0) pd
+
+let unbiased_comp_term : 'a Pd.pd -> term = fun pd ->
+  let open UnbiasedComp(TermGen) in
+  let nm_gen _ k = str "x%d" k in
+  let var_gen _ _ = VarT 0 in
+  unbiased_comp nm_gen var_gen (VarT 0) pd 
 
 (*****************************************************************************)
 (*                              Pretty Printing                              *)

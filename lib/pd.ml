@@ -270,43 +270,49 @@ let rec pp_tr ppf pd =
     Fmt.pf ppf "%a" (Fmt.parens (pp_suite ~sep:Fmt.nop pp_tr))
       (map_suite brs ~f:snd)
       
-let pd_lvl_map pd f =
+let pd_lvl_map_with_lvl pd f =
 
   let rec pd_to_lvl_br k br =
     match br with
-    | Br (_,brs) ->
+    | Br (l,brs) ->
       let (k', brs') = pd_to_lvl_brs (k+1) brs
-      in (k', Br (f k, brs'))
+      in (k', Br (f l k, brs'))
 
   and pd_to_lvl_brs k brs =
     match brs with
     | Emp -> (k,Emp)
-    | Ext (bs,(_,b)) ->
+    | Ext (bs,(l,b)) ->
       let (k', bs') = pd_to_lvl_brs k bs in
       let (k'', b') = pd_to_lvl_br (k'+1) b in 
-      (k'', Ext (bs',(f k', b')))
+      (k'', Ext (bs',(f l k', b')))
 
-  in snd (pd_to_lvl_br 0 pd)
+  in pd_to_lvl_br 0 pd
+
+let pd_lvl_map pd f =
+  snd (pd_lvl_map_with_lvl pd f)
 
 (* label a pasting diagram with deBruijn indices *)
-let pd_idx_map pd f =
+let pd_idx_map_with_idx pd f =
   
   let rec pd_to_idx_br k br =
     match br with
-    | Br (_,brs) ->
-      let (l, brs') = pd_to_idx_brs k brs in
-      (l+1, Br (f l, brs'))
+    | Br (l,brs) ->
+      let (k', brs') = pd_to_idx_brs k brs in
+      (k'+1, Br (f l k', brs'))
 
   and pd_to_idx_brs k brs =
     match brs with
     | Emp -> (k,Emp)
-    | Ext (brs',(_,br)) ->
+    | Ext (brs',(l,br)) ->
       let (k', br') = pd_to_idx_br k br in
       let (k'', brs'') = pd_to_idx_brs (k'+1) brs' in
-      (k'', Ext (brs'',(f k',br')))
+      (k'', Ext (brs'',(f l k',br')))
+      
+  in pd_to_idx_br 0 pd
 
-  in snd (pd_to_idx_br 0 pd)
-
+let pd_idx_map pd f =
+  snd (pd_idx_map_with_idx pd f)
+    
 (*****************************************************************************)
 (*                              Pd Construction                              *)
 (*****************************************************************************)
