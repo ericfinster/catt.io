@@ -38,7 +38,10 @@ let cyl7 {C : Cat}
   : [ cyl x0 x1 x_c => cyl y0 y1 y_c ]
   = cyl f0 f1 f_c 
 
-
+let cyl8 {C : Cat} (x :: Arr C) (y :: Arr C)
+    (f :: x => y) (g :: x => y) (a :: f => g)
+  : [ `[ scomp 3 0 1 ] (`[ scomp 3 1 2 ] (base a) (core g)) (core y) =>
+      `[ scomp 1 0 3 ] (core x) (`[ scomp 2 1 3 ] (core f) (lid a)) ]
 
 
 

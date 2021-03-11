@@ -243,14 +243,15 @@ let rec lid_type cat =
     Ok (HomV (bc, lidV s, lidV t))
   | _ -> Error `InternalError
 
-(* let rec core_type base lid cat =
+(* let rec core_type gma base lid cat =
  *   match cat with
  *   | ArrV c -> Ok (HomV (c, base, lid))
  *   | HomV (_, _, _) ->
  *     let* pd = Pd.comp_seq [2;1;2] in
- *     let _ = unbiased_comp pd in
+ *     let t = unbiased_comp_term pd in
+ *     let _ = eval gma.top gma.loc t in 
  *     
- *     (\* Here, s and t are supposed to themselves be cylinders. *\)
+ * 
  *     Error "blorp"
  *   | _ -> Error "double blorp" *)
 
@@ -337,8 +338,9 @@ let rec check gma expr typ =
       let nms = names gma in 
       let inferred_nf = term_to_expr nms (quote gma.lvl inferred false) in
       let expected_nf = term_to_expr nms (quote gma.lvl expected false) in 
-      let msg = str "@[<v>Type mismatch:@,Expression: %a@,Expected: %a@,Inferred: %a@,@]"
-          pp_expr e pp_expr expected_nf pp_expr inferred_nf
+      let msg = (* str "@[<v>Type mismatch:@,Expression: %a@,Expected: %a@,Inferred: %a@,@]" *)
+          str "@[<v>The expression: %a@,has type: %a@,but was expected to have type: %a@,@]"
+          pp_expr e pp_expr inferred_nf pp_expr expected_nf 
       in Error (`TypeMismatch msg) 
 
 and infer gma expr = 
@@ -539,8 +541,8 @@ let rec check_defs gma defs =
     let tm_val = eval gma.top gma.loc tm_tm in 
     pr "Checking complete for %s@," id;
     let tm_nf = term_to_expr Emp (quote (gma.lvl) tm_val false) in
-    let ty_nf = term_to_expr Emp (quote (gma.lvl) ty_val false) in
-    pr "Type: @[<hov>%a@]@," pp_expr ty_nf;
+    (* let ty_nf = term_to_expr Emp (quote (gma.lvl) ty_val false) in
+     * pr "Type: @[<hov>%a@]@," pp_expr ty_nf; *)
     pr "Term: @[<hov>%a@]@," pp_expr tm_nf;
     check_defs (define gma id tm_val ty_val) ds
   | (CohDef (id,g,a))::ds ->

@@ -66,7 +66,7 @@ let rename m pren v =
     | TopV (_,_,tv) -> go pr tv
     | LamV (nm,ict,a) -> LamT (nm, ict, go (lift pr) (a $$ varV pr.cod))
     | PiV (nm,ict,a,b) -> PiT (nm, ict, go pr a, go (lift pr) (b $$ varV pr.cod))
-    | QuotV (_,_,tv) -> go pr tv 
+    | QuotV (_,sp,tv) -> go pr (runSpV tv sp)
     | ObjV c -> ObjT (go pr c)
     | HomV (c,s,t) -> HomT (go pr c, go pr s, go pr t)
     | CohV (v,sp) ->
@@ -141,26 +141,26 @@ let rec unify stgy top l t u =
   | (FlexV (_,_) , _) -> raise (Unify_error "refusing to solve meta")
 
 
-  | (QuotV (_,_,tv), QuotV (_,_,tv')) when Poly.(=) stgy UnfoldAll ->
-    unify UnfoldAll top l tv tv'
+  | (QuotV (_,sp,tv), QuotV (_,sp',tv')) when Poly.(=) stgy UnfoldAll ->
+    unify UnfoldAll top l (runSpV tv sp) (runSpV tv' sp')
   | (QuotV (cmd,sp,_), QuotV (cmd',sp',_)) when Poly.(=) stgy UnfoldNone ->
-    if (Poly.(=) cmd cmd') then 
+    if (Poly.(=) cmd cmd') then
       unifySp UnfoldNone top l sp sp'
     else raise (Unify_error "distinct quoting commands")
   | (QuotV (cmd,sp,tv), QuotV (cmd',sp',tv')) when Poly.(=) stgy OneShot ->
     if (Poly.(=) cmd cmd') then 
       (try unifySp UnfoldNone top l sp sp'
-       with Unify_error _ -> unify UnfoldAll top l tv tv')
-    else unify UnfoldAll top l tv tv'
+       with Unify_error _ -> unify UnfoldAll top l (runSpV tv sp) (runSpV tv' sp'))
+    else unify UnfoldAll top l (runSpV tv sp) (runSpV tv' sp')
         
 
   | (QuotV (_,_,_) , _) when Poly.(=) stgy UnfoldNone ->
     raise (Unify_error "refusing to unfold top level quote")
-  | (QuotV (_,_,tv) , t') -> unify stgy top l tv t'
+  | (QuotV (_,sp,tv) , t') -> unify stgy top l (runSpV tv sp) t'
 
   | (_ , QuotV (_,_,_)) when Poly.(=) stgy UnfoldNone ->
     raise (Unify_error "refusing to unfold top level quote")
-  | (t , QuotV (_,_,tv')) -> unify stgy top l t tv'
+  | (t , QuotV (_,sp',tv')) -> unify stgy top l t (runSpV tv' sp')
 
 
   | (TopV (_,_,tv) , TopV (_,_,tv')) when Poly.(=) stgy UnfoldAll ->

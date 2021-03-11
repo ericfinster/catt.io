@@ -337,14 +337,14 @@ let rec pp_expr_gen show_imp ppf expr =
     pf ppf "%a | %a => %a" ppe c ppe s ppe t
     (* pf ppf "%a => %a" ppe s ppe t *)
   | CohE (g,a) ->
-    (* (match expr_tele_to_pd g with
-     *  | Ok (pd,_,_,_,_) ->
-     *    pf ppf "@[<hov>@[<hov>coh [ %a : @]@[<hov>%a ]@]@]"
-     *      (pp_pd string) pd ppe a
-     *  | Error _ -> 
-     *    pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a) *)
+    (match expr_tele_to_pd g with
+     | Ok (pd,_,_,_,_) ->
+       pf ppf "@[<hov>@[<hov>coh [ %a : @]@[<hov>%a ]@]@]"
+         (pp_pd string) pd ppe a
+     | Error _ -> 
+       pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a)
     
-    pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a
+    (* pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a *)
     
    | CylE (b,l,c) ->
     pf ppf "[| %a | %a | %a |]" ppe b ppe l ppe c 
