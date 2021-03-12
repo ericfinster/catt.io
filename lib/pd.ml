@@ -317,29 +317,45 @@ let pd_idx_map pd f =
 (*                              Pd Construction                              *)
 (*****************************************************************************)
 
-let rec disc n =
-  if (n <= 0) then Br ((), Emp)
-  else Br ((), Ext (Emp, ((), disc (n-1))))
+type 'a disc = ('a * 'a) list * 'a 
 
-let whisk_left n i pd =
-  if (i < 0 || i > (n-1)) then
-    Error "dimension out of range"
-  else let nbr = disc (n-i-1) in
-    insert_left pd i () nbr
+let rec disc_pd (bdry,flr) =
+  match bdry with
+  | [] -> Br (flr, Emp)
+  | (s,t)::bdry' ->
+    Br (s, Ext (Emp, (t, disc_pd (bdry',flr))))
+      
+let unit_disc n =
+  (Base.List.init n
+     ~f:(fun _ -> ((),())), ())
 
-let whisk_right pd i n = 
-  if (i < 0 || i > (n-1)) then 
-    Error "dimension out of range"
-  else let nbr = disc (n-i-1) in
-    insert_right pd i () nbr
+let unit_disc_pd n =
+  disc_pd (unit_disc n)
+
+let whisk_left (bdry,flr) i pd =
+  let cobdry = Base.List.drop bdry i in
+  match cobdry with
+  | [] -> Error "invalid whiskering"
+  | (_,t)::c' ->
+    insert_left pd i t (disc_pd (c',flr))
+
+let whisk_right pd i (bdry,flr) =
+  let cobdry = Base.List.drop bdry i in
+  match cobdry with
+  | [] -> Error "invalid whiskering"
+  | (_,t)::c' ->
+    insert_right pd i t (disc_pd (c',flr))
+
+let three_disc = ([("a","b");("c","d");("e","f")],"g")
+let two_disc = ([("0","1");("2","3")],"4")
       
 let rec comp_seq s =
   match s with
   | [] -> Error "invalid comp seq"
-  | n::[] -> Ok (disc n)
+  | n::[] -> Ok (unit_disc_pd n)
   | n::i::s' ->
     let* pd = comp_seq s' in
-    whisk_left n i pd
+    whisk_left (unit_disc n) i pd
 
 let whisk m i n = comp_seq [m;i;n] 
 

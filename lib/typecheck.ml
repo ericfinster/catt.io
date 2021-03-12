@@ -243,17 +243,29 @@ let rec lid_type cat =
     Ok (HomV (bc, lidV s, lidV t))
   | _ -> Error `InternalError
 
-(* let rec core_type gma base lid cat =
- *   match cat with
- *   | ArrV c -> Ok (HomV (c, base, lid))
- *   | HomV (_, _, _) ->
- *     let* pd = Pd.comp_seq [2;1;2] in
- *     let t = unbiased_comp_term pd in
- *     let _ = eval gma.top gma.loc t in 
- *     
- * 
- *     Error "blorp"
- *   | _ -> Error "double blorp" *)
+
+(* let rec whisker m k n d0 d1 =
+ *   let* pd = Pd.comp_seq [m;k;n] in 
+ *   let t = unbiased_comp_term pd in 
+ *   
+ *   Ok (Emp , CatV) *)
+
+let rec split_cylinder cat = 
+  match cat with
+  | ArrV c -> Ok (c , Emp, Emp)
+  | HomV (c,s,t) ->
+    let* (bc,scyl,tcyl) = split_cylinder c in
+    let scyl' = Ext (scyl,(baseV s, lidV s, coreV s)) in
+    let tcyl' = Ext (tcyl,(baseV t, lidV t, coreV t)) in 
+    Ok (bc, scyl', tcyl')
+  | _ -> Error `InternalError
+
+(* let rec mk_cyl cat srcs tgts =
+ *   match (src, tgts) with
+ *   | (Emp, Emp) -> cat
+ *   | (Ext (srcs',(sb,sl,sc)), Ext (tgts',(tb,tl,tc))) -> *)
+    
+
 
 (*****************************************************************************)
 (*                                Typechecking                               *)
