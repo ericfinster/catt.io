@@ -6,7 +6,7 @@
 
 open Fmt
 open Base
-open Expr
+open Syntax
 open Value
 open Term
 open Eval

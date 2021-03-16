@@ -1,0 +1,51 @@
+#
+#  cylscratch.catt - playing with some typing
+#
+
+let test1 {C : Cat}
+  {xb :: C} {xl :: C} {xc :: xb => xl}
+  {yb :: C} {yl :: C} {yc :: yb => yl}
+  {fb :: xb => yb} {fl :: xl => yl}
+  : U
+  = [ `[ scomp 1 0 1 ] fb yc =>
+      `[ scomp 1 0 1 ] xc fl ]
+  
+let test2 {C : Cat}
+  {xb :: C} {xl :: C} {xc :: xb => xl}
+  {yb :: C} {yl :: C} {yc :: yb => yl}
+  {fb :: xb => yb} {fl :: xl => yl}
+  {fc :: `[ scomp 1 0 1 ] fb yc => `[ scomp 1 0 1 ] xc fl}
+  {gb :: xb => yb} {gl :: xl => yl}
+  {gc :: `[ scomp 1 0 1 ] gb yc => `[ scomp 1 0 1 ] xc gl}
+  {ab :: fb => gb} {al :: fl => gl}
+  : U
+  = [ `[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] ab yc) gc =>
+      `[ scomp 2 1 2 ] fc (`[ scomp 1 0 2 ] xc al) ]
+
+let test3 {C : Cat}
+  {xb :: C} {xl :: C} {xc :: xb => xl}
+  {yb :: C} {yl :: C} {yc :: yb => yl}
+  {fb :: xb => yb} {fl :: xl => yl}
+  {fc :: `[ scomp 1 0 1 ] fb yc => `[ scomp 1 0 1 ] xc fl}
+  {gb :: xb => yb} {gl :: xl => yl}
+  {gc :: `[ scomp 1 0 1 ] gb yc => `[ scomp 1 0 1 ] xc gl}
+  {ab :: fb => gb} {al :: fl => gl}
+  {ac :: `[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] ab yc) gc =>
+         `[ scomp 2 1 2 ] fc (`[ scomp 1 0 2 ] xc al)}
+  {bb :: fb => gb} {bl :: fl => gl}
+  {bc :: `[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] bb yc) gc =>
+         `[ scomp 2 1 2 ] fc (`[ scomp 1 0 2 ] xc bl)}
+  {mb :: ab => bb} {ml :: al => bl}
+  : U
+  = [ C
+    | xb => yl
+    | (`[ scomp 1 0 1 ] fb yc) =>
+      (`[ scomp 1 0 1 ] xc gl)
+    | (`[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] ab yc) gc) =>
+      (`[ scomp 2 1 2 ] fc (`[ scomp 1 0 2 ] xc bl))
+    | (`[ scomp 3 2 3 ] (`[ scomp 3 1 2 ] (`[ scomp 3 0 1 ] mb yc) gc) bc) =>
+      (`[ scomp 3 2 3 ] ac (`[ scomp 2 1 3 ] fc (`[ scomp 1 0 3 ] xc ml)))
+    ]
+
+
+

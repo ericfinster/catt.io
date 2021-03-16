@@ -5,13 +5,14 @@
 (*****************************************************************************)
 
 open Base
+open Syntax
 open Value
     
 type meta_entry =
   | Solved of value
   | Unsolved
 
-type metamap = (Expr.mvar,meta_entry,Int.comparator_witness) Map.t
+type metamap = (mvar,meta_entry,Int.comparator_witness) Map.t
 
 let next_meta : int ref = ref 0
     

@@ -40,6 +40,15 @@ let rec map_suite s ~f =
   | Emp -> Emp
   | Ext (s',x) -> map_suite s' ~f |> f x 
 
+let map_with_lvl s ~f =
+  let rec go s =
+    match s with
+    | Emp -> (Emp , 0)
+    | Ext (s',x) ->
+      let (r,l) = go s' in
+      (Ext (r,f l x),l+1)
+  in fst (go s)
+
 let rec fold_left f a s =
   match s with
   | Emp -> a

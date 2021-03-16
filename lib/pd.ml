@@ -12,6 +12,9 @@ let (let*) m f = Base.Result.bind m ~f
 type 'a pd =
   | Br of 'a * ('a * 'a pd) suite
 
+type 'a sph = ('a * 'a) suite
+type 'a disc = 'a sph * 'a 
+
 let is_leaf pd = 
   match pd with
   | Br (_,Emp) -> true
@@ -223,53 +226,21 @@ let insert_left pd d lbl nbr =
   insert_at addr (lbl,nbr) pd 
   
 (*****************************************************************************)
-(*                              Instances                                    *)
+(*                                Custom Maps                                *)
 (*****************************************************************************)
-
+    
 let rec map_pd pd ~f =
   match pd with
   | Br (a, brs) ->
     let fm (l, b) = (f l, map_pd b ~f:f) in
     Br (f a, map_suite brs ~f:fm)
 
-(* module PdTraverse(A : Applicative) = struct
- * 
- *   type 'a t = 'a pd
- *   type 'a m = 'a A.t
- *   
- *   open ApplicativeSyntax(A)
- *   module ST = SuiteTraverse(A)
- * 
- *   let rec traverse f pd =
- *     match pd with
- *     | Br (a,abrs) ->
- *       let tr (l,b) =
- *         let+ l' = f l
- *         and+ b' = traverse f b
- *         in (l',b') in 
- *       let+ b = f a
- *       and+ bbrs = ST.traverse tr abrs in
- *       Br (b,bbrs)
- *         
- * end *)
 
-(*****************************************************************************)
-(*                              Pretty Printing                              *)
-(*****************************************************************************)
+(* FIXME! Write a "variable" map which provides the length so far, as
+   well as the position. This way, it matches the variable
+   constructors for generic syntax, and eliminates the need for
+   repetition here.  *)
 
-let rec pp_pd f ppf pd =
-  match pd with
-  | Br (s,brs) ->
-    Fmt.pf ppf "(%a|%a)" f s
-      (pp_suite ~sep:Fmt.nop (Fmt.parens (Fmt.pair f (pp_pd f)))) brs
-
-(* a simple parenthetic representation of a pasting diagram *)
-let rec pp_tr ppf pd =
-  match pd with
-  | Br (_,brs) ->
-    Fmt.pf ppf "%a" (Fmt.parens (pp_suite ~sep:Fmt.nop pp_tr))
-      (map_suite brs ~f:snd)
-      
 let pd_lvl_map_with_lvl pd f =
 
   let rec pd_to_lvl_br k br =
@@ -312,52 +283,139 @@ let pd_idx_map_with_idx pd f =
 
 let pd_idx_map pd f =
   snd (pd_idx_map_with_idx pd f)
+
+(* Map over the pasting diagram with 
+   the boundary sphere of labels in context *)
     
+let map_with_sph pd f =
+  
+  let rec map_with_disc_br sph br =
+    match br with
+    | Br (src,brs) ->
+      let r = f sph src in
+      let (brs',tgt) = map_with_disc_brs sph src brs in
+      (Br (r,brs'), tgt)
+
+  and map_with_disc_brs sph src brs =
+    match brs with
+    | Emp -> (Emp, src)
+    | Ext (brs',(tgt,br)) ->
+      let (brs'',src') = map_with_disc_brs sph src brs' in
+      let r = f sph tgt in 
+      let (br',_) = map_with_disc_br (Ext (sph,(src',tgt))) br in 
+      (Ext (brs'',(r,br')),tgt)
+
+  in fst (map_with_disc_br Emp pd)
+
+(* Fold with the sphere in context, as well as leaf information *)
+let fold_left_with_sph pd f b =
+  
+  let rec fold_left_with_disc_br sph br b =
+    match br with
+    | Br (src,brs) ->
+      let b' = f sph src b (is_empty brs) in
+      fold_left_with_disc_brs sph src brs b' 
+
+  and fold_left_with_disc_brs sph src brs b =
+    match brs with
+    | Emp -> (b, src)
+    | Ext (brs',(tgt,br)) ->
+      let (b',src') = fold_left_with_disc_brs sph src brs' b in
+      let b'' = f sph tgt b' false in 
+      let (b''',_) = fold_left_with_disc_br (Ext (sph,(src',tgt))) br b'' in
+      (b''',tgt)
+
+  in fst (fold_left_with_disc_br Emp pd b)
+
+(* let map_sph_test pd =
+ *   let open Fmt in 
+ *   map_with_sph pd (fun sph flr ->
+ *       pr "Passing: @[<hov> %a %s@]\n" (pp_suite (pair string string)) sph flr;
+ *       ()) *)
+  
+(* module PdTraverse(A : Applicative) = struct
+ * 
+ *   type 'a t = 'a pd
+ *   type 'a m = 'a A.t
+ *   
+ *   open ApplicativeSyntax(A)
+ *   module ST = SuiteTraverse(A)
+ * 
+ *   let rec traverse f pd =
+ *     match pd with
+ *     | Br (a,abrs) ->
+ *       let tr (l,b) =
+ *         let+ l' = f l
+ *         and+ b' = traverse f b
+ *         in (l',b') in 
+ *       let+ b = f a
+ *       and+ bbrs = ST.traverse tr abrs in
+ *       Br (b,bbrs)
+ *         
+ * end *)
+
+(*****************************************************************************)
+(*                              Pretty Printing                              *)
+(*****************************************************************************)
+
+let rec pp_pd f ppf pd =
+  match pd with
+  | Br (s,brs) ->
+    Fmt.pf ppf "(%a|%a)" f s
+      (pp_suite ~sep:Fmt.nop (Fmt.parens (Fmt.pair f (pp_pd f)))) brs
+
+(* a simple parenthetic representation of a pasting diagram *)
+let rec pp_tr ppf pd =
+  match pd with
+  | Br (_,brs) ->
+    Fmt.pf ppf "%a" (Fmt.parens (pp_suite ~sep:Fmt.nop pp_tr))
+      (map_suite brs ~f:snd)
+      
 (*****************************************************************************)
 (*                              Pd Construction                              *)
 (*****************************************************************************)
 
-type 'a disc = ('a * 'a) list * 'a 
+let rec disc_pd_inverted (b,f) =
+  match b with
+  | [] -> Br (f, Emp)
+  | (s,t)::b' ->
+    Br (s, Ext (Emp, (t, disc_pd_inverted (b',f))))
 
-let rec disc_pd (bdry,flr) =
-  match bdry with
-  | [] -> Br (flr, Emp)
-  | (s,t)::bdry' ->
-    Br (s, Ext (Emp, (t, disc_pd (bdry',flr))))
-      
+let disc_pd (bdry,flr) =
+  disc_pd_inverted (to_list bdry, flr)
+    
 let unit_disc n =
-  (Base.List.init n
-     ~f:(fun _ -> ((),())), ())
-
+  (repeat n ((),()), ())
+  
 let unit_disc_pd n =
   disc_pd (unit_disc n)
 
 let whisk_left (bdry,flr) i pd =
-  let cobdry = Base.List.drop bdry i in
+  let cobdry = Base.List.drop (to_list bdry) i in
   match cobdry with
   | [] -> Error "invalid whiskering"
   | (_,t)::c' ->
-    insert_left pd i t (disc_pd (c',flr))
+    insert_left pd i t (disc_pd_inverted (c',flr))
 
 let whisk_right pd i (bdry,flr) =
-  let cobdry = Base.List.drop bdry i in
+  let cobdry = Base.List.drop (to_list bdry) i in
   match cobdry with
   | [] -> Error "invalid whiskering"
   | (_,t)::c' ->
-    insert_right pd i t (disc_pd (c',flr))
+    insert_right pd i t (disc_pd_inverted (c',flr))
 
 let three_disc = ([("a","b");("c","d");("e","f")],"g")
 let two_disc = ([("0","1");("2","3")],"4")
       
 let rec comp_seq s =
   match s with
-  | [] -> Error "invalid comp seq"
-  | n::[] -> Ok (unit_disc_pd n)
+  | [] -> raise (Failure "invalid comp seq")
+  | n::[] -> unit_disc_pd n
   | n::i::s' ->
-    let* pd = comp_seq s' in
-    whisk_left (unit_disc n) i pd
+    Base.Result.ok_or_failwith
+      (whisk_left (unit_disc n) i (comp_seq s'))
 
-let whisk m i n = comp_seq [m;i;n] 
+let whisk m i n = comp_seq [m;i;n]
 
 (*****************************************************************************)
 (*                      Substitution of Pasting Diagrams                     *)
@@ -393,7 +451,16 @@ let arr = Br ("x", Emp
 let mk_obj x = Br (x, Emp)
 let mk_arr x y f = Br (x,Emp
                          |> (y, Br (f, Emp)))
-                   
+
+let twodisc = Br ("x", Emp
+                       |> ("y", Br ("f", Emp
+                                         |> ("g", Br ("a", Emp)))))
+
+let threedisc = Br ("x", Emp
+                         |> ("y", Br ("f", Emp
+                                           |> ("g", Br ("a", Emp
+                                                             |> ("b", Br ("m", Emp)))))))
+
 let comp2 = Br ("x", Emp
                      |> ("y", Br ("f", Emp))
                      |> ("z", Br ("g", Emp)))

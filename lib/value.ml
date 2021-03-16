@@ -5,10 +5,10 @@
 (*****************************************************************************)
 
 open Fmt
-(* open Base *)
 open Expr     
 open Term
 open Suite
+open Syntax
 
 (*****************************************************************************)
 (*                              Type Definitions                             *)
@@ -42,20 +42,26 @@ and closure =
   | Closure of top_env * loc_env * term
 
 let varV k = RigidV (k,EmpSp)
-
+  
 (*****************************************************************************)
-(*                           Pd to Value Telescope                           *)
+(*                        Value Syntax Implementation                        *)
 (*****************************************************************************)
 
-(* let pd_to_value_tele pd =
- *   let mk_lift _ v = v in 
- *   let mk_cat = CatV in 
- *   let mk_obj c = ObjV c in 
- *   let mk_hom c s t = HomV (c,s,t) in 
- *   let mk_nm _ k = str "x%d" k in 
- *   let mk_var _ k = varV k in 
- *   let mk_base_cat = varV 0 in 
- *   pd_to_tele mk_lift mk_cat mk_obj mk_hom mk_nm mk_var mk_base_cat pd  *)
+(* module ValueSyntax = struct
+ *   
+ *   type s = value
+ *   let lift _ v = v
+ *   let cat = CatV
+ *   let obj c = ObjV c
+ *   let hom c s t = HomV (c,s,t)
+ *   let var _ l = RigidV (l,EmpSp)
+ *   let coh g a =  ??? 
+ *   let app u v ict = appV (u,v,ict)
+ * 
+ *   let pd_vars _ pd =
+ *     Pd.pd_lvl_map pd (fun _ l -> RigidV (l,EmpSp))
+ *       
+ * end *)
 
 (*****************************************************************************)
 (*                              Pretty Printing                              *)

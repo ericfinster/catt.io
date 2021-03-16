@@ -14,6 +14,8 @@ open Value
 open Meta
 open Eval
 open Unify
+open Syntax
+open Cylinder
 
 (* Monadic bind for errors in scope *)
 let (let*) m f = Base.Result.bind m ~f 
@@ -223,49 +225,6 @@ and free_vars_sp k sp =
   | LidSp sp' -> fvcs sp'
   | CoreSp sp' -> fvcs sp'
 
-(*****************************************************************************)
-(*                                 Cylinders                                 *)
-(*****************************************************************************)
-
-let rec base_type cat =
-  match cat with
-  | ArrV c -> Ok c
-  | HomV (cat',s,t) ->
-    let* bc = base_type cat' in
-    Ok (HomV (bc, baseV s, baseV t))
-  | _ -> Error `InternalError
-
-let rec lid_type cat =
-  match cat with 
-  | ArrV c -> Ok c
-  | HomV (cat',s,t) ->
-    let* bc = lid_type cat' in
-    Ok (HomV (bc, lidV s, lidV t))
-  | _ -> Error `InternalError
-
-
-(* let rec whisker m k n d0 d1 =
- *   let* pd = Pd.comp_seq [m;k;n] in 
- *   let t = unbiased_comp_term pd in 
- *   
- *   Ok (Emp , CatV) *)
-
-let rec split_cylinder cat = 
-  match cat with
-  | ArrV c -> Ok (c , Emp, Emp)
-  | HomV (c,s,t) ->
-    let* (bc,scyl,tcyl) = split_cylinder c in
-    let scyl' = Ext (scyl,(baseV s, lidV s, coreV s)) in
-    let tcyl' = Ext (tcyl,(baseV t, lidV t, coreV t)) in 
-    Ok (bc, scyl', tcyl')
-  | _ -> Error `InternalError
-
-(* let rec mk_cyl cat srcs tgts =
- *   match (src, tgts) with
- *   | (Emp, Emp) -> cat
- *   | (Ext (srcs',(sb,sl,sc)), Ext (tgts',(tb,tl,tc))) -> *)
-    
-
 
 (*****************************************************************************)
 (*                                Typechecking                               *)
@@ -436,18 +395,19 @@ and infer gma expr =
      so that you don't unfold automatically ... *)
   | QuotE (PComp pd) ->
     (* pr "inferring a pasting composite: %a@," Pd.pp_tr pd; *)
-    let e = unbiased_comp_expr pd in
+    let e = ucomp_coh_expr pd in
     (* pr "expr: @[<hov>%a@]@," pp_expr_with_impl e;  *)
     let* (t,typ) = infer gma e in
     Ok (QuotT (PComp pd, t), typ)
 
-  | QuotE (SComp ds) ->
-    (match Pd.comp_seq ds with
-     | Ok pd ->
-       let* (t,typ) = infer gma (unbiased_comp_expr pd) in
-       Ok (QuotT (SComp ds,t),typ)
-     | Error _ -> Error (`BadCohQuot "invalid comp sequence"))
-
+  | QuotE (SComp ds) -> (
+      try
+        let pd = Pd.comp_seq ds in 
+        let* (t,typ) = infer gma (ucomp_coh_expr pd) in
+        Ok (QuotT (SComp ds,t),typ)
+      with Failure s -> Error (`BadCohQuot s)
+    )
+  
   | HoleE ->
     let a = eval gma.top gma.loc (fresh_meta ()) in
     let t = fresh_meta () in
@@ -533,6 +493,7 @@ and check_coh gma g a =
       | Error msg -> Error (`PastingError msg))
 
 
+(* Make this generic .... *)
 let rec abstract_tele_with_tm tl ty tm =
   match tl with
   | Emp -> (ty,tm)
@@ -553,8 +514,8 @@ let rec check_defs gma defs =
     let tm_val = eval gma.top gma.loc tm_tm in 
     pr "Checking complete for %s@," id;
     let tm_nf = term_to_expr Emp (quote (gma.lvl) tm_val false) in
-    (* let ty_nf = term_to_expr Emp (quote (gma.lvl) ty_val false) in
-     * pr "Type: @[<hov>%a@]@," pp_expr ty_nf; *)
+    let ty_nf = term_to_expr Emp (quote (gma.lvl) ty_val false) in
+    pr "Type: @[<hov>%a@]@," pp_expr ty_nf;
     pr "Term: @[<hov>%a@]@," pp_expr tm_nf;
     check_defs (define gma id tm_val ty_val) ds
   | (CohDef (id,g,a))::ds ->

@@ -9,7 +9,8 @@ open Term
 open Meta
 open Value
 open Suite
-
+open Syntax
+    
 (*****************************************************************************)
 (*                                 Evaluation                                *)
 (*****************************************************************************)
@@ -116,6 +117,12 @@ let rec force_meta v =
      | Solved v -> force_meta (runSpV v sp))
   | _ -> v
 
+let rec appArgs v args =
+  match args with
+  | Emp -> v
+  | Ext (args',(ict,arg)) ->
+    appV (appArgs v args') arg ict
+
 (*****************************************************************************)
 (*                                  Quoting                                  *)
 (*****************************************************************************)
@@ -138,6 +145,7 @@ let rec quote k v ufld =
 
     let pi_tm = quote k v ufld in
     let (g,a) = pi_to_tele pi_tm in
+    
     qcs (CohT (g,a)) sp 
 
   | CylV (b,l,c) -> CylT (qc b, qc l, qc c)
@@ -168,3 +176,17 @@ let quote_tele tl =
 
 let nf top loc tm =
   quote (length loc) (eval top loc tm) true
+
+(*****************************************************************************)
+(*                      Value Composable Implementation                      *)
+(*****************************************************************************)
+
+module ValueComposable = struct
+  type s = value
+
+  let coh cat pd =
+    let ucomp = eval Emp Emp (term_ucomp_coh pd) in
+    appArgs ucomp (pd_args cat pd)
+
+end
+

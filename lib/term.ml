@@ -8,7 +8,8 @@ open Fmt
 open Base
 open Expr
 open Suite
-
+open Syntax
+    
 (*****************************************************************************)
 (*                              Type Definitions                             *)
 (*****************************************************************************)
@@ -141,50 +142,6 @@ let pi_to_tele ty =
   in go Emp ty
 
 (*****************************************************************************)
-(*                       Pasting Diagrams to Telescopes                      *)
-(*****************************************************************************)
-
-(* module ExprGen = struct
- *   type s = expr
- *   let lift _ t = t
- *   let cat = CatE
- *   let obj c = ObjE c
- *   let var _ l = VarE (str "x%d" l)
- *   let hom c s t = HomE (c,s,t)
- *   let coh g a = CohE (g,a)
- *   let app u v ict = AppE (u,v,ict)
- *   let pd_vars k pd = pd_lvl_map pd 
- *       (fun _ k' -> VarE (str "x%d" (k+k')))
- * end *)
-
-module TermGen = struct
-  type s = term
-  let lift i t = db_lift_by 0 i t
-  let cat = CatT
-  let obj c = ObjT c
-  let hom c s t = HomT (c,s,t)
-  let var k l = VarT (k - l + 1)
-  let coh g a = CohT (g,a)
-  let app u v ict = AppT (u,v,ict)
-
-  let pd_vars _ pd =
-    Pd.pd_idx_map pd (fun _ i -> VarT i)
-      
-end
-
-let pd_to_term_tele : unit Pd.pd -> term tele = fun pd ->
-  let open PdToTele(TermGen) in
-  let nm_gen _ k = str "x%d" k in
-  let var_gen _ _ = VarT 0 in
-  pd_to_tele nm_gen var_gen (VarT 0) pd
-
-let unbiased_comp_term : 'a Pd.pd -> term = fun pd ->
-  let open UnbiasedComp(TermGen) in
-  let nm_gen _ k = str "x%d" k in
-  let var_gen _ _ = VarT 0 in
-  unbiased_comp nm_gen var_gen (VarT 0) pd 
-
-(*****************************************************************************)
 (*                              Pretty Printing                              *)
 (*****************************************************************************)
     
@@ -232,7 +189,7 @@ let rec pp_term ppf tm =
   | HomT (c,s,t) ->
     pf ppf "%a | %a => %a" pp_term c pp_term s pp_term t
   | CohT (g,a) ->
-    pf ppf "coh @[[ %a : %a ]@]" (pp_tele pp_term) g pp_term a
+    pf ppf "coh [ %a : %a ]" (pp_tele pp_term) g pp_term a
   | CylT (b,l,c) ->
     pf ppf "[| %a | %a | %a |]" pp_term b pp_term l pp_term c
   | BaseT c -> pf ppf "base %a" pp_term c
@@ -244,3 +201,43 @@ let rec pp_term ppf tm =
   | MetaT _ -> pf ppf "_"
   (* Again, misses some implicit information ... *)
   | InsMetaT _ -> pf ppf "*_*"
+
+
+(*****************************************************************************)
+(*                         Term Syntax Implementation                        *)
+(*****************************************************************************)
+
+module TermSyntax = struct
+  type s = term
+  let lift i t = db_lift_by 0 i t
+  let cat = CatT
+  let obj c = ObjT c
+  let hom c s t = HomT (c,s,t)
+  let var k l = VarT (lvl_to_idx k l)
+  let lam nm ict bdy = LamT (nm,ict,bdy)
+  let pi nm ict dom cod = PiT (nm,ict,dom,cod)
+  let coh g a = CohT (g,a)
+  let app u v ict = AppT (u,v,ict)
+  let pp = pp_term
+  let nm_of k _ = str "x%d" (k-1)
+  let fresh_cat k = ("C", VarT k)
+end
+
+module TermUtil = SyntaxUtil(TermSyntax)
+
+let term_app_args = TermUtil.app_args
+
+let pd_to_term_tele : 'a Pd.pd -> term tele = fun pd ->
+  (* let k = length (Pd.labels pd) in *)
+  let fr_pd = Pd.pd_idx_map pd (fun _ i -> VarT i) in
+  TermUtil.pd_to_tele fr_pd
+
+let term_ucomp_coh : 'a Pd.pd -> term = fun pd ->
+  TermUtil.ucomp_coh pd
+
+module TermComposable = struct
+  type s = term
+  let ucomp = TermUtil.ucomp 
+end
+
+module TCU = CompUtils(TermComposable)
