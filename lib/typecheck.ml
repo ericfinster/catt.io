@@ -515,8 +515,8 @@ let rec check_defs gma defs =
     pr "Checking complete for %s@," id;
     let tm_nf = term_to_expr Emp (quote (gma.lvl) tm_val false) in
     let ty_nf = term_to_expr Emp (quote (gma.lvl) ty_val false) in
-    pr "Type: @[<hov>%a@]@," pp_expr ty_nf;
-    pr "Term: @[<hov>%a@]@," pp_expr tm_nf;
+    pr "Type: @[%a@]@," pp_expr ty_nf;
+    pr "Term: @[%a@]@," pp_expr tm_nf;
     check_defs (define gma id tm_val ty_val) ds
   | (CohDef (id,g,a))::ds ->
     pr "----------------@,";
@@ -526,11 +526,11 @@ let rec check_defs gma defs =
     let coh_tm = eval gma.top gma.loc (CohT (gt , at)) in
     (* let coh_ty_nf = term_to_expr Emp (quote gma.lvl coh_ty false) in *)
     let coh_tm_nf = term_to_expr Emp (quote gma.lvl coh_tm false) in
-    (* pr "Coh type: @[<hov>%a@]@," pp_expr coh_ty_nf; *)
+    (* pr "Coh type: @[%a@]@," pp_expr coh_ty_nf; *)
     (* pr "Coh term raw: %a@," pp_term (CohT (gt,at));
      * pr "Coh term val: %a@," pp_value coh_tm;
      * pr "Coh term nf: %a@," pp_term (quote gma.lvl coh_tm false); *)
-    pr "Coh expr: @[<hov>%a@]@," pp_expr coh_tm_nf;
+    pr "Coh expr: @[%a@]@," pp_expr coh_tm_nf;
     check_defs (define gma id coh_tm coh_ty) ds
 
 and additional_tests _ =

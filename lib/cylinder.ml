@@ -78,31 +78,30 @@ module CylinderTyping(Cmp: Composable) = struct
       let tgt_lid = (lid_sph ct',tl) in 
 
 
-      
+      (* Source *)
       let (sc_sph, sc_source) = fold_left
-        (fun dsc (i,cdsc) -> Result.ok_or_failwith (whisker bc dsc i cdsc))
+        (fun dsc (i,cdsc) -> whisker bc dsc i cdsc)
         src_base idxd_tgt_cores in
       
       let (_, sc_target) = fold_left
-        (fun dsc (i,cdsc) -> Result.ok_or_failwith (whisker bc cdsc i dsc))
+        (fun dsc (i,cdsc) -> whisker bc cdsc i dsc)
         src_lid idxd_src_cores in 
 
       let sc_final = (Ext (sc_sph,(sc_source,sc_target)), sc) in 
 
 
-      
+      (* Target *)
       let (tc_sph, tc_source) = fold_left
-        (fun dsc (i,sdsc) -> Result.ok_or_failwith (whisker bc dsc i sdsc))
+        (fun dsc (i,sdsc) -> whisker bc dsc i sdsc)
         tgt_base idxd_tgt_cores in
 
       let (_, tc_target) = fold_left
-        (fun dsc (i,sdsc) -> Result.ok_or_failwith (whisker bc sdsc i dsc))
+        (fun dsc (i,sdsc) -> whisker bc sdsc i dsc)
         tgt_lid idxd_src_cores in
 
       let tc_final = (Ext (tc_sph,(tc_source,tc_target)), tc) in
 
-
-      
+      (* Final Result *)
       Ext (cbdrys,((src_base,src_lid,sc_final),(tgt_base,tgt_lid,tc_final)))
       
 end
@@ -143,6 +142,20 @@ let cyl2 = cyl1
 let cyl3 = cyl2
            |> (("ab", "al", "ac"),("bb", "bl", "bc"))
 
+
+let cyl4 = cyl3
+           |> (("mb", "ml", "mc"),("nb", "nl", "nc"))
+
+let pp_blc pp_el ppf (b,l,c) =
+  let open Fmt in 
+  pf ppf "@[<v>base: %a@,lid:  %a@,core: %a@,@]" pp_el b pp_el l pp_el c
+    
+let pp_cyl_typ pp_el ppf ct =
+  let open Fmt in
+  pf ppf "@[<v>%a@]"
+    (pp_suite ~sep:cut (pair ~sep:cut (pp_blc pp_el) (pp_blc pp_el)))
+    ct
+  
 (* Whisker 3 1 2 *)
 
 let left312 = (Emp

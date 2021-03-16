@@ -370,7 +370,20 @@ let rec pp_tr ppf pd =
   | Br (_,brs) ->
     Fmt.pf ppf "%a" (Fmt.parens (pp_suite ~sep:Fmt.nop pp_tr))
       (map_suite brs ~f:snd)
-      
+
+let pp_sph pp_el ppf sph =
+  let open Fmt in
+  pf ppf "@[<hov>%a@]" (pp_suite ~sep:(sps 1 ++ any "| ")
+                 (hovbox (pair ~sep:(any " =>" ++ sps 1) pp_el pp_el))) sph
+
+let pp_disc pp_el ppf (sph, flr) =
+  let open Fmt in
+  if (is_empty sph) then
+    pf ppf "%a" pp_el flr
+  else
+    pf ppf "@[%a | %a@]" (pp_sph pp_el)
+      sph pp_el flr
+
 (*****************************************************************************)
 (*                              Pd Construction                              *)
 (*****************************************************************************)

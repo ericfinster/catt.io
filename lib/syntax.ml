@@ -169,9 +169,10 @@ module CompUtils(C: Composable) = struct
         ~f:(fun (s,t) -> (ucomp ct s, ucomp ct t)) in
     (suite_sph , ucomp ct pd)
 
-  let whisker : s -> s disc -> int -> s disc -> (s disc,string) Result.t =
+  let whisker : s -> s disc -> int -> s disc -> s disc =
     fun ct left i right ->
-    let* wpd = whisk_right (disc_pd left) i right in
-    Ok (ucomp_with_type ct wpd)
+    let wpd = Base.Result.ok_or_failwith
+        (whisk_right (disc_pd left) i right) in 
+    ucomp_with_type ct wpd
   
 end

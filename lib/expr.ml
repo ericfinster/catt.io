@@ -64,7 +64,7 @@ let rec ith_tgt i ty tm =
 
 let expr_tele_to_pd tl = 
   let rec go l tl =
-    (* pr "Trying pasting context: @[<hov>%a@]@," (pp_suite pp_value) loc; *)
+    (* pr "Trying pasting context: @[%a@]@," (pp_suite pp_value) loc; *)
     match tl with
     | Emp -> Error "Empty context is not a pasting diagram"
     | Ext(Emp,_) -> Error "Singleton context is not a pasting diagram"
@@ -131,7 +131,7 @@ let rec pp_expr_gen show_imp ppf expr =
     let pp_v = if (is_app v) then
         parens ppe
       else ppe in 
-    pf ppf "%a %a" ppe u pp_v v
+    pf ppf "%a@, %a" ppe u pp_v v
   | PiE (nm,Impl,dom,cod) ->
     pf ppf "{%s : %a} -> %a" nm
       ppe dom ppe cod
@@ -152,7 +152,7 @@ let rec pp_expr_gen show_imp ppf expr =
   | CohE (g,a) ->
     (* (match expr_tele_to_pd g with
      *  | Ok (pd,_,_,_,_) ->
-     *    pf ppf "@[<hov>@[<hov>coh [ %a : @]@[<hov>%a ]@]@]"
+     *    pf ppf "@[@[coh [ %a : @]@[%a ]@]@]"
      *      (pp_pd string) pd ppe a
      *  | Error _ -> 
      *    pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a) *)
