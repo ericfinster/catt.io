@@ -29,7 +29,12 @@ let head s =
   match s with
   | Ext(_,a) -> a
   | _ -> raise (Failure "head on empty")
-    
+
+let init s =
+  match s with
+  | Ext(s',_) -> s'
+  | _ -> raise (Failure "init on empty")
+           
 let rec length s =
   match s with
   | Emp -> 0
@@ -64,6 +69,8 @@ let rec append s t =
   | Emp -> s
   | Ext (t',x) -> Ext (append s t',x)
 
+let (|*>) = append
+  
 let rec join ss =
   match ss with
   | Emp -> Emp
@@ -75,6 +82,13 @@ let rec zip s t =
   | (_,Emp) -> Emp
   | (Ext (s',a), Ext (t',b)) ->
     Ext (zip s' t', (a, b))
+
+let rec unzip s =
+  match s with
+  | Emp -> (Emp,Emp)
+  | Ext (s',(a,b)) ->
+    let (l,r) = unzip s' in
+    (Ext (l,a), Ext (r,b))
 
 let to_list s =
   let rec go s l = 
@@ -105,8 +119,8 @@ exception Lookup_error
   
 let rec first s =
   match s with
-  | Emp -> Error "Empty list"
-  | Ext (Emp,x) -> Ok x
+  | Emp -> raise Lookup_error
+  | Ext (Emp,x) -> x
   | Ext (s',_) -> first s'
 
 let last s =
@@ -160,7 +174,7 @@ let rec grab k s =
   match s' with
   | Emp -> raise Lookup_error
   | Ext (s'',x) -> (s'',x::r)
-
+  
 let split_at k s =
   let d = length s in
   grab (d-k) s 

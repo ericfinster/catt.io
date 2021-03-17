@@ -42,26 +42,6 @@ and closure =
   | Closure of top_env * loc_env * term
 
 let varV k = RigidV (k,EmpSp)
-  
-(*****************************************************************************)
-(*                        Value Syntax Implementation                        *)
-(*****************************************************************************)
-
-(* module ValueSyntax = struct
- *   
- *   type s = value
- *   let lift _ v = v
- *   let cat = CatV
- *   let obj c = ObjV c
- *   let hom c s t = HomV (c,s,t)
- *   let var _ l = RigidV (l,EmpSp)
- *   let coh g a =  ??? 
- *   let app u v ict = appV (u,v,ict)
- * 
- *   let pd_vars _ pd =
- *     Pd.pd_lvl_map pd (fun _ l -> RigidV (l,EmpSp))
- *       
- * end *)
 
 (*****************************************************************************)
 (*                              Pretty Printing                              *)

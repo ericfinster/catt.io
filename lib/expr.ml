@@ -112,9 +112,9 @@ let is_pi e =
 let pp_quot_cmd ppf c =
   match c with
   | PComp pd ->
-    pf ppf "pcomp %a" pp_tr pd 
+    pf ppf "pc %a" pp_tr pd 
   | SComp ds ->
-    pf ppf "scomp %a" (list ~sep:(any " ") int) ds 
+    pf ppf "scmp %a" (list ~sep:(any " ") int) ds 
 
 let rec pp_expr_gen show_imp ppf expr =
   let ppe = pp_expr_gen show_imp in 

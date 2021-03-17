@@ -177,16 +177,4 @@ let quote_tele tl =
 let nf top loc tm =
   quote (length loc) (eval top loc tm) true
 
-(*****************************************************************************)
-(*                      Value Composable Implementation                      *)
-(*****************************************************************************)
-
-module ValueComposable = struct
-  type s = value
-
-  let coh cat pd =
-    let ucomp = eval Emp Emp (term_ucomp_coh pd) in
-    appArgs ucomp (pd_args cat pd)
-
-end
 

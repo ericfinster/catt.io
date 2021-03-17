@@ -40,15 +40,22 @@ let pp_tele pp_el ppf tl =
 (*****************************************************************************)
 (*                           Generic Syntax Module                           *)
 (*****************************************************************************)
-        
-module type Syntax = sig
-  
+
+module type CatSyntax = sig
+
   type s
+
+  val obj : s -> s
+  val hom : s -> s -> s -> s
+  
+end
+
+module type Syntax = sig
+
+  include CatSyntax
   
   val lift : int -> s -> s
   val cat : s
-  val obj : s -> s
-  val hom : s -> s -> s -> s
   val var : lvl -> lvl -> s
   val lam : name -> icit -> s -> s
   val pi : name -> icit -> s -> s -> s 
@@ -60,7 +67,40 @@ module type Syntax = sig
   val pp : s Fmt.t
   
 end
+
+(*****************************************************************************)
+(*                     Semantic Category Implementations                     *)
+(*****************************************************************************)
+
+module type CatImpl = sig
+  include CatSyntax
+  val ucomp : s -> s pd -> s
+end
+
+module CatUtils(C: CatImpl) = struct
+
+  include C
+
+  let ucomp_with_type : s -> s pd -> s disc = fun ct pd -> 
+    let bdry = boundary pd in
+    let suite_sph = map_suite bdry
+        ~f:(fun (s,t) -> (ucomp ct s, ucomp ct t)) in
+    (suite_sph , ucomp ct pd)
+
+  let whisker : s -> s disc -> int -> s disc -> s disc =
+    fun ct left i right ->
+    let wpd = Base.Result.ok_or_failwith
+        (whisk_right (disc_pd left) i right) in 
+    ucomp_with_type ct wpd
+
+  let rec sph_to_typ : s -> s sph -> s = fun c sph ->
+    match sph with
+    | Emp -> c
+    | Ext (sph',(s,t)) ->
+      hom (sph_to_typ c sph') s t 
   
+end
+
 (*****************************************************************************)
 (*                              Utility Routines                             *)
 (*****************************************************************************)
@@ -85,7 +125,6 @@ let pd_args cat pd =
 
 module SyntaxUtil(Syn : Syntax) = struct
   open Syn
-
 
   (* Utility Routines *)
   
@@ -143,36 +182,13 @@ module SyntaxUtil(Syn : Syntax) = struct
       let coh = ucomp_coh pd in
       app_args coh (pd_args ct pd)
 
-  let ucomp_with_type : s -> s pd -> s disc = fun ct pd -> 
-    let bdry = boundary pd in
-    let suite_sph = map_suite bdry
-        ~f:(fun (s,t) -> (ucomp ct s, ucomp ct t)) in
-    (suite_sph , ucomp ct pd)
-    
+  include CatUtils(
+    struct
+      type s = Syn.s
+      let ucomp = ucomp
+      let obj = Syn.obj
+      let hom = Syn.hom 
+    end)
+      
 end
 
-(*****************************************************************************)
-(*                                 Composable                                *)
-(*****************************************************************************)
-
-module type Composable = sig
-  type s
-  val ucomp : s -> s pd -> s
-end
-
-module CompUtils(C: Composable) = struct
-  open C
-
-  let ucomp_with_type : s -> s pd -> s disc = fun ct pd -> 
-    let bdry = boundary pd in
-    let suite_sph = map_suite bdry
-        ~f:(fun (s,t) -> (ucomp ct s, ucomp ct t)) in
-    (suite_sph , ucomp ct pd)
-
-  let whisker : s -> s disc -> int -> s disc -> s disc =
-    fun ct left i right ->
-    let wpd = Base.Result.ok_or_failwith
-        (whisk_right (disc_pd left) i right) in 
-    ucomp_with_type ct wpd
-  
-end

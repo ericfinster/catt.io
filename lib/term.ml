@@ -235,9 +235,3 @@ let pd_to_term_tele : 'a Pd.pd -> term tele = fun pd ->
 let term_ucomp_coh : 'a Pd.pd -> term = fun pd ->
   TermUtil.ucomp_coh pd
 
-module TermComposable = struct
-  type s = term
-  let ucomp = TermUtil.ucomp 
-end
-
-module TCU = CompUtils(TermComposable)
