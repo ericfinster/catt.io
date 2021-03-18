@@ -15,6 +15,9 @@ type 'a pd =
 type 'a sph = ('a * 'a) suite
 type 'a disc = 'a sph * 'a 
 
+type 'a lsph = ('a * 'a) list
+type 'a ldisc = 'a lsph * 'a 
+
 let is_leaf pd = 
   match pd with
   | Br (_,Emp) -> true

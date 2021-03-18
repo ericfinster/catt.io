@@ -54,58 +54,78 @@ type 'a blc = 'a * 'a * 'a
 type 'a cyl_typ = ('a blc * 'a blc) suite
 type 'a cyl = 'a cyl_typ * 'a blc
 
-type 'a susp_cyl = 'a sph * 'a cyl_typ * 'a blc
+type 'a susp_cyl_typ = 'a sph * ('a blc * 'a blc) list 
+type 'a susp_cyl = 'a susp_cyl_typ * 'a blc
 
-let base_sph : 'a cyl_typ -> 'a sph =
-  fun ct -> map_suite ct
-      ~f:(fun ((src,_,_),(tgt,_,_)) -> (src,tgt))
+let base_sph (ct : 'a cyl_typ) : 'a sph = 
+  map_suite ct ~f:(fun ((src,_,_),(tgt,_,_)) -> (src,tgt))
 
-let base_disc : 'a cyl -> 'a disc =
-  fun (ct,(b,_,_)) -> (base_sph ct,b)
+let base_disc ((ct,(b,_,_)) : 'a cyl) : 'a disc =
+  (base_sph ct,b)
                       
-let lid_sph : 'a cyl_typ -> 'a sph =     
-  fun ct -> map_suite ct
-      ~f:(fun ((_,src,_),(_,tgt,_)) -> (src,tgt))
+let lid_sph (ct : 'a cyl_typ) : 'a sph =     
+  map_suite ct ~f:(fun ((_,src,_),(_,tgt,_)) -> (src,tgt))
 
-let lid_disc : 'a cyl -> 'a disc =
-  fun (ct,(_,l,_)) -> (lid_sph ct,l)
+let lid_disc ((ct,(_,l,_)) : 'a cyl) : 'a disc =
+  (lid_sph ct,l)
                       
-let core_sph : 'a cyl_typ -> 'a sph =
-  fun ct -> map_suite ct
-      ~f:(fun ((_,_,src),(_,_,tgt)) -> (src,tgt))
+let core_sph (ct : 'a cyl_typ) : 'a sph =
+  map_suite ct ~f:(fun ((_,_,src),(_,_,tgt)) -> (src,tgt))
 
-let rec expose_base : 'a cyl_typ -> ('a blc * 'a blc) * 'a cyl_typ =
-  fun ct ->
+let rec expose_base (ct : 'a cyl_typ) : ('a blc * 'a blc) * 'a cyl_typ =
   match ct with
   | Emp -> raise (Failure "empty in expose_base")
   | Ext (Emp,x) -> (x,Emp)
   | Ext (ct',x) ->
     let (r,ct'') = expose_base ct' in
     (r, ct'' |> x)
-    
-let flat : 'a cyl_typ -> 'a * 'a * 'a =
-  fun ct -> fst (fst (expose_base ct))
 
-let sharp : 'a cyl_typ -> 'a * 'a * 'a =
-  fun ct -> snd (fst (expose_base ct))
+let flat ((sph,ct) : 'a susp_cyl_typ) : 'a disc =
+  match ct with
+  | [] -> raise (Failure "empty on flat")
+  | ((sb,sl,sc),_)::_ -> (sph |> (sb,sl) , sc)
 
-let rec with_types : 'a cyl_typ -> ('a cyl) sph =
-  function
-  | Emp ->  Emp
-  | Ext (ct,(s,t)) ->
-    with_types ct |> ((ct,s),(ct,t))
+let sharp ((sph,ct) : 'a susp_cyl_typ) : 'a disc =
+  match ct with
+  | [] -> raise (Failure "empty on flat")
+  | (_,(tb,tl,tc))::_ -> (sph |> (tb,tl) , tc)
 
+(* let rec with_types (ct : 'a cyl_typ) : ('a cyl) sph =
+ *   match ct with
+ *   | Emp ->  Emp
+ *   | Ext (ct,(s,t)) ->
+ *     with_types ct |> ((ct,s),(ct,t)) *)
+
+(* let rec with_types_susp ((sph,ct) : 'a susp_cyl_typ) : ('a susp_cyl) lsph =
+ *   match ct with
+ *   | [] -> []
+ *   | (l,r)::ct' ->
+ *     let r = with_type_susp (sph,ct') in
+ *     let f ((sl,cl),(sr,cr)) =
+ *       ((sl,()::cl),(sr,()::cr)) in
+ *     let h = (sph,
+ * 
+ * (\* Okay, isn't it just like the "list of prefixes"? *\)
+ * let rec prefixes l =
+ *   match l with
+ *   | [] -> []
+ *   | x::xs ->
+ *     [x]::(List.map (prefixes xs) ~f:(fun p -> x::p))
+ * 
+ *     (\* [1,2,3,4] -> [[1],[1,2],[1,2,3],[1,2,3,4]] *\) *)
+
+         
 module CylinderTyping(C: CatImpl) = struct
   open CatUtils(C)
 
-  let core_dom_disc : s -> int -> s disc -> (s disc) suite -> s disc =
-    fun c susp base_dsc tgt_cores ->
+  let core_dom_disc (c : s) (susp: int) (base_dsc : s disc)
+      (tgt_cores : (s disc) suite) : s disc =
     fold_left (fun dsc (i,cr_dsc) ->
         whisker c dsc (i+susp) cr_dsc)
       base_dsc (zip_with_idx tgt_cores)
 
-  let core_cod_disc : s -> int -> s disc -> (s disc) suite -> s disc =
-    fun c susp lid_dsc src_cores ->
+  let core_cod_disc (c : s) (susp : int) (lid_dsc : s disc)
+      (src_cores : (s disc) suite) : s disc =
     fold_left (fun dsc (i,cr_dsc) ->
         whisker c cr_dsc (i+susp) dsc)
       lid_dsc (zip_with_idx src_cores)  
@@ -114,8 +134,7 @@ module CylinderTyping(C: CatImpl) = struct
      the data.  Perhaps this could be avoided with a more elaborate
      return type? 
   *)
-  let rec cyl_typ_discs : s -> s sph -> s cyl_typ -> (s disc) cyl_typ =
-    fun bc sph ct ->
+  let rec cyl_typ_discs (bc : s) (sph : s sph) (ct : s cyl_typ) : (s disc) cyl_typ =
     match ct with
     | Emp -> Emp
     | Ext (ct',((sb,sl,sc),(tb,tl,tc))) ->
@@ -143,10 +162,9 @@ module CylinderTyping(C: CatImpl) = struct
       cbdrys |> ((src_base_disc, src_lid_disc, src_core_disc),
                  (tgt_base_disc, tgt_lid_disc, tgt_core_disc))
   
-  let cyl_core_disc : s -> s sph -> s cyl -> s disc =
-    fun bcat sph (ct,(b,l,c)) ->
+  let cyl_core_disc (bc : s) (sph : s sph) ((ct,(b,l,c)) : s cyl) : s disc =
     
-    let cbdrys = cyl_typ_discs bcat sph ct in
+    let cbdrys = cyl_typ_discs bc sph ct in
     let src_cores = map_suite cbdrys ~f:(fun ((_,_,cr),_) -> cr) in
     let tgt_cores = map_suite cbdrys ~f:(fun (_,(_,_,cr)) -> cr) in
     let shft = length sph in 
@@ -154,72 +172,85 @@ module CylinderTyping(C: CatImpl) = struct
     let base_disc = (base_sph ct , b) in
     let lid_disc = (lid_sph ct , l) in 
 
-    let (core_sph, core_dom) = core_dom_disc bcat shft base_disc tgt_cores in 
-    let (_       , core_cod) = core_cod_disc bcat shft lid_disc src_cores in
+    let (core_sph, core_dom) = core_dom_disc bc shft base_disc tgt_cores in 
+    let (_       , core_cod) = core_cod_disc bc shft lid_disc src_cores in
     (core_sph |> (core_dom, core_cod) , c) 
 
+  (* This version seems to have trouble with the base case ... *)
+  (* let rec underlying' : s -> s susp_cyl -> s susp_cyl =
+   *   fun bc (sph,ct,(b,l,c)) ->
+   * 
+   *     let go ((lt,l),(rt,r)) =
+   *       let (_,_,lr) = underlying' bc (sph,lt,l) in
+   *       let (_,_,rr) = underlying' bc (sph,rt,r) in
+   *       (lr,rr)
+   *     in
+   * 
+   *     let ct' = map_suite (with_types ct) ~f:go in 
+   * 
+   *     let (((sb,sl,sc),(tb,tl,tc)),_) = expose_base ct in
+   * 
+   *     let i = length sph in
+   * 
+   *     let sph' = sph |> (sb,tl) in
+   *     let sdisc = (sph |> (sb,sl) , sc) in 
+   *     let tdisc = (sph |> (tb,tl) , tc) in
+   * 
+   *     let bdisc = (sph |*> base_sph ct , b) in
+   *     let ldisc = (sph |*> lid_sph ct , l) in 
+   * 
+   *     let bres = snd (whisker bc bdisc i tdisc) in
+   *     let lres = snd (whisker bc sdisc i ldisc) in 
+   * 
+   *     (sph', ct', (bres,lres,c)) *)
 
-  let underlying : s -> s susp_cyl -> s susp_cyl =
-    fun bc (sph,ct,(b,l,c)) ->
-
-    let (((sb,sl,sc),(tb,tl,tc)),_) = expose_base ct in
+  
+  let underlying_data (bc : s) (((sph,ct),(b,l,c)) : s susp_cyl)
+    : s susp_cyl * s disc * s disc * s * s =
+  
+    match ct with
+    | [] -> raise (Failure "empty cylinder context")
+    | ((sb,sl,sc),(tb,tl,tc))::crem -> 
       
-    let sph' = sph |> (sb,tl) in
-    let sdisc = (sph |> (sb,sl) , sc) in 
-    let tdisc = (sph |> (tb,tl) , tc) in
-    let i = length sph in
-    
-    let go ((st,(sb,sl,sc)),(tt,(tb,tl,tc))) = 
-      let src_base = (sph |*> base_sph st , sb) in
-      let src_lid = (sph |*> lid_sph st , sl) in
-      let tgt_base = (sph |*> base_sph tt , tb) in
-      let tgt_lid = (sph |*> lid_sph tt , tl) in 
+      let sph' = sph |> (sb,tl) in
+      let sdisc = (sph |> (sb,sl) , sc) in 
+      let tdisc = (sph |> (tb,tl) , tc) in
+      let i = length sph in
 
-      let sb' = snd (whisker bc src_base i tdisc) in 
-      let sl' = snd (whisker bc sdisc i src_lid) in
-      let tb' = snd (whisker bc tgt_base i tdisc) in
-      let tl' = snd (whisker bc sdisc i tgt_lid) in
+      let go_fold (ct,bsph,lsph) ((sb,sl,sc),(tb,tl,tc)) =
 
-      ((sb',sl',sc),(tb',tl',tc)) in
-    
-    let (_,crem) = split_at 1 (with_types ct) in 
-    let ct' = List.map crem ~f:go in 
+        let sb' = snd (whisker bc (bsph,sb) i tdisc) in 
+        let sl' = snd (whisker bc sdisc i (lsph,sl)) in
+        let tb' = snd (whisker bc (bsph,tb) i tdisc) in
+        let tl' = snd (whisker bc sdisc i (lsph,tl)) in
 
-    let bdisc = (sph |*> base_sph ct , b) in
-    let ldisc = (sph |*> lid_sph ct , l) in 
+        (ct   |> ((sb',sl',sc),(tb',tl',tc)),
+         bsph |> (sb,tb),
+         lsph |> (sl,tl))
+        
+      in
 
-    let bres = snd (whisker bc bdisc i tdisc) in
-    let lres = snd (whisker bc sdisc i ldisc) in 
+      let (cts,bsph,lsph) = List.fold crem
+          ~init:(Emp, sph |> (sb,tb), sph |> (sl,tl)) ~f:go_fold in 
 
-    (sph', from_list ct', (bres,lres,c))
-    
-  let rec underlying' : s -> s susp_cyl -> s susp_cyl =
-    fun bc (sph,ct,(b,l,c)) ->
-    
-    let go ((lt,l),(rt,r)) =
-      let (_,_,lr) = underlying' bc (sph,lt,l) in
-      let (_,_,rr) = underlying' bc (sph,rt,r) in
-      (lr,rr)
-    in
+      let b' = snd (whisker bc (bsph , b) i tdisc) in
+      let l' = snd (whisker bc sdisc i (lsph , l)) in 
+
+      (((sph', to_list cts),(b',l',c)) ,
+       (bsph , b), (lsph, l), sc, tc)
+
+  
+  let underlying_cyl (bc : s) (sc : s susp_cyl) : s susp_cyl = 
+    let (cyl,_,_,_,_) = underlying_data bc sc in cyl
       
-    let ct' = map_suite (with_types ct) ~f:go in 
+  
+  (* let lift : s -> s susp_cyl -> s disc -> s disc -> s -> s -> s susp_cyl =
+   *   fun bc scyl x y umin uplus ->
+   * 
+   *   
+   *   scyl *)
 
-    let (((sb,sl,sc),(tb,tl,tc)),_) = expose_base ct in
-    
-    let i = length sph in
-    
-    let sph' = sph |> (sb,tl) in
-    let sdisc = (sph |> (sb,sl) , sc) in 
-    let tdisc = (sph |> (tb,tl) , tc) in
-
-    let bdisc = (sph |*> base_sph ct , b) in
-    let ldisc = (sph |*> lid_sph ct , l) in 
-
-    let bres = snd (whisker bc bdisc i tdisc) in
-    let lres = snd (whisker bc sdisc i ldisc) in 
-    
-    (sph', ct', (bres,lres,c))
-
+  
   (* let rec lift : 'a susp_cyl -> ('a * 'a * 'a) -> ('a * 'a * 'a) -> 'a susp_cyl =
    *   fun (sph,ctyp,(b,l,c)) uflat usharp -> 
    *   let (((sb,sl,sc),(tb,tl,tc)),cl) = split_at 1 ctyp in
@@ -248,46 +279,6 @@ module CylinderTyping(C: CatImpl) = struct
    *     ???? *)
   
 end
-
-  (* let rec core_discs : s -> s cyl -> (s disc) disc =
-   *   fun bcat (ctyp,(b,l,c)) ->
-   * 
-   *   let (base_sph, lid_sph, typ_cores) =
-   *     cyl_typ_core_discs bcat ctyp in
-   *   
-   *   let core_sph = core_sphere bcat typ_cores
-   *       (base_sph,b) (lid_sph,l) in
-   *   
-   *   (typ_cores , (core_sph , c))
-   * 
-   * and cyl_typ_core_discs : s -> s cyl_typ -> s sph * s sph * (s disc) sph =
-   *   fun bcat ctyp ->
-   *   match ctyp with
-   *   | Emp -> (Emp, Emp, Emp)
-   *   | Ext (ctyp',((sb,sl,sc),(tb,tl,tc))) ->
-   *     
-   *     let (base_sph, lid_sph , typ_cores) =
-   *       cyl_typ_core_discs bcat ctyp' in
-   * 
-   *     let src_base_disc = (base_sph, sb) in
-   *     let src_lid_disc = (lid_sph, sl) in 
-   *                         
-   *     let src_core = core_sphere bcat typ_cores
-   *         src_base_disc src_lid_disc in
-   *     
-   *     let tgt_core = core_sphere bcat typ_cores
-   *         (base_sph,tb) (lid_sph,tl) in 
-   *     
-   *     typ_cores
-   *   
-   * and core_sphere : s -> (s disc) sph -> s disc -> s disc -> s sph =
-   *   fun bcat cores base_disc lid_disc ->
-   * 
-   *   let (src_cores, tgt_cores) = unzip cores in
-   *   let (cr_sph,cr_src) = core_src_disc bcat base_disc tgt_cores in
-   *   let (_     ,cr_tgt) = core_tgt_disc bcat lid_disc src_cores in
-   *   cr_sph |> (cr_src, cr_tgt) *)
-
 
 (*****************************************************************************)
 (*                          Category Implementations                         *)
@@ -333,29 +324,24 @@ module ValueCyl = CylinderTyping(ValueImpl)
 
 (* Cylinder Tests *)
 
-let mk_cyl_typ ct =
-  map_suite ct
-    ~f:(fun ((sb,sl,sc),(tb,tl,tc)) ->
-        ((VarE sb, VarE sl, VarE sc),
-         (VarE tb, VarE tl, VarE tc)))
+let mk_susp_cyl_typ sph ct =
+  let addVar ((sb,sl,sc),(tb,tl,tc)) =
+    ((VarE sb, VarE sl, VarE sc),
+     (VarE tb, VarE tl, VarE tc))
+  in (sph , List.map (to_list ct) ~f:addVar)
 
-let mk_cyl (ct,(b,l,c)) =
-  (mk_cyl_typ ct,(VarE b, VarE l, VarE c))
-  
-let mk_susp_cyl sph cyl =
-  let (ct,c) = mk_cyl cyl in
-  (sph,ct,c)
+let mk_susp_cyl sph (ct,(b,l,c)) =
+  (mk_susp_cyl_typ sph ct,(VarE b, VarE l, VarE c))
        
-let cylt1 = Emp   |> (("xb", "xl", "xc"),("yb", "yl", "yc"))
-let cylt2 = cylt1 |> (("fb", "fl", "fc"),("gb", "gl", "gc"))
-let cylt3 = cylt2 |> (("ab", "al", "ac"),("bb", "bl", "bc"))
-let cylt4 = cylt3 |> (("mb", "ml", "mc"),("nb", "nl", "nc"))
+let cylt1 = Emp   |> (("xb", "xl", "xc"),("yb", "yl", "yc")) 
+let cylt2 = cylt1 |> (("fb", "fl", "fc"),("gb", "gl", "gc")) 
+let cylt3 = cylt2 |> (("ab", "al", "ac"),("bb", "bl", "bc")) 
+let cylt4 = cylt3 |> (("mb", "ml", "mc"),("nb", "nl", "nc")) 
 
 let cyl1 = (cylt1 , ("fb", "fl", "fc"))
 let cyl2 = (cylt2 , ("ab", "al", "ac"))
 let cyl3 = (cylt3 , ("mb", "ml", "mc"))
 let cyl4 = (cylt4 , ("pb", "pl", "pc"))
-
 
 let pp_blc pp_el ppf (b,l,c) =
   let open Fmt in 

@@ -90,6 +90,13 @@ let rec unzip s =
     let (l,r) = unzip s' in
     (Ext (l,a), Ext (r,b))
 
+let rec unzip3 s =
+  match s with
+  | Emp -> (Emp,Emp,Emp)
+  | Ext (s',(a,b,c)) ->
+    let (l,m,r) = unzip3 s' in
+    (Ext (l,a), Ext (m,b), Ext (r,c))
+  
 let to_list s =
   let rec go s l = 
     match s with
