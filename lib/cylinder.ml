@@ -17,37 +17,6 @@ open Syntax
 (* Monadic bind for errors in scope *)
 let (let*) m f = Base.Result.bind m ~f 
 
-
-(* These guys are somewhat abandoned now.  Make them 
-   generic somehow? 
-*)
-    
-let rec base_type cat =
-  match cat with
-  | ArrV c -> Ok c
-  | HomV (cat',s,t) ->
-    let* bc = base_type cat' in
-    Ok (HomV (bc, baseV s, baseV t))
-  | _ -> Error `InternalError
-
-let rec lid_type cat =
-  match cat with 
-  | ArrV c -> Ok c
-  | HomV (cat',s,t) ->
-    let* bc = lid_type cat' in
-    Ok (HomV (bc, lidV s, lidV t))
-  | _ -> Error `InternalError
-
-let rec split_cylinder cat = 
-  match cat with
-  | ArrV c -> Ok (c , Emp, Emp)
-  | HomV (c,s,t) ->
-    let* (bc,scyl,tcyl) = split_cylinder c in
-    let scyl' = Ext (scyl,(baseV s, lidV s, coreV s)) in
-    let tcyl' = Ext (tcyl,(baseV t, lidV t, coreV t)) in 
-    Ok (bc, scyl', tcyl')
-  | _ -> Error `InternalError
-
 (* Some generic routines *)
 
 type 'a blc = 'a * 'a * 'a
@@ -68,17 +37,6 @@ let lid_sph (ct : 'a cyl_typ) : 'a sph =
 
 let lid_disc ((ct,(_,l,_)) : 'a cyl) : 'a disc =
   (lid_sph ct,l)
-                      
-let core_sph (ct : 'a cyl_typ) : 'a sph =
-  map_suite ct ~f:(fun ((_,_,src),(_,_,tgt)) -> (src,tgt))
-
-let rec expose_base (ct : 'a cyl_typ) : ('a blc * 'a blc) * 'a cyl_typ =
-  match ct with
-  | Emp -> raise (Failure "empty in expose_base")
-  | Ext (Emp,x) -> (x,Emp)
-  | Ext (ct',x) ->
-    let (r,ct'') = expose_base ct' in
-    (r, ct'' |> x)
 
 let flat ((sph,ct) : 'a susp_cyl_typ) : 'a disc =
   match ct with
@@ -98,99 +56,13 @@ let rec fold3 a b c init f =
     fold3 a' b' c' (f init x y z) f
   | _ -> raise (Failure "unequal fold3")
          
-module CylinderTyping(C: CatImpl) = struct
-  open CatUtils(C)
+module CylinderOps(C: CatImpl) = struct
+  include CatUtils(C)
 
-  let core_dom_disc (c : s) (susp: int) (base_dsc : s disc)
-      (tgt_cores : (s disc) suite) : s disc =
-    fold_left (fun dsc (i,cr_dsc) ->
-        whisker c dsc (i+susp) cr_dsc)
-      base_dsc (zip_with_idx tgt_cores)
-
-  let core_cod_disc (c : s) (susp : int) (lid_dsc : s disc)
-      (src_cores : (s disc) suite) : s disc =
-    fold_left (fun dsc (i,cr_dsc) ->
-        whisker c cr_dsc (i+susp) dsc)
-      lid_dsc (zip_with_idx src_cores)  
-
-  (* This is slightly inefficient as we keep zipping and unzipping
-     the data.  Perhaps this could be avoided with a more elaborate
-     return type? 
-  *)
-  let rec cyl_typ_discs (bc : s) (sph : s sph) (ct : s cyl_typ) : (s disc) cyl_typ =
-    match ct with
-    | Emp -> Emp
-    | Ext (ct',((sb,sl,sc),(tb,tl,tc))) ->
-      
-      let cbdrys = cyl_typ_discs bc sph ct' in
-      let src_cores = map_suite cbdrys ~f:(fun ((_,_,cr),_) -> cr) in
-      let tgt_cores = map_suite cbdrys ~f:(fun (_,(_,_,cr)) -> cr) in
-      let shft = length sph in 
-      
-      (* Calculate the source disc *)
-      let src_base_disc = (sph |*> base_sph ct',sb) in 
-      let src_lid_disc = (sph |*> lid_sph ct',sl) in
-      let (src_sph, src_core_dom) = core_dom_disc bc shft src_base_disc tgt_cores in 
-      let (_      , src_core_cod) = core_cod_disc bc shft src_lid_disc src_cores in
-      let src_core_disc = (src_sph |> (src_core_dom, src_core_cod) , sc) in 
-
-      (* Calculate the target disc *)
-      let tgt_base_disc = (sph |*> base_sph ct',tb) in
-      let tgt_lid_disc = (sph |*> lid_sph ct',tl) in 
-      let (tgt_sph, tgt_core_dom) = core_dom_disc bc shft tgt_base_disc tgt_cores in
-      let (_      , tgt_core_cod) = core_cod_disc bc shft tgt_lid_disc src_cores in 
-      let tgt_core_disc = (tgt_sph |> (tgt_core_dom, tgt_core_cod) , tc) in 
-
-      (* Final Result *)
-      cbdrys |> ((src_base_disc, src_lid_disc, src_core_disc),
-                 (tgt_base_disc, tgt_lid_disc, tgt_core_disc))
-  
-  let cyl_core_disc (bc : s) (sph : s sph) ((ct,(b,l,c)) : s cyl) : s disc =
+  (* Anti lifting? *)
+  let advance (bc : s) ((sph,ct) : s susp_cyl_typ) (b : s) (l : s)
+    : s susp_cyl_typ * s disc * s disc * s * s * s * s = 
     
-    let cbdrys = cyl_typ_discs bc sph ct in
-    let src_cores = map_suite cbdrys ~f:(fun ((_,_,cr),_) -> cr) in
-    let tgt_cores = map_suite cbdrys ~f:(fun (_,(_,_,cr)) -> cr) in
-    let shft = length sph in 
-
-    let base_disc = (base_sph ct , b) in
-    let lid_disc = (lid_sph ct , l) in 
-
-    let (core_sph, core_dom) = core_dom_disc bc shft base_disc tgt_cores in 
-    let (_       , core_cod) = core_cod_disc bc shft lid_disc src_cores in
-    (core_sph |> (core_dom, core_cod) , c) 
-
-  (* This version seems to have trouble with the base case ... *)
-  (* let rec underlying' : s -> s susp_cyl -> s susp_cyl =
-   *   fun bc (sph,ct,(b,l,c)) ->
-   * 
-   *     let go ((lt,l),(rt,r)) =
-   *       let (_,_,lr) = underlying' bc (sph,lt,l) in
-   *       let (_,_,rr) = underlying' bc (sph,rt,r) in
-   *       (lr,rr)
-   *     in
-   * 
-   *     let ct' = map_suite (with_types ct) ~f:go in 
-   * 
-   *     let (((sb,sl,sc),(tb,tl,tc)),_) = expose_base ct in
-   * 
-   *     let i = length sph in
-   * 
-   *     let sph' = sph |> (sb,tl) in
-   *     let sdisc = (sph |> (sb,sl) , sc) in 
-   *     let tdisc = (sph |> (tb,tl) , tc) in
-   * 
-   *     let bdisc = (sph |*> base_sph ct , b) in
-   *     let ldisc = (sph |*> lid_sph ct , l) in 
-   * 
-   *     let bres = snd (whisker bc bdisc i tdisc) in
-   *     let lres = snd (whisker bc sdisc i ldisc) in 
-   * 
-   *     (sph', ct', (bres,lres,c)) *)
-
-  
-  let underlying_data (bc : s) (((sph,ct),(b,l,c)) : s susp_cyl)
-    : s susp_cyl * s disc * s disc * s * s =
-  
     match ct with
     | [] -> raise (Failure "empty cylinder context")
     | ((sb,sl,sc),(tb,tl,tc))::crem -> 
@@ -219,12 +91,32 @@ module CylinderTyping(C: CatImpl) = struct
       let b' = snd (whisker bc (bsph , b) i tdisc) in
       let l' = snd (whisker bc sdisc i (lsph , l)) in 
 
-      (((sph', to_list cts),(b',l',c)) ,
-       (bsph , b), (lsph, l), sc, tc)
+      ((sph' , to_list cts) , (bsph,b) , (lsph,l) , sc , tc , b' , l')
+
+  let rec iter_advance (bc : s) (sct : s susp_cyl_typ) (b : s) (l : s) (n : int) 
+    : s susp_cyl_typ * s * s =
+    if (n <= 0) then (sct,b,l) else
+      let (sct',_,_,_,_,b',l') = advance bc sct b l in
+      iter_advance bc sct' b' l' (n-1)
+
+  let core_sph (bc : s) (sct : s susp_cyl_typ) (b : s) (l : s) : s sph =
+    let n = List.length (snd sct) in 
+    let ((sph,_),b',l') = iter_advance bc sct b l n in
+    sph |> (b',l')
+  
+  let underlying_data (bc : s) ((sct,(b,l,c)) : s susp_cyl)
+    : s susp_cyl * s disc * s disc * s * s =
+    let (ct,bdisc,ldisc,sc,tc,b',l') = advance bc sct b l in
+    ((ct,(b',l',c)),bdisc,ldisc,sc,tc)
   
   let underlying_cyl (bc : s) (sc : s susp_cyl) : s susp_cyl = 
     let (cyl,_,_,_,_) = underlying_data bc sc in cyl
-      
+
+  let rec nth_underlying (bc : s) (sc : s susp_cyl) (n : int) : s susp_cyl =
+    if (n <= 0) then sc else
+      nth_underlying bc (underlying_cyl bc sc) (n-1)
+
+  (* Lifting *)
   let lift (((sph,ct),(_,_,c)) : s susp_cyl)
       ((bsph,b) : s disc) ((lsph,l) : s disc)
       (sc : s) (tc : s) : s susp_cyl = 
@@ -234,20 +126,21 @@ module CylinderTyping(C: CatImpl) = struct
     | Ext (sph',(sb,tl)) -> 
     
       let i = length sph in
-      
-      let brem = snd (split_at (i-1) bsph) in
-      let lrem = snd (split_at (i-1) lsph) in
-      
-      let (_,tb) = List.hd_exn brem in
-      let (sl,_) = List.hd_exn lrem in 
 
-      let blst = List.tl_exn brem in
-      let llst = List.tl_exn lrem in
+      let (tb,brem) =
+        (match snd (split_at (i-1) bsph) with
+         | ((_,tb)::brem) -> (tb,brem)
+         | _ -> raise (Failure "dimension error in base")) in 
+
+      let (sl,lrem) =
+        (match snd (split_at (i-1) lsph) with
+         | ((sl,_)::lrem) -> (sl,lrem)
+         | _ -> raise (Failure "dimension error in lid")) in 
       
       let go_fold ct (sb,tb) (sl,tl) ((_,_,sc),(_,_,tc))  =
         ct |> ((sb,sl,sc),(tb,tl,tc)) in 
 
-      let cts = fold3 blst llst ct Emp go_fold in 
+      let cts = fold3 brem lrem ct Emp go_fold in 
       let ct' = to_list cts in 
       
       ((sph',((sb,sl,sc),(tb,tl,tc))::ct'),(b,l,c))
@@ -291,8 +184,26 @@ module ExprImpl = struct
         (pd_args c pd)
 end
 
-module ExprCyl = CylinderTyping(ExprImpl)
-module ValueCyl = CylinderTyping(ValueImpl)
+module ExprCyl = CylinderOps(ExprImpl)
+module ValueCyl = CylinderOps(ValueImpl)
+
+(*****************************************************************************)
+(*                          Value Matching Routines                          *)
+(*****************************************************************************)
+
+let rec value_to_cyl_typ (cat : value) : (value * value cyl_typ , string) Result.t =
+  match cat with
+  | ArrV bc ->
+    Ok (bc , Emp)
+  | HomV (cat',s,t) ->
+    let* (bc,ct) = value_to_cyl_typ cat' in
+    Ok (bc, ct |> ((baseV s, lidV s, coreV s),
+                   (baseV t, lidV t, coreV t)))
+  | _ -> Error "Not a cylinder type"
+
+(* let rec value_to_susp_cyl_typ (cat : value) =
+ *   let* (bc,ct) = value_to_cyl_typ cat in
+ *   Ok (bc,(Emp,to_list ct)) *)
 
 (*****************************************************************************)
 (*                                  Testing                                  *)

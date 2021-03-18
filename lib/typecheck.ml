@@ -261,6 +261,7 @@ type typing_error = [
   | `FullnessError of string
   | `NotImplemented of string
   | `BadCohQuot of string
+  | `InvalidCylinder of string
   | `InternalError
 ]
 
@@ -269,6 +270,23 @@ let rec check gma expr typ =
    * let typ_expr = term_to_expr (names gma) typ_tm in 
    * pr "Checking %a has type %a@," pp_expr_with_impl expr pp_expr_with_impl typ_expr ; *)
   (* dump_ctx true gma; *)
+
+  let switch e expected = 
+    (* pr "switching mode@,";
+     * pr "e: %a@," pp_expr e;
+     * pr "exp: %a@," pp_term (quote gma.lvl expected false); *)
+    let* (e',inferred) = insert gma (infer gma e) in
+    try unify OneShot gma.top gma.lvl expected inferred ; Ok e'
+    with Unify_error _ ->
+      let nms = names gma in 
+      let inferred_nf = term_to_expr nms (quote gma.lvl inferred false) in
+      let expected_nf = term_to_expr nms (quote gma.lvl expected false) in 
+      let msg = (* str "@[<v>Type mismatch:@,Expression: %a@,Expected: %a@,Inferred: %a@,@]" *)
+        str "@[<v>The expression: %a@,has type: %a@,but was expected to have type: %a@,@]"
+          pp_expr e pp_expr inferred_nf pp_expr expected_nf 
+      in Error (`TypeMismatch msg) 
+  in
+  
   match (expr, force_meta typ) with
   
   | (e , TopV (_,_,tv)) ->
@@ -285,34 +303,36 @@ let rec check gma expr typ =
     Ok (LamT (nm,Impl,bdy))
 
   | (CylE (b,l,c) , ObjV cat) ->
+    (match value_to_cyl_typ cat with
+     | Error _ -> switch expr (ObjV cat)
+     | Ok (bc,ct) ->
+       let module C = CylinderOps(ValueImpl) in
 
-    let* b_typ = base_type cat in 
-    let* b' = check gma b b_typ in
-    let bv = eval gma.top gma.loc b' in
-    let* l_typ = lid_type cat in 
-    let* l' = check gma l l_typ in
-    let lv = eval gma.top gma.loc l' in
-    (* And now, the harder one .... *)
-    let* c' = check gma c (ObjV (HomV (cat,bv,lv))) in
-    Ok (CylT (b',l',c'))
+       let btyp = ObjV (C.sph_to_typ bc (base_sph ct)) in
+       let ltyp = ObjV (C.sph_to_typ bc (lid_sph ct)) in
+       
+       pr "@[base typ: %a@]@," pp_value btyp;
+       pr "@[lid typ: %a@]@," pp_value ltyp;
+       
+       let* bt = check gma b btyp in
+       let* lt = check gma l ltyp in
+
+       let bv = eval gma.top gma.loc bt in 
+       let lv = eval gma.top gma.loc lt in
+       let ctyp = ObjV (C.sph_to_typ bc
+                          (C.core_sph bc (Emp,to_list ct) bv lv)) in
+
+       pr "@[core typ: %a@]@," pp_value ctyp;
+       
+       let* ct = check gma c ctyp in
+       
+       Ok (CylT (bt,lt,ct))
+    )
 
   | (HoleE , _) -> (* pr "fresh meta@,"; *)
     let mv = fresh_meta () in Ok mv
   
-  | (e, expected) -> 
-    (* pr "switching mode@,";
-     * pr "e: %a@," pp_expr e;
-     * pr "exp: %a@," pp_term (quote gma.lvl expected false); *)
-    let* (e',inferred) = insert gma (infer gma e) in
-    try unify OneShot gma.top gma.lvl expected inferred ; Ok e'
-    with Unify_error _ ->
-      let nms = names gma in 
-      let inferred_nf = term_to_expr nms (quote gma.lvl inferred false) in
-      let expected_nf = term_to_expr nms (quote gma.lvl expected false) in 
-      let msg = (* str "@[<v>Type mismatch:@,Expression: %a@,Expected: %a@,Inferred: %a@,@]" *)
-          str "@[<v>The expression: %a@,has type: %a@,but was expected to have type: %a@,@]"
-          pp_expr e pp_expr inferred_nf pp_expr expected_nf 
-      in Error (`TypeMismatch msg) 
+  | (e, expected) -> switch e expected
 
 and infer gma expr = 
   (* pr "Inferring type of %a@," pp_expr expr ;
