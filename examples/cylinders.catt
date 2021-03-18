@@ -2,47 +2,79 @@
 #  cylinders.catt - playing with cylinder types
 #
 
-# Just need to figure out how we are going to deal
-# with cylinders and what-have you.
+#
+#  Constructing cylinders
+#
 
-# let cyl1 {C : Cat} (x :: Arr C) : [ C ]
-#   = base x
-
-# let cyl2 {C : Cat} (x :: Arr C) : [ C ]
-#   = lid x
-
-# let cyl3 {C : Cat} (x :: Arr C) : [ base x => lid x ]
-#   = core x
-
-# Change the syntax ....
-let cyl4 {C : Cat} (x :: C) (y :: C) (f :: x => y) : [ Arr C ]
+let cyl0 {C : Cat} (x :: C) (y :: C) (f :: x => y) : [ Arr C ]
   = cyl x y f 
 
-# let cyl5 {C : Cat} (x :: Arr C) (y :: Arr C) (f :: x => y) : [ base x => base y ]
-#   = base f
+let cyl1 {C : Cat}
+    (xb :: C) (xl :: C) (xc :: xb => xl)
+    (yb :: C) (yl :: C) (yc :: yb => yl)
+    (fb :: xb => yb) (fl :: xl => yl)
+    (fc :: `[ scomp 1 0 1 ] fb yc => `[ scomp 1 0 1 ] xc fl)
+  : [ Arr C | cyl xb xl xc => cyl yb yl yc ]
+  = cyl fb fl fc
 
-# let cyl6 {C : Cat} (x :: Arr C) (y :: Arr C) (f :: x => y) : [ lid x => lid y ]
-#   = lid f
+let cyl2 {C : Cat}
+    (xb :: C) (xl :: C) (xc :: xb => xl)
+    (yb :: C) (yl :: C) (yc :: yb => yl)
+    (fb :: xb => yb) (fl :: xl => yl)
+    (fc :: `[ scomp 1 0 1 ] fb yc => `[ scomp 1 0 1 ] xc fl)
+    (gb :: xb => yb) (gl :: xl => yl)
+    (gc :: `[ scomp 1 0 1 ] gb yc => `[ scomp 1 0 1 ] xc gl)
+    (ab :: fb => gb) (al :: fl => gl)
+    (ac :: `[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] ab yc) gc =>
+           `[ scomp 2 1 2 ] fc (`[ scomp 1 0 2 ] xc al))
+  : [ Arr C | cyl xb xl xc => cyl yb yl yc | cyl fb fl fc => cyl gb gl gc ]
+  = cyl ab al ac
 
-# let cyl6 {C : Cat} (x :: Arr C) (y :: Arr C) (f :: x => y)
-#   : [ comp (base f) (core y) =>
-#       comp (core x) (lid f) ]
-#   = core f
+#
+#  Destructing cylinders
+#
 
-# let cyl7 {C : Cat}
-#     (x0 :: C) (y0 :: C) (f0 :: x0 => y0)
-#     (x1 :: C) (y1 :: C) (f1 :: x1 => y1)
-#     (x_c :: x0 => x1)
-#     (y_c :: y0 => y1)
-#     (f_c :: `[ scomp 1 0 1 ] f0 y_c => `[ scomp 1 0 1 ] x_c f1)
-#   : [ cyl x0 x1 x_c => cyl y0 y1 y_c ]
-#   = cyl f0 f1 f_c 
+let base0 {C : Cat} (x :: Arr C) : [ C ]
+  = base x
 
-# let cyl8 {C : Cat} (x :: Arr C) (y :: Arr C)
-#     (f :: x => y) (g :: x => y) (a :: f => g)
-#   : [ `[ scomp 3 0 1 ] (`[ scomp 3 1 2 ] (base a) (core g)) (core y) =>
-#       `[ scomp 1 0 3 ] (core x) (`[ scomp 2 1 3 ] (core f) (lid a)) ]
+let base1 {C : Cat} (x :: Arr C) (y :: Arr C) (f :: x => y) : [ base x => base y ]
+  = base f
 
+let base2 {C : Cat}
+    (x :: Arr C)
+    (y :: Arr C) (f :: x => y)
+                 (g :: x => y) (a :: f => g)
+  : [ base f => base g ]
+  = base a 
 
+let lid0 {C : Cat} (x :: Arr C) : [ C ]
+  = lid x
 
+let lid1 {C : Cat} (x :: Arr C) (y :: Arr C) (f :: x => y) : [ lid x => lid y ]
+  = lid f
 
+let lid2 {C : Cat}
+    (x :: Arr C)
+    (y :: Arr C) (f :: x => y)
+                 (g :: x => y) (a :: f => g)
+  : [ lid f => lid g ]
+  = lid a 
+
+let core0 {C : Cat} (x :: Arr C) : [ base x => lid x ]
+  = core x
+
+let core1 {C : Cat}
+    (x :: Arr C)
+    (y :: Arr C) (f :: x => y)
+  : [ `[ scomp 1 0 1 ] (base f) (core y) =>
+      `[ scomp 1 0 1 ] (core x) (lid f) ]
+  = core f
+
+let core2 {C : Cat}
+    (x :: Arr C)
+    (y :: Arr C) (f :: x => y)
+                 (g :: x => y) (a :: f => g)
+  : [ `[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] (base a) (core y)) (core g) =>
+      `[ scomp 2 1 2 ] (core f) (`[ scomp 1 0 2 ] (core x) (lid a)) ]
+  = core a
+  

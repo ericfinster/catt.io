@@ -186,11 +186,14 @@ let rec unify stgy top l t u =
 
   | (ObjV c, ObjV c') ->
     unify stgy top l c c'
-      
+
   | (HomV (c,s,t), HomV (c',s',t')) ->
     unify stgy top l c c';
     unify stgy top l s s';
     unify stgy top l t t'
+
+  | (ArrV c, ArrV c') ->
+    unify stgy top l c c'
 
   | (CohV (ga,sp), CohV (ga',sp')) ->
     unify stgy top l ga ga';

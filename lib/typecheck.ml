@@ -238,6 +238,12 @@ let fresh_meta _ =
   metacontext := Map.set mctx ~key:m ~data:Unsolved;
   InsMetaT m
 
+(* used for generating unknown categories.... *)
+let obj_meta gma typ =
+  let bc = eval gma.top gma.loc (fresh_meta ()) in
+  unify OneShot gma.top gma.lvl typ (ObjV bc);
+  bc 
+
 let rec insert' gma m =
   let* (tm, ty) = m in 
   match force_meta ty with
@@ -264,6 +270,12 @@ type typing_error = [
   | `InvalidCylinder of string
   | `InternalError
 ]
+
+let get_or_else m f x =
+  match m with
+  | Ok a -> f a
+  | Error _ -> x
+
 
 let rec check gma expr typ = 
   (* let typ_tm = quote gma.lvl typ false in
@@ -293,12 +305,10 @@ let rec check gma expr typ =
     check gma e tv
   
   | (LamE (nm,i,e) , PiV (_,i',a,b)) when Poly.(=) i i' ->
-    (* pr "canonical lambda@,"; *)
     let* bdy = check (bind gma nm a) e (b $$ varV gma.lvl) in
     Ok (LamT (nm,i,bdy))
   
   | (t , PiV (nm,Impl,a,b)) ->
-    (* pr "non-canonical lambda@,"; *)
     let* bdy = check (bind gma nm a) t (b $$ varV gma.lvl) in
     Ok (LamT (nm,Impl,bdy))
 
@@ -337,6 +347,7 @@ let rec check gma expr typ =
 and infer gma expr = 
   (* pr "Inferring type of %a@," pp_expr expr ;
    * dump_ctx true gma; *)
+  
   match expr with
   
   | VarE nm -> (
@@ -400,9 +411,57 @@ and infer gma expr =
     Ok (CohT (gt,at) , coh_ty)
 
   | CylE (_,_,_) -> Error (`NotImplemented "Infer CylE")
-  | BaseE _ -> Error (`NotImplemented "Infer BaseE")
-  | LidE _ -> Error (`NotImplemented "Infer LidE")
-  | CoreE _ -> Error (`NotImplemented "Infer CoreE")
+                      
+  | BaseE cyl ->
+    let* (cyl_tm,cyl_typ) = infer gma cyl in
+    let btm = BaseT cyl_tm in
+    
+    (match force_meta cyl_typ with
+     | ObjV cat ->
+       (match value_to_cyl_typ cat with
+        | Error _ -> Ok (btm,obj_meta gma cyl_typ)
+        | Ok (bc,ct) ->
+          let module C = CylinderOps(ValueImpl) in
+          let btyp = ObjV (C.sph_to_typ bc (base_sph ct)) in
+          pr "@[inferred base typ: %a@]@," pp_value btyp;
+          Ok (btm,btyp))
+     | _ -> Ok (btm,obj_meta gma cyl_typ))
+
+  | LidE cyl ->
+    let* (cyl_tm,cyl_typ) = infer gma cyl in
+    let ltm = LidT cyl_tm in
+    
+    (match force_meta cyl_typ with
+     | ObjV cat ->
+       (match value_to_cyl_typ cat with
+        | Error _ -> Ok (ltm,obj_meta gma cyl_typ)
+        | Ok (bc,ct) ->
+          let module C = CylinderOps(ValueImpl) in
+          let ltyp = ObjV (C.sph_to_typ bc (lid_sph ct)) in
+          pr "@[inferred lid typ: %a@]@," pp_value ltyp;
+          Ok (ltm,ltyp))
+     | _ -> Ok (ltm,obj_meta gma cyl_typ))
+
+  | CoreE cyl -> 
+    let* (cyl_tm,cyl_typ) = infer gma cyl in
+    let cyl_val = eval gma.top gma.loc cyl_tm in 
+    let ctm = CoreT cyl_tm in
+    
+    (match force_meta cyl_typ with
+     | ObjV cat ->
+       (match value_to_cyl_typ cat with
+        | Error _ -> Ok (ctm,obj_meta gma cyl_typ)
+        | Ok (bc,ct) ->
+          let module C = CylinderOps(ValueImpl) in
+          let ctyp = ObjV (C.sph_to_typ bc
+                             (C.core_sph bc (Emp,to_list ct)
+                             (baseV cyl_val) (lidV cyl_val))) in
+
+          pr "@[inferred core typ: %a@]@," pp_value ctyp;
+
+          Ok (ctm,ctyp))
+       
+     | _ -> Ok (ctm,obj_meta gma cyl_typ))
 
   | ArrE c -> 
     let* c' = check gma c CatV in
