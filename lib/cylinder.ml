@@ -191,6 +191,7 @@ module ValueCyl = CylinderOps(ValueImpl)
 (*                          Value Matching Routines                          *)
 (*****************************************************************************)
 
+(* here, you could keep going and get a suspended one ... *)
 let rec value_to_cyl_typ (cat : value) : (value * value cyl_typ , string) Result.t =
   match cat with
   | ArrV bc ->
@@ -201,9 +202,13 @@ let rec value_to_cyl_typ (cat : value) : (value * value cyl_typ , string) Result
                    (baseV t, lidV t, coreV t)))
   | _ -> Error "Not a cylinder type"
 
-(* let rec value_to_susp_cyl_typ (cat : value) =
- *   let* (bc,ct) = value_to_cyl_typ cat in
- *   Ok (bc,(Emp,to_list ct)) *)
+let rec value_unhom (cat : value) : (value * value sph) =
+  match cat with
+  | HomV (cat',src,tgt) ->
+    let (bc,sph) = value_unhom cat' in
+    (bc, sph |> (src,tgt))
+  | ObjV bc -> (bc,Emp)
+  | _ -> (cat,Emp)
 
 (*****************************************************************************)
 (*                                  Testing                                  *)

@@ -321,8 +321,8 @@ let rec check gma expr typ =
        let btyp = ObjV (C.sph_to_typ bc (base_sph ct)) in
        let ltyp = ObjV (C.sph_to_typ bc (lid_sph ct)) in
        
-       pr "@[base typ: %a@]@," pp_value btyp;
-       pr "@[lid typ: %a@]@," pp_value ltyp;
+       (* pr "@[base typ: %a@]@," pp_value btyp;
+        * pr "@[lid typ: %a@]@," pp_value ltyp; *)
        
        let* bt = check gma b btyp in
        let* lt = check gma l ltyp in
@@ -332,7 +332,7 @@ let rec check gma expr typ =
        let ctyp = ObjV (C.sph_to_typ bc
                           (C.core_sph bc (Emp,to_list ct) bv lv)) in
 
-       pr "@[core typ: %a@]@," pp_value ctyp;
+       (* pr "@[core typ: %a@]@," pp_value ctyp; *)
        
        let* ct = check gma c ctyp in
        
@@ -410,8 +410,16 @@ and infer gma expr =
     (* pr "Finished with coherence: @[<hov>%a@]@," pp_expr (CohE (g,a)); *)
     Ok (CohT (gt,at) , coh_ty)
 
-  | CylE (_,_,_) -> Error (`NotImplemented "Infer CylE")
-                      
+  | CylE (b,l,c) ->
+    (* This could be much smarter.  By deconstructing the 
+       types of the various components, we could have tighter
+       constraints for unification ... *)
+    let* (btm,_) = infer gma b in
+    let* (ltm,_) = infer gma l in
+    let* (ctm,_) = infer gma c in
+    let m = eval gma.top gma.loc (fresh_meta ()) in
+    Ok (CylT (btm,ltm,ctm), m)
+      
   | BaseE cyl ->
     let* (cyl_tm,cyl_typ) = infer gma cyl in
     let btm = BaseT cyl_tm in
@@ -423,7 +431,7 @@ and infer gma expr =
         | Ok (bc,ct) ->
           let module C = CylinderOps(ValueImpl) in
           let btyp = ObjV (C.sph_to_typ bc (base_sph ct)) in
-          pr "@[inferred base typ: %a@]@," pp_value btyp;
+          (* pr "@[inferred base typ: %a@]@," pp_value btyp; *)
           Ok (btm,btyp))
      | _ -> Ok (btm,obj_meta gma cyl_typ))
 
@@ -438,7 +446,7 @@ and infer gma expr =
         | Ok (bc,ct) ->
           let module C = CylinderOps(ValueImpl) in
           let ltyp = ObjV (C.sph_to_typ bc (lid_sph ct)) in
-          pr "@[inferred lid typ: %a@]@," pp_value ltyp;
+          (* pr "@[inferred lid typ: %a@]@," pp_value ltyp; *)
           Ok (ltm,ltyp))
      | _ -> Ok (ltm,obj_meta gma cyl_typ))
 
@@ -456,9 +464,7 @@ and infer gma expr =
           let ctyp = ObjV (C.sph_to_typ bc
                              (C.core_sph bc (Emp,to_list ct)
                              (baseV cyl_val) (lidV cyl_val))) in
-
-          pr "@[inferred core typ: %a@]@," pp_value ctyp;
-
+          (* pr "@[inferred core typ: %a@]@," pp_value ctyp; *)
           Ok (ctm,ctyp))
        
      | _ -> Ok (ctm,obj_meta gma cyl_typ))
