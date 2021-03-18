@@ -90,30 +90,13 @@ let sharp ((sph,ct) : 'a susp_cyl_typ) : 'a disc =
   | [] -> raise (Failure "empty on flat")
   | (_,(tb,tl,tc))::_ -> (sph |> (tb,tl) , tc)
 
-(* let rec with_types (ct : 'a cyl_typ) : ('a cyl) sph =
- *   match ct with
- *   | Emp ->  Emp
- *   | Ext (ct,(s,t)) ->
- *     with_types ct |> ((ct,s),(ct,t)) *)
-
-(* let rec with_types_susp ((sph,ct) : 'a susp_cyl_typ) : ('a susp_cyl) lsph =
- *   match ct with
- *   | [] -> []
- *   | (l,r)::ct' ->
- *     let r = with_type_susp (sph,ct') in
- *     let f ((sl,cl),(sr,cr)) =
- *       ((sl,()::cl),(sr,()::cr)) in
- *     let h = (sph,
- * 
- * (\* Okay, isn't it just like the "list of prefixes"? *\)
- * let rec prefixes l =
- *   match l with
- *   | [] -> []
- *   | x::xs ->
- *     [x]::(List.map (prefixes xs) ~f:(fun p -> x::p))
- * 
- *     (\* [1,2,3,4] -> [[1],[1,2],[1,2,3],[1,2,3,4]] *\) *)
-
+(* Folding over lists with three parameters. *)
+let rec fold3 a b c init f =
+  match (a,b,c) with
+  | ([],[],[]) -> init
+  | (x::a',y::b',z::c') ->
+    fold3 a' b' c' (f init x y z) f
+  | _ -> raise (Failure "unequal fold3")
          
 module CylinderTyping(C: CatImpl) = struct
   open CatUtils(C)
@@ -238,46 +221,40 @@ module CylinderTyping(C: CatImpl) = struct
 
       (((sph', to_list cts),(b',l',c)) ,
        (bsph , b), (lsph, l), sc, tc)
-
   
   let underlying_cyl (bc : s) (sc : s susp_cyl) : s susp_cyl = 
     let (cyl,_,_,_,_) = underlying_data bc sc in cyl
       
-  
-  (* let lift : s -> s susp_cyl -> s disc -> s disc -> s -> s -> s susp_cyl =
-   *   fun bc scyl x y umin uplus ->
-   * 
-   *   
-   *   scyl *)
+  let lift (((sph,ct),(_,_,c)) : s susp_cyl)
+      ((bsph,b) : s disc) ((lsph,l) : s disc)
+      (sc : s) (tc : s) : s susp_cyl = 
 
-  
-  (* let rec lift : 'a susp_cyl -> ('a * 'a * 'a) -> ('a * 'a * 'a) -> 'a susp_cyl =
-   *   fun (sph,ctyp,(b,l,c)) uflat usharp -> 
-   *   let (((sb,sl,sc),(tb,tl,tc)),cl) = split_at 1 ctyp in
-   *   match sph with
-   *   | Emp -> raise (Failure "empty sph in lift")
-   *   | Ext (sph',(src,tgt)) ->
-   *     
-   *   (sph', with_list (Emp |> (uflat,usharp) |> ((),())) cl, (b,l,c))
-   *   (uflat,usharp) (uflat,usharp) (uflat,usharp) ..... *)
+    match sph with
+    | Emp -> raise (Failure "lift on unsuspended cylinder")
+    | Ext (sph',(sb,tl)) -> 
+    
+      let i = length sph in
+      
+      let brem = snd (split_at (i-1) bsph) in
+      let lrem = snd (split_at (i-1) lsph) in
+      
+      let (_,tb) = List.hd_exn brem in
+      let (sl,_) = List.hd_exn lrem in 
 
-  (* let cyl_whisk : s -> s susp_cyl -> s disc -> s susp_cyl =
-   *   fun bcat (sph,scyl_typ,(b,l,c)) cell ->
-   *   match scyl_typ with
-   *   | Emp ->
-   *     let u = (Ext (sph,(b,l)), c) in 
-   *     let d = length (fst cell) in 
-   *     whisker bcat u (d-1) cell
-   *   | Ext (scyl',((sb,sl,sc),(tb,tl,tc))) -> 
-   *     
-   *     let u0 = sldkfjsdf in
-   *     let u1 = lskjsdfaa in
-   *     let u2 = alskdfjsdf in
-   *     
-   *     let ul = cyl_concat u0 u1 u2 in 
-   * 
-   *     ???? *)
-  
+      let blst = List.tl_exn brem in
+      let llst = List.tl_exn lrem in
+      
+      let go_fold ct (sb,tb) (sl,tl) ((_,_,sc),(_,_,tc))  =
+        ct |> ((sb,sl,sc),(tb,tl,tc)) in 
+
+      let cts = fold3 blst llst ct Emp go_fold in 
+      let ct' = to_list cts in 
+      
+      ((sph',((sb,sl,sc),(tb,tl,tc))::ct'),(b,l,c))
+
+  let lift_curried (scyl,bd,ld,sc,tc) =
+    lift scyl bd ld sc tc
+      
 end
 
 (*****************************************************************************)
