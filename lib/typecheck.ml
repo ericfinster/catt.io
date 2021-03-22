@@ -290,12 +290,16 @@ let rec check gma expr typ =
     let* (e',inferred) = insert gma (infer gma e) in
     try unify OneShot gma.top gma.lvl expected inferred ; Ok e'
     with Unify_error _ ->
+      (* pr "Unification error: %s\n" msg; *)
+      (* I guess the unification error will have more information .... *)
       let nms = names gma in 
       let inferred_nf = term_to_expr nms (quote gma.lvl inferred false) in
       let expected_nf = term_to_expr nms (quote gma.lvl expected false) in 
-      let msg = (* str "@[<v>Type mismatch:@,Expression: %a@,Expected: %a@,Inferred: %a@,@]" *)
-        str "@[<v>The expression: %a@,has type: %a@,but was expected to have type: %a@,@]"
-          pp_expr e pp_expr inferred_nf pp_expr expected_nf 
+      let msg = String.concat [ str "@[<v>The expression: @,@, @[%a@]@,@,@]" pp_expr e; 
+                                str "@[<v>has type: @,@,  @[%a@]@,@,@]" pp_expr inferred_nf; 
+                                str "@[<v>but was expected to have type: @,@, @[%a@]@,@]"
+                                 pp_expr expected_nf ]
+
       in Error (`TypeMismatch msg) 
   in
   
@@ -598,10 +602,10 @@ let rec check_defs gma defs =
     let* tm_tm = check gma abs_tm ty_val in
     let tm_val = eval gma.top gma.loc tm_tm in 
     pr "Checking complete for %s@," id;
-    let tm_nf = term_to_expr Emp (quote (gma.lvl) tm_val false) in
-    let ty_nf = term_to_expr Emp (quote (gma.lvl) ty_val false) in
-    pr "Type: @[%a@]@," pp_expr ty_nf;
-    pr "Term: @[%a@]@," pp_expr tm_nf;
+    (* let tm_nf = term_to_expr Emp (quote (gma.lvl) tm_val false) in
+     * let ty_nf = term_to_expr Emp (quote (gma.lvl) ty_val false) in *)
+    (* pr "Type: @[%a@]@," pp_expr ty_nf; *)
+    (* pr "Term: @[%a@]@," pp_expr tm_nf; *)
     check_defs (define gma id tm_val ty_val) ds
   | (CohDef (id,g,a))::ds ->
     pr "----------------@,";

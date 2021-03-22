@@ -199,7 +199,10 @@ let rec unify stgy top l t u =
     unify stgy top l ga ga';
     unifySp stgy top l sp sp'
 
-  | _ -> raise (Unify_error "could not unify")
+  | (tm,um) ->
+    let msg = str "Failed to unify: %a =/= %a"
+        pp_value tm pp_value um in 
+    raise (Unify_error msg)
 
 and unifySp stgy top l sp sp' =
   match (sp,sp') with

@@ -182,6 +182,7 @@ module SyntaxUtil(Syn : Syntax) = struct
       let coh = ucomp_coh pd in
       app_args coh (pd_args ct pd)
 
+  
   include CatUtils(
     struct
       type s = Syn.s

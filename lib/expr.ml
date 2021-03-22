@@ -116,8 +116,8 @@ let pp_quot_cmd ppf c =
   | SComp ds ->
     pf ppf "scmp %a" (list ~sep:(any " ") int) ds 
 
-let rec pp_expr_gen show_imp ppf expr =
-  let ppe = pp_expr_gen show_imp in 
+let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
+  let ppe = pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs in 
   match expr with
   | VarE nm -> string ppf nm
   | LamE (nm,Impl,bdy) -> pf ppf "\\{%s}. %a" nm ppe bdy
@@ -147,18 +147,20 @@ let rec pp_expr_gen show_imp ppf expr =
   | QuotE c -> pf ppf "`[ %a ]" pp_quot_cmd c
   | ObjE e -> pf ppf "[%a]" ppe e
   | HomE (c,s,t) ->
-    pf ppf "%a | %a => %a" ppe c ppe s ppe t
-    (* pf ppf "%a => %a" ppe s ppe t *)
+    if full_homs then 
+      pf ppf "%a | %a => %a" ppe c ppe s ppe t
+    else
+      pf ppf "@[%a@] =>@;@[%a@]" ppe s ppe t
   | CohE (g,a) ->
-    (* (match expr_tele_to_pd g with
-     *  | Ok (pd,_,_,_,_) ->
-     *    pf ppf "@[@[coh [ %a : @]@[%a ]@]@]"
-     *      (pp_pd string) pd ppe a
-     *  | Error _ -> 
-     *    pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a) *)
-
-    pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a
-
+    if pd_ctxs then 
+      (match expr_tele_to_pd g with
+       | Ok (pd,_,_,_,_) ->
+         pf ppf "@[@[coh [ %a : @]@[%a ]@]@]" 
+           (pp_pd string) pd ppe a
+       | Error _ -> 
+         pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a)
+    else
+      pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a
    | CylE (b,l,c) ->
     pf ppf "[| %a | %a | %a |]" ppe b ppe l ppe c 
   | BaseE c ->
@@ -173,9 +175,8 @@ let rec pp_expr_gen show_imp ppf expr =
   | TypE -> string ppf "U"
   | HoleE -> string ppf "_"
 
-let pp_expr = pp_expr_gen false
-let pp_expr_with_impl = pp_expr_gen true
-
+let pp_expr = pp_expr_gen ~si:false ~fh:false ~pc:true
+let pp_expr_with_impl = pp_expr_gen ~si:true ~fh:true ~pc:true
 
 (*****************************************************************************)
 (*                      Expression Syntax Implementation                     *)

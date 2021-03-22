@@ -147,8 +147,26 @@ module CylinderOps(C: CatImpl) = struct
 
   let lift_curried (scyl,bd,ld,sc,tc) =
     lift scyl bd ld sc tc
-      
+  
 end
+
+
+(* module CoherenceCylinders(Syn: Syntax) = struct
+ *   open Syn
+ *   open SyntaxUtil(Syn) 
+ * 
+ *   
+ *   (\* Coherence cylinders *\)
+ *   let coh_cyl : type a. a pd -> s sph -> s disc -> s disc -> s susp_cyl =
+ *     fun _ sph (usph,u) (vsph,v) ->
+ * 
+ *     match (usph,vsph) with
+ *     | (Emp,Emp) -> ((sph,[]),(u,u,v))
+ *     | _ -> ((sph,[]),(u,u,v))
+ * 
+ *   
+ * end *)
+
 
 (*****************************************************************************)
 (*                          Category Implementations                         *)

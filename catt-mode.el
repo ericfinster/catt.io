@@ -22,6 +22,12 @@
 
 (defvar catt-tab-width 4)
 (defvar catt-mode-hook nil)
+(defvar catt-mode-map nil "Keymap for catt-mode")
+
+(progn
+  (setq catt-mode-map (make-sparse-keymap))
+  (define-key catt-mode-map (kbd "C-c C-c") `compile)
+  )
 
 (define-derived-mode catt-mode prog-mode
   "Catt" "Major mode for Catt files."
@@ -29,9 +35,13 @@
   (set (make-local-variable 'comment-start) "#")
   (set (make-local-variable 'comment-start-skip) "#+\\s-*")
   (set (make-local-variable 'font-lock-defaults) '(catt-font-lock-keywords))
+  (set (make-local-variable 'compile-command)
+       (concat "catt " (shell-quote-argument buffer-file-name)))
+  (use-local-map catt-mode-map)
   (setq mode-name "Catt")
   (run-hooks 'catt-mode-hook)
 )
+
 
 (provide 'catt-mode)
 

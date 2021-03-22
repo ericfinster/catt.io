@@ -84,7 +84,7 @@ expr1:
 expr2:
   | e = expr3
     { e }
-  | u = expr2 LBR v = expr3 RBR
+  | u = expr2 LBR v = expr2 RBR
     { AppE (u,v,Impl) }
   | u = expr2 v = expr3
     { AppE (u,v,Expl) }
