@@ -13,28 +13,40 @@ open Syntax
 (*****************************************************************************)
 (*                              Type Definitions                             *)
 (*****************************************************************************)
-        
+
 type expr =
+
+  (* Type theory primitives *)
   | VarE of name
   | LamE of name * icit * expr
   | AppE of expr * expr * icit
   | PiE of name * icit * expr * expr
-  | QuotE of quot_cmd
+  | HoleE
+  | TypE
+
+  (* Categories *)
+  | CatE
   | ObjE of expr
   | HomE of expr * expr * expr
-  | CohE of expr tele * expr
+  | ArrE of expr
+
+  (* Forms of coherences *)
+  | CompE of expr pd_desc * expr * expr * expr 
+  | UCompE of ucmp_desc
+  | CohE of expr pd_desc * expr * expr disc * expr disc
+
+  (* cylinders *)
   | CylE of expr * expr * expr
   | BaseE of expr
   | LidE of expr
   | CoreE of expr 
-  | ArrE of expr
-  | CatE
-  | TypE
-  | HoleE
 
+
+(* This probably belongs elsewhere .... *)
 type defn =
   | TermDef of name * expr tele * expr * expr
-  | CohDef of name * expr tele * expr
+  | CompDef of name * expr pd_desc * expr * expr * expr 
+  | CohDef of name * expr pd_desc * expr * expr disc * expr disc
 
 (*****************************************************************************)
 (*                        Expr Tele to Pasting Diagram                       *)
@@ -109,12 +121,12 @@ let is_pi e =
   | PiE (_,_,_,_) -> true
   | _ -> false
 
-let pp_quot_cmd ppf c =
-  match c with
-  | PComp pd ->
-    pf ppf "pc %a" pp_tr pd 
-  | SComp ds ->
-    pf ppf "scmp %a" (list ~sep:(any " ") int) ds 
+(* let pp_quot_cmd ppf c =
+ *   match c with
+ *   | PComp pd ->
+ *     pf ppf "pc %a" pp_tr pd 
+ *   | SComp ds ->
+ *     pf ppf "scmp %a" (list ~sep:(any " ") int) ds  *)
 
 let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   let ppe = pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs in 
@@ -144,24 +156,24 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   | PiE (nm,Expl,dom,cod) ->
     pf ppf "(%s : %a) -> %a" nm
       ppe dom ppe cod
-  | QuotE c -> pf ppf "`[ %a ]" pp_quot_cmd c
+  (* | QuotE c -> pf ppf "`[ %a ]" pp_quot_cmd c *)
   | ObjE e -> pf ppf "[%a]" ppe e
   | HomE (c,s,t) ->
     if full_homs then 
       pf ppf "%a | %a => %a" ppe c ppe s ppe t
     else
       pf ppf "@[%a@] =>@;@[%a@]" ppe s ppe t
-  | CohE (g,a) ->
-    if pd_ctxs then 
-      (match expr_tele_to_pd g with
-       | Ok (pd,_,_,_,_) ->
-         pf ppf "@[@[coh [ %a : @]@[%a ]@]@]" 
-           (pp_pd string) pd ppe a
-       | Error _ -> 
-         pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a)
-    else
-      pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a
-   | CylE (b,l,c) ->
+  (* | CohE (g,a) ->
+   *   if pd_ctxs then 
+   *     (match expr_tele_to_pd g with
+   *      | Ok (pd,_,_,_,_) ->
+   *        pf ppf "@[@[coh [ %a : @]@[%a ]@]@]" 
+   *          (pp_pd string) pd ppe a
+   *      | Error _ -> 
+   *        pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a)
+   *   else
+   *     pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a *)
+  | CylE (b,l,c) ->
     pf ppf "[| %a | %a | %a |]" ppe b ppe l ppe c 
   | BaseE c ->
     pf ppf "base %a" ppe c
@@ -174,6 +186,7 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   | CatE -> string ppf "Cat"
   | TypE -> string ppf "U"
   | HoleE -> string ppf "_"
+  | _ -> string ppf "unimplemented"
 
 let pp_expr = pp_expr_gen ~si:false ~fh:false ~pc:true
 let pp_expr_with_impl = pp_expr_gen ~si:true ~fh:true ~pc:true
@@ -191,7 +204,7 @@ module ExprSyntax = struct
   let lam nm ict bdy = LamE (nm,ict,bdy)
   let pi nm ict dom cod = PiE (nm,ict,dom,cod)
   let hom c s t = HomE (c,s,t)
-  let coh g a = CohE (g,a)
+  let comp g c s t = CompE (TelePd g,c,s,t)
   let app u v ict = AppE (u,v,ict)
   let pd_vars k pd = pd_lvl_map pd 
       (fun _ k' -> VarE (str "x%d" (k+k')))
@@ -218,5 +231,4 @@ let expr_app_args = ExprUtil.app_args
 let ucomp_coh_expr : 'a pd -> expr = fun pd ->
   ExprUtil.ucomp_coh pd 
 
-(* let unbiased_comp_expr : 'a pd -> expr = fun _ -> *)
     

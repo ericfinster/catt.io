@@ -20,16 +20,20 @@ type icit =
   | Impl
   | Expl
 
-type quot_cmd =
-  | PComp of unit pd 
-  | SComp of int list
-
-(*****************************************************************************)
-(*                                 Telescopes                                *)
-(*****************************************************************************)
-        
 type 'a tele = (name * icit * 'a) suite
 
+type 'a pd_desc =
+  | TelePd of 'a tele
+  | TreePd of 'a * 'a pd 
+
+type ucmp_desc =
+  | UnitPd of unit pd
+  | IntSeq of int list
+
+(*****************************************************************************)
+(*                         Pretty Printing Telescopes                        *)
+(*****************************************************************************)
+        
 let pp_tele pp_el ppf tl =
   let pp_trpl ppf (nm,ict,t) =
     match ict with
@@ -59,9 +63,10 @@ module type Syntax = sig
   val var : lvl -> lvl -> s
   val lam : name -> icit -> s -> s
   val pi : name -> icit -> s -> s -> s 
-  val coh : s tele -> s -> s
   val app : s -> s -> icit -> s
 
+  val comp : s tele -> s -> s -> s -> s
+  
   val fresh_cat : lvl -> string * s
   val nm_of : lvl -> s -> string 
   val pp : s Fmt.t
@@ -171,8 +176,11 @@ module SyntaxUtil(Syn : Syntax) = struct
       let (_,ct) = fresh_cat (length tele - 1) in 
       let bdry = boundary fpd in
       let sph = map_suite bdry
-          ~f:(fun (s,t) -> (ucomp ct s, ucomp ct t)) in 
-      coh tele (suite_sph_typ sph ct)
+          ~f:(fun (s,t) -> (ucomp ct s, ucomp ct t)) in
+      match sph with
+      | Emp -> raise (Failure "empty sphere in ucomp")
+      | Ext (sph',(src,tgt)) ->
+        comp tele (suite_sph_typ sph' ct) src tgt
 
   (* Applied unbiased composite *)
   and ucomp : s -> s pd -> s = fun ct pd -> 

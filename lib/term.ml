@@ -5,6 +5,7 @@
 (*****************************************************************************)
 
 open Fmt
+open Pd
 open Base
 open Expr
 open Suite
@@ -15,31 +16,45 @@ open Syntax
 (*****************************************************************************)
 
 type term =
+
+  (* Primitives *)
   | VarT of idx
   | TopT of name 
   | LamT of name * icit * term
   | AppT of term * term * icit
   | PiT of name * icit * term * term
-  | QuotT of quot_cmd * term
+  | MetaT of mvar
+  | InsMetaT of mvar 
+  | TypT
+
+  (* Categories *)
+  | CatT
   | ObjT of term
+  | ArrT of term
   | HomT of term * term * term
-  | CohT of term tele * term
+
+  (* Coherences *)
+  | CompT of term tele * term * term * term 
+  | CohT of term tele * term * term disc * term disc
+  | UCompT of ucmp_desc * term 
+
+  (* Cylinders *)
   | CylT of term * term * term
   | BaseT of term
   | LidT of term
   | CoreT of term 
-  | ArrT of term
-  | CatT
-  | TypT
-  | MetaT of mvar
-  | InsMetaT of mvar 
 
 (*****************************************************************************)
 (*                              DeBrujin Lifting                             *)
 (*****************************************************************************)
 
 let rec db_lift_by l k tm =
-  let lft = db_lift_by l k in 
+  let lft = db_lift_by l k in
+  (* let rec in_tele g l m =
+   *   match g with
+   *   | Emp -> m Emp l
+   *   | Ext (g',(nm,ict,tm)) ->
+   *     in_tele g' l ( *)
   match tm with
   | VarT i ->
     if (i >= l) then VarT (k+i) else VarT i
@@ -49,20 +64,24 @@ let rec db_lift_by l k tm =
   | AppT (u,v,ict) -> AppT (lft u, lft v, ict)
   | PiT (nm,ict,a,b) ->
     PiT (nm,ict,lft a, db_lift_by (l+1) k b)
-  | QuotT (cmd,tm) -> QuotT (cmd, lft tm)
   | ObjT tm -> ObjT (lft tm)
   | HomT (c,s,t) -> HomT (lft c, lft s, lft t)
-  | CohT (g,a) -> 
 
-    let rec go g l m =
-      match g with
-      | Emp -> m Emp l 
-      | Ext (g',(nm,ict,tm)) ->
-        go g' l (fun rg rl ->
-            let tm' = db_lift_by rl k tm in
-            m (Ext (rg,(nm,ict,tm'))) (rl+1))
+  | UCompT (pd,tm) -> UCompT (pd,lft tm)
+  | CohT (g,c,s,t) -> ???
+  | CompT (g,c,s,t) -> ???
 
-    in go g l (fun g' l' -> CohT (g', db_lift_by l' k a))
+  (* | CohT (g,a) -> 
+   * 
+   *   let rec go g l m =
+   *     match g with
+   *     | Emp -> m Emp l 
+   *     | Ext (g',(nm,ict,tm)) ->
+   *       go g' l (fun rg rl ->
+   *           let tm' = db_lift_by rl k tm in
+   *           m (Ext (rg,(nm,ict,tm'))) (rl+1))
+   * 
+   *   in go g l (fun g' l' -> CohT (g', db_lift_by l' k a)) *)
 
   | CylT (b,l,c) -> CylT (lft b, lft l, lft c)
   | BaseT t -> BaseT (lft t)
@@ -94,7 +113,6 @@ let rec term_to_expr nms tm =
     AppE (tte nms u, tte nms v, ict)
   | PiT (nm,ict,a,b) ->
     PiE (nm, ict, tte nms a, tte (Ext (nms,nm)) b)
-  | QuotT (cmd,_) -> QuotE cmd
   | ObjT c -> ObjE (tte nms c)
   | HomT (c,s,t) ->
     HomE (tte nms c, tte nms s, tte nms t)
@@ -182,8 +200,6 @@ let rec pp_term ppf tm =
   | PiT (nm,Expl,a,p) ->
     pf ppf "(%s : %a) -> %a" nm
       pp_term a pp_term p
-  | QuotT (cmd,_) ->
-    pf ppf "`[ %a ]" pp_quot_cmd cmd
   | ObjT c ->
     pf ppf "[%a]" pp_term c
   | HomT (c,s,t) ->

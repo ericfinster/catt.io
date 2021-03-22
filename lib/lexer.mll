@@ -23,21 +23,22 @@ rule token = parse
 
   | "let"        { LET }
   | "coh"        { COH }
+  | "comp"       { COMP }
+  | "ucomp"      { UCOMP } 
   | "->"         { ARROW }
   | "=>"         { DBLARROW }
+  | "<=>"        { IFF } 
   | "("          { LPAR }
   | ")"          { RPAR }
   | "{"          { LBR }
   | "}"          { RBR }
   | "["          { LBRKT }
   | "]"          { RBRKT }
-  | "`["         { QUOTBRKT }
   | "cyl"        { CYL }
   | "base"       { BASE }
   | "lid"        { LID }
   | "core"       { CORE }
-  | "scomp"      { SCOMP }
-  | "pcomp"      { PCOMP }
+  | "|>"         { BARARROW }
   | ":"          { COLON }
   | "::"         { DBLCOLON }
   | "="          { EQUAL }

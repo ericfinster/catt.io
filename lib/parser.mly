@@ -5,13 +5,12 @@
        
 %} 
 
-%token LET COH
+%token LET COH COMP UCOMP 
 %token TYPE CAT ARR
 %token LAMBDA COLON DBLCOLON EQUAL DOT
-%token LPAR RPAR LBR RBR LBRKT RBRKT QUOTBRKT
-%token VBAR DBLARROW ARROW HOLE
+%token LPAR RPAR LBR RBR LBRKT RBRKT 
+%token VBAR BARARROW IFF DBLARROW ARROW HOLE
 %token CYL BASE CORE LID
-%token SCOMP PCOMP
 %token <string> IDENT
 %token <int> INT
 %token EOF
@@ -20,6 +19,11 @@
 %type <Expr.defn list> prog
 
 %%
+
+suite(X):
+  | { Emp }
+  | s = suite(X); x = X
+    { Ext (s,x) }
 
 prog:
   | EOF
@@ -30,20 +34,8 @@ prog:
 defn:
   | LET id = IDENT tl = tele COLON ty = expr EQUAL tm = expr
     { TermDef (id,tl,ty,tm) }
-  | COH id = IDENT tl = tele COLON c = expr
-    { CohDef (id,tl,c) }
-
-/* Add separators and so on ... */
-suite(X):
-  | { Emp }
-  | s = suite(X) x = X
-    { Ext (s,x) }
-
-tele:
-  |
-    { Emp }
-  | t = tele v = var_decl
-    { Ext (t, v) }
+  /* | COMP id = IDENT pd = pd_expr COLON cat = expr BARARROW src = expr DBLARROW tgt = expr */
+  /*   { CompDef (id,pd,cat,src,tgt) } */
 
 var_decl:
   | LPAR id = IDENT COLON ty = expr RPAR
@@ -54,6 +46,10 @@ var_decl:
     { (id,Expl,ObjE c) }
   | LBR id = IDENT DBLCOLON c = expr RBR
     { (id,Impl,ObjE c) }
+
+tele:
+  | tl = suite(var_decl)
+    { tl } 
 
 pi_head:
   | v = var_decl
@@ -68,8 +64,6 @@ expr:
     { HomE (HoleE,s,t) }
   | c = expr VBAR s = expr1 DBLARROW t = expr1
     { HomE (c,s,t) }
-  | COH LBRKT tl = tele COLON e = expr RBRKT
-    { CohE (tl,e) } 
 
 expr1:
   | e = expr2
@@ -100,6 +94,8 @@ expr3:
     { VarE id }
   | LBRKT c = expr RBRKT
     { ObjE c }
+  | ARR c = expr3
+    { ArrE c }
   | BASE e = expr3
     { BaseE e }
   | LID e = expr3
@@ -108,10 +104,8 @@ expr3:
     { CoreE e }
   | CYL b = expr3 l = expr3 c = expr3
     { CylE (b,l,c) }
-  | ARR c = expr3
-    { ArrE c }
-  | c = quot_cmd
-    { QuotE c } 
+  | coh = coh_expr
+    { coh } 
   | LPAR t = expr RPAR
     { t }
 
@@ -119,8 +113,40 @@ paren_pd:
   | LPAR brs = suite(paren_pd) RPAR
     { ((),Pd.Br ((),brs)) }
 
-quot_cmd:
-  | QUOTBRKT PCOMP pd = paren_pd RBRKT
-    { PComp (snd pd) }
-  | QUOTBRKT SCOMP ds = INT+ RBRKT
-    { SComp ds }
+ucomp_pd:
+  | pd = paren_pd
+    { UnitPd (snd pd) }
+  | ds = INT+
+    { IntSeq ds }
+
+pd_with_tgt:
+  | pd = id_pd tgt = IDENT
+    { (VarE tgt,pd) }
+
+id_pd:
+  | LPAR src = IDENT brs = suite(pd_with_tgt)
+    { Pd.Br (VarE src,brs) }
+
+pd_expr:
+  | tl = tele
+    { TelePd tl }
+  | cat = IDENT pd = id_pd
+    { TreePd (VarE cat,pd) }
+
+sph_expr:
+  |
+    {Emp}
+  | sph = sph_expr VBAR src = expr2 DBLARROW tgt = expr2
+    { Ext (sph,(src,tgt)) }
+
+disc_expr:
+  | sph = sph_expr VBAR d = expr2
+    { (sph,d) }
+
+coh_expr:
+  | COMP LBRKT pd = pd_expr COLON cat = expr BARARROW src = expr2 DBLARROW tgt = expr2 RBRKT
+    { CompE (pd,cat,src,tgt) }
+  | UCOMP LBRKT upd = ucomp_pd RBRKT
+    { UCompE upd }
+  | COH LBRKT pd = pd_expr COLON cat = expr BARARROW src = disc_expr IFF tgt = disc_expr RBRKT
+    { CohE (pd,cat,src,tgt) }
