@@ -181,10 +181,8 @@ module ValueImpl = struct
     if (is_disc pd) then
       head (labels pd)
     else
-      let qcmd = PComp (Pd.blank pd) in 
-      let qtm = QuotT (qcmd, term_ucomp_coh pd) in
-      let qv = eval Emp Emp qtm in 
-      appArgs qv (pd_args c pd)
+      let v = eval Emp Emp (UCompT (UnitPd (blank pd))) in 
+      appArgs v (pd_args c pd)
 
 end
 
@@ -198,7 +196,7 @@ module ExprImpl = struct
     if (is_disc pd) then
       head (labels pd)
     else
-      ExprUtil.app_args (QuotE (PComp (Pd.blank pd)))
+      ExprUtil.app_args (UCompE (UnitPd (Pd.blank pd)))
         (pd_args c pd)
 end
 

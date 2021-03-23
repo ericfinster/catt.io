@@ -170,17 +170,17 @@ let rec free_vars k tm =
     Set.union (free_vars k u) (free_vars k v)
   | PiT (_,_,a,b) ->
     Set.union (free_vars k a) (free_vars (k+1) b)
-  (* This could be more complicated later on  *)
-  | QuotT (_,_) -> fvs_empty
   | ObjT c -> free_vars k c
   | HomT (c,s,t) ->
     Set.union (free_vars k c) (Set.union (free_vars k s) (free_vars k t))
-  | CohT (g,a) ->
+  | UCompT _ -> fvs_empty
+  | CohT (g,c,s,t) ->
     let rec go k g =
       match g with
-      | Emp -> free_vars k a
+      | Emp -> free_vars k (HomT (c,s,t))
       | Ext (g',_) -> go (k+1) g'
     in go k g
+  | CylCohT _ -> raise (Failure "fvs cylcoh")
   | CylT (b,l,c) ->
     Set.union (free_vars k b) (Set.union (free_vars k l) (free_vars k c))
   | BaseT c -> free_vars k c
@@ -202,12 +202,13 @@ let rec free_vars_val k v =
   | LamV (_,_,Closure (_,loc,tm)) -> free_vars (length loc) tm
   | PiV (_,_,a,Closure (_,loc,b)) ->
     Set.union (free_vars_val k a) (free_vars (length loc) b)
-  | QuotV (_,sp,_) -> sp_vars sp 
   | ObjV c -> free_vars_val k c
   | HomV (c,s,t) ->
     Set.union_list (module Int) [fvc c; fvc s; fvc t]
+  | UCompV (_,sp) -> sp_vars sp 
   | CohV (v,sp) ->
     Set.union (free_vars_val k v) (sp_vars sp)
+  | CylCohV _ -> raise (Failure "fvs cylcohv")
   | CylV (b,l,c) ->
     Set.union_list (module Int) [fvc b; fvc l; fvc c]
   | ArrV c -> fvc c
@@ -407,12 +408,15 @@ and infer gma expr =
     let* t' = check gma t (ObjV cv) in
     Ok (HomT (c',s',t'), CatV)
 
-  | CohE (g,a) ->
+
+  | UCompE _ -> Error (`NotImplemented "ucomp")
+  | CylCohE _ -> Error (`NotImplemented "cylcoh")
+  | CohE _ -> Error (`NotImplemented "coh")
     (* pr "Inferring a coherence: @[<hov>%a@]@," pp_expr (CohE (g,a)); *)
-    let* (gt,at) = check_coh gma g a in
-    let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
+    (* let* (gt,at) = check_coh gma g (HomT (c,s,t)) in
+     * let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in *)
     (* pr "Finished with coherence: @[<hov>%a@]@," pp_expr (CohE (g,a)); *)
-    Ok (CohT (gt,at) , coh_ty)
+    (* Ok (CohT (gt,at) , coh_ty) *)
 
   | CylE (b,l,c) ->
     (* This could be much smarter.  By deconstructing the 
@@ -479,23 +483,6 @@ and infer gma expr =
       
   | CatE -> Ok (CatT , TypV)
   | TypE -> Ok (TypT , TypV)
-
-  (* You need to grab the return here and give back the meta term
-     so that you don't unfold automatically ... *)
-  | QuotE (PComp pd) ->
-    (* pr "inferring a pasting composite: %a@," Pd.pp_tr pd; *)
-    let e = ucomp_coh_expr pd in
-    (* pr "expr: @[<hov>%a@]@," pp_expr_with_impl e;  *)
-    let* (t,typ) = infer gma e in
-    Ok (QuotT (PComp pd, t), typ)
-
-  | QuotE (SComp ds) -> (
-      try
-        let pd = Pd.comp_seq ds in 
-        let* (t,typ) = infer gma (ucomp_coh_expr pd) in
-        Ok (QuotT (SComp ds,t),typ)
-      with Failure s -> Error (`BadCohQuot s)
-    )
   
   | HoleE ->
     let a = eval gma.top gma.loc (fresh_meta ()) in
@@ -607,20 +594,21 @@ let rec check_defs gma defs =
     (* pr "Type: @[%a@]@," pp_expr ty_nf; *)
     (* pr "Term: @[%a@]@," pp_expr tm_nf; *)
     check_defs (define gma id tm_val ty_val) ds
-  | (CohDef (id,g,a))::ds ->
+  | (CohDef _)::ds ->
     pr "----------------@,";
-    pr "Checking coherence: %s@," id;
-    let* (gt,at) = check_coh gma g a in
-    let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
-    let coh_tm = eval gma.top gma.loc (CohT (gt , at)) in
-    (* let coh_ty_nf = term_to_expr Emp (quote gma.lvl coh_ty false) in *)
-    let coh_tm_nf = term_to_expr Emp (quote gma.lvl coh_tm false) in
-    (* pr "Coh type: @[%a@]@," pp_expr coh_ty_nf; *)
-    (* pr "Coh term raw: %a@," pp_term (CohT (gt,at));
-     * pr "Coh term val: %a@," pp_value coh_tm;
-     * pr "Coh term nf: %a@," pp_term (quote gma.lvl coh_tm false); *)
-    pr "Coh expr: @[%a@]@," pp_expr coh_tm_nf;
-    check_defs (define gma id coh_tm coh_ty) ds
+    (* pr "Checking coherence: %s@," id;
+     * let* (gt,at) = check_coh gma g a in
+     * let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
+     * let coh_tm = eval gma.top gma.loc (CohT (gt , at)) in
+     * (\* let coh_ty_nf = term_to_expr Emp (quote gma.lvl coh_ty false) in *\)
+     * let coh_tm_nf = term_to_expr Emp (quote gma.lvl coh_tm false) in
+     * (\* pr "Coh type: @[%a@]@," pp_expr coh_ty_nf; *\)
+     * (\* pr "Coh term raw: %a@," pp_term (CohT (gt,at));
+     *  * pr "Coh term val: %a@," pp_value coh_tm;
+     *  * pr "Coh term nf: %a@," pp_term (quote gma.lvl coh_tm false); *\)
+     * pr "Coh expr: @[%a@]@," pp_expr coh_tm_nf; *)
+    (* check_defs (define gma id coh_tm coh_ty) ds *)
+    check_defs gma ds
 
 and additional_tests _ =
   let _ = Int.of_string "45" in ()

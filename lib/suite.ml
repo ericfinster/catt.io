@@ -64,6 +64,15 @@ let rec fold_right f s a =
   | Emp -> a
   | Ext (s',x) -> fold_right f s' (f x a)
 
+let rec fold_accum_cont : 'a suite -> 'c -> ('a -> 'c -> 'b * 'c) -> ('b suite -> 'c -> 'd) -> 'd =
+  fun s c f cont ->
+  match s with
+  | Emp -> cont Emp c
+  | Ext (s',a) ->
+    fold_accum_cont s' c f (fun s'' c' ->
+        let (b,c'') = f a c' in
+        cont (Ext (s'',b)) c'')
+
 let rec append s t =
   match t with
   | Emp -> s

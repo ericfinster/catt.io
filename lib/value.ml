@@ -5,7 +5,6 @@
 (*****************************************************************************)
 
 open Fmt
-open Expr     
 open Term
 open Suite
 open Syntax
@@ -15,19 +14,27 @@ open Syntax
 (*****************************************************************************)
     
 type value =
+
+  (* Primitives *)
   | FlexV of mvar * spine
   | RigidV of lvl * spine
   | TopV of name * spine * value 
   | LamV of name * icit * closure
   | PiV of name * icit * value * closure
-  | QuotV of quot_cmd * spine * value 
+  | TypV 
+
+  (* Categories *)
+  | CatV
   | ObjV of value
   | HomV of value * value * value
-  | CohV of value * spine
-  | CylV of value * value * value
   | ArrV of value
-  | CatV
-  | TypV 
+
+  | UCompV of ucmp_desc * spine
+  | CohV of value * spine
+  | CylCohV of value * spine 
+
+  (* Cylinders *)
+  | CylV of value * value * value
 
 and spine =
   | EmpSp
@@ -65,22 +72,29 @@ let rec pp_value ppf v =
   | PiV (nm,Impl,a,Closure (_,_,bdy)) -> 
     pf ppf "{%s : %a} -> <%a>" nm
       pp_value a pp_term bdy
-  | QuotV (cmd,sp,_) ->
-    pf ppf "`[ %a ] %a" pp_quot_cmd cmd pp_spine sp 
+  | TypV -> pf ppf "U"
+              
+  | CatV -> pf ppf "Cat"
   | ObjV c ->
     pf ppf "[%a]" pp_value c
+  | ArrV c ->
+    pf ppf "Arr %a" pp_value c
   | HomV (_,s,t) ->
     pf ppf "%a => %a" pp_value s pp_value t
+
+  | UCompV (uc,sp) ->
+    pf ppf "ucomp [ %a ] %a"
+      pp_ucmp_desc uc pp_spine sp 
   | CohV (v,sp) -> 
     pf ppf "coh @[%a@] %a" 
       pp_value v pp_spine sp
+  | CylCohV (v,sp) ->
+    pf ppf "cylcoh @[%a@] %a" 
+      pp_value v pp_spine sp
+    
   | CylV (b,l,c) ->
     pf ppf "[| %a | %a | %a |]"
       pp_value b pp_value l pp_value c
-  | ArrV c ->
-    pf ppf "Arr %a" pp_value c
-  | CatV -> pf ppf "Cat"
-  | TypV -> pf ppf "U"
 
 and pp_spine ppf sp =
   match sp with

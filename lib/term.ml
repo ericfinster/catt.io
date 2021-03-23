@@ -34,9 +34,9 @@ type term =
   | HomT of term * term * term
 
   (* Coherences *)
-  | CompT of term tele * term * term * term 
-  | CohT of term tele * term * term disc * term disc
-  | UCompT of ucmp_desc * term 
+  | UCompT of ucmp_desc 
+  | CohT of term tele * term * term * term 
+  | CylCohT of term tele * term * term disc * term disc
 
   (* Cylinders *)
   | CylT of term * term * term
@@ -50,11 +50,6 @@ type term =
 
 let rec db_lift_by l k tm =
   let lft = db_lift_by l k in
-  (* let rec in_tele g l m =
-   *   match g with
-   *   | Emp -> m Emp l
-   *   | Ext (g',(nm,ict,tm)) ->
-   *     in_tele g' l ( *)
   match tm with
   | VarT i ->
     if (i >= l) then VarT (k+i) else VarT i
@@ -64,38 +59,39 @@ let rec db_lift_by l k tm =
   | AppT (u,v,ict) -> AppT (lft u, lft v, ict)
   | PiT (nm,ict,a,b) ->
     PiT (nm,ict,lft a, db_lift_by (l+1) k b)
+  | MetaT m -> MetaT m
+  | InsMetaT m -> InsMetaT m 
+  | TypT -> TypT
+
   | ObjT tm -> ObjT (lft tm)
   | HomT (c,s,t) -> HomT (lft c, lft s, lft t)
+  | ArrT c -> ArrT (lft c)
+  | CatT -> CatT
 
-  | UCompT (pd,tm) -> UCompT (pd,lft tm)
-  | CohT (g,c,s,t) -> ???
-  | CompT (g,c,s,t) -> ???
+  | UCompT pd -> UCompT pd
+  | CohT (g,c,s,t) -> 
+    tele_fold_with_idx g l
+      (fun tm l' -> db_lift_by l' k tm)
+      (fun g' l' ->
+         let c' = db_lift_by l' k c in
+         let s' = db_lift_by l' k s in
+         let t' = db_lift_by l' k t in 
+         CohT (g',c',s',t'))
+  | CylCohT (g,c,s,t) ->
+    tele_fold_with_idx g l
+      (fun tm l' -> db_lift_by l' k tm)
+      (fun g' l' ->
+         let c' = db_lift_by l' k c in
+         let s' = map_disc s ~f:(db_lift_by l' k) in
+         let t' = map_disc t ~f:(db_lift_by l' k) in 
+         CylCohT (g',c',s',t'))
 
-  (* | CohT (g,a) -> 
-   * 
-   *   let rec go g l m =
-   *     match g with
-   *     | Emp -> m Emp l 
-   *     | Ext (g',(nm,ict,tm)) ->
-   *       go g' l (fun rg rl ->
-   *           let tm' = db_lift_by rl k tm in
-   *           m (Ext (rg,(nm,ict,tm'))) (rl+1))
-   * 
-   *   in go g l (fun g' l' -> CohT (g', db_lift_by l' k a)) *)
-
-  | CylT (b,l,c) -> CylT (lft b, lft l, lft c)
   | BaseT t -> BaseT (lft t)
   | LidT t -> LidT (lft t)
   | CoreT t -> CoreT (lft t)
-  | ArrT c -> ArrT (lft c)
-  | CatT -> CatT
-  | TypT -> TypT
-  | MetaT m -> MetaT m
-  | InsMetaT m -> InsMetaT m 
+  | CylT (b,l,c) -> CylT (lft b, lft l, lft c)
 
 let db_lift l t = db_lift_by l 1 t
-
-let lvl_to_idx k l = k - l - 1
 
 (*****************************************************************************)
 (*                            Terms to Expressions                           *)
@@ -113,33 +109,42 @@ let rec term_to_expr nms tm =
     AppE (tte nms u, tte nms v, ict)
   | PiT (nm,ict,a,b) ->
     PiE (nm, ict, tte nms a, tte (Ext (nms,nm)) b)
-  | ObjT c -> ObjE (tte nms c)
-  | HomT (c,s,t) ->
-    HomE (tte nms c, tte nms s, tte nms t)
-  | CohT (g,a) ->
-
-    let rec go g nms m =
-      match g with
-      | Emp -> m nms Emp
-      | Ext (g',(nm,ict,ty)) ->
-        go g' nms (fun nms' ge' ->
-            let e = tte nms' ty in
-            m (Ext (nms',nm))
-              (Ext (ge',(nm,ict,e))))
-
-    in go g nms (fun nms' ge' -> CohE (ge' , tte nms' a))
-
-  | CylT (b,l,c) ->
-    CylE (tte nms b, tte nms l, tte nms c)
-  | BaseT c -> BaseE (tte nms c)
-  | LidT c -> LidE (tte nms c)
-  | CoreT c -> CoreE (tte nms c)
-  | ArrT c -> ArrE (tte nms c)
-  | CatT -> CatE 
-  | TypT -> TypE
   | MetaT _ -> HoleE
   (* Somewhat dubious, since we lose the implicit application ... *)
   | InsMetaT _ -> HoleE
+  | TypT -> TypE
+
+  | CatT -> CatE 
+  | ArrT c -> ArrE (tte nms c)
+  | ObjT c -> ObjE (tte nms c)
+  | HomT (c,s,t) ->
+    HomE (tte nms c, tte nms s, tte nms t)
+
+  | UCompT pd -> UCompE pd
+  | CohT (g,c,s,t) -> 
+    fold_accum_cont g nms
+      (fun (nm,ict,tm) nms' ->
+         ((nm,ict,tte nms' tm), Ext (nms',nm)))
+      (fun g' nms' ->
+         let c' = tte nms' c in
+         let s' = tte nms' s in
+         let t' = tte nms' t in
+         CohE (TelePd g',c',s',t'))
+  | CylCohT (g,c,s,t) ->
+    fold_accum_cont g nms
+      (fun (nm,ict,tm) nms' ->
+         ((nm,ict,tte nms' tm), Ext (nms',nm)))
+      (fun g' nms' ->
+         let c' = tte nms' c in
+         let s' = map_disc ~f:(tte nms') s in
+         let t' = map_disc ~f:(tte nms') t in
+         CylCohE (TelePd g',c',s',t'))
+
+  | BaseT c -> BaseE (tte nms c)
+  | LidT c -> LidE (tte nms c)
+  | CoreT c -> CoreE (tte nms c)
+  | CylT (b,l,c) ->
+    CylE (tte nms b, tte nms l, tte nms c)
 
 (*****************************************************************************)
 (*                                 Telescopes                                *)
@@ -184,6 +189,7 @@ let rec pp_term ppf tm =
   | AppT (u,v,Impl) ->
     pf ppf "%a {%a}" pp_term u pp_term v
   | AppT (u,v,Expl) ->
+    (* Need's a generic lookahead for parens routine ... *)
     let pp_v = if (is_app_tm v) then
         parens pp_term
       else pp_term in 
@@ -200,23 +206,38 @@ let rec pp_term ppf tm =
   | PiT (nm,Expl,a,p) ->
     pf ppf "(%s : %a) -> %a" nm
       pp_term a pp_term p
+  | MetaT _ -> pf ppf "_"
+  (* Again, misses some implicit information ... *)
+  | InsMetaT _ -> pf ppf "*_*"
+  | TypT -> pf ppf "U"
+
+  | CatT -> pf ppf "Cat"
   | ObjT c ->
     pf ppf "[%a]" pp_term c
   | HomT (c,s,t) ->
     pf ppf "%a | %a => %a" pp_term c pp_term s pp_term t
-  | CohT (g,a) ->
-    pf ppf "coh [ %a : %a ]" (pp_tele pp_term) g pp_term a
-  | CylT (b,l,c) ->
-    pf ppf "[| %a | %a | %a |]" pp_term b pp_term l pp_term c
+  | ArrT c -> pf ppf "Arr %a" pp_term c
+
+  | UCompT (UnitPd pd) ->
+    pf ppf "ucomp [ %a ]" pp_tr pd
+  | UCompT (DimSeq ds) ->
+    pf ppf "ucomp [ %a ]" (list int) ds
+  | CohT (g,c,s,t) ->
+    pf ppf "coh [ %a : %a |> %a <=> %a ]"
+      (pp_tele pp_term) g pp_term c
+      pp_term s
+      pp_term t
+  | CylCohT (g,c,s,t) ->
+    pf ppf "cylcoh [ %a : %a |> %a <=> %a ]"
+      (pp_tele pp_term) g pp_term c
+      (pp_disc pp_term) s
+      (pp_disc pp_term) t
+
   | BaseT c -> pf ppf "base %a" pp_term c
   | LidT c -> pf ppf "lid %a" pp_term c
   | CoreT c -> pf ppf "core %a" pp_term c
-  | ArrT c -> pf ppf "Arr %a" pp_term c
-  | CatT -> pf ppf "Cat"
-  | TypT -> pf ppf "U"
-  | MetaT _ -> pf ppf "_"
-  (* Again, misses some implicit information ... *)
-  | InsMetaT _ -> pf ppf "*_*"
+  | CylT (b,l,c) ->
+    pf ppf "[| %a | %a | %a |]" pp_term b pp_term l pp_term c
 
 
 (*****************************************************************************)
@@ -232,7 +253,7 @@ module TermSyntax = struct
   let var k l = VarT (lvl_to_idx k l)
   let lam nm ict bdy = LamT (nm,ict,bdy)
   let pi nm ict dom cod = PiT (nm,ict,dom,cod)
-  let coh g a = CohT (g,a)
+  let coh g c s t = CohT (g,c,s,t)
   let app u v ict = AppT (u,v,ict)
   let pp = pp_term
   let nm_of k _ = str "x%d" (k-1)

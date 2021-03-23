@@ -5,12 +5,12 @@
        
 %} 
 
-%token LET COH COMP UCOMP 
-%token TYPE CAT ARR
-%token LAMBDA COLON DBLCOLON EQUAL DOT
+%token LET LAMBDA COLON DBLCOLON EQUAL DOT
 %token LPAR RPAR LBR RBR LBRKT RBRKT 
-%token VBAR BARARROW IFF DBLARROW ARROW HOLE
+%token VBAR DBLARROW ARROW HOLE BARARROW
+%token UCOMP COH CYLCOH  
 %token CYL BASE CORE LID
+%token TYPE CAT ARR
 %token <string> IDENT
 %token <int> INT
 %token EOF
@@ -34,8 +34,10 @@ prog:
 defn:
   | LET id = IDENT tl = tele COLON ty = expr EQUAL tm = expr
     { TermDef (id,tl,ty,tm) }
-  /* | COMP id = IDENT pd = pd_expr COLON cat = expr BARARROW src = expr DBLARROW tgt = expr */
-  /*   { CompDef (id,pd,cat,src,tgt) } */
+  | COH id = IDENT pd = pd_expr COLON cat = expr BARARROW src = expr1 DBLARROW tgt = expr1
+    { CohDef (id,pd,cat,src,tgt) }
+  | COH id = IDENT pd = pd_expr COLON src = expr1 DBLARROW tgt = expr1
+    { CohDef (id,pd,HoleE,src,tgt) }
 
 var_decl:
   | LPAR id = IDENT COLON ty = expr RPAR
@@ -64,6 +66,8 @@ expr:
     { HomE (HoleE,s,t) }
   | c = expr VBAR s = expr1 DBLARROW t = expr1
     { HomE (c,s,t) }
+  | coh = coh_expr
+    { coh }
 
 expr1:
   | e = expr2
@@ -104,8 +108,6 @@ expr3:
     { CoreE e }
   | CYL b = expr3 l = expr3 c = expr3
     { CylE (b,l,c) }
-  | coh = coh_expr
-    { coh } 
   | LPAR t = expr RPAR
     { t }
 
@@ -117,7 +119,7 @@ ucomp_pd:
   | pd = paren_pd
     { UnitPd (snd pd) }
   | ds = INT+
-    { IntSeq ds }
+    { DimSeq ds }
 
 pd_with_tgt:
   | pd = id_pd tgt = IDENT
@@ -136,17 +138,19 @@ pd_expr:
 sph_expr:
   |
     {Emp}
-  | sph = sph_expr VBAR src = expr2 DBLARROW tgt = expr2
+  | sph = sph_expr VBAR src = expr1 DBLARROW tgt = expr1
     { Ext (sph,(src,tgt)) }
 
 disc_expr:
-  | sph = sph_expr VBAR d = expr2
+  | sph = sph_expr VBAR d = expr1
     { (sph,d) }
 
 coh_expr:
-  | COMP LBRKT pd = pd_expr COLON cat = expr BARARROW src = expr2 DBLARROW tgt = expr2 RBRKT
-    { CompE (pd,cat,src,tgt) }
   | UCOMP LBRKT upd = ucomp_pd RBRKT
     { UCompE upd }
-  | COH LBRKT pd = pd_expr COLON cat = expr BARARROW src = disc_expr IFF tgt = disc_expr RBRKT
+  | COH LBRKT pd = pd_expr COLON cat = expr
+      BARARROW src = expr1 DBLARROW tgt = expr1 RBRKT
     { CohE (pd,cat,src,tgt) }
+  | CYLCOH LBRKT pd = pd_expr COLON cat = expr
+      BARARROW src = disc_expr BARARROW tgt = disc_expr RBRKT
+    { CylCohE (pd,cat,src,tgt) }

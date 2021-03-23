@@ -66,15 +66,19 @@ let rename m pren v =
     | TopV (_,_,tv) -> go pr tv
     | LamV (nm,ict,a) -> LamT (nm, ict, go (lift pr) (a $$ varV pr.cod))
     | PiV (nm,ict,a,b) -> PiT (nm, ict, go pr a, go (lift pr) (b $$ varV pr.cod))
-    | QuotV (_,sp,tv) -> go pr (runSpV tv sp)
     | ObjV c -> ObjT (go pr c)
     | HomV (c,s,t) -> HomT (go pr c, go pr s, go pr t)
-    | CohV (v,sp) ->
 
+    | UCompV (uc,sp) ->
+      goSp pr (term_ucomp_coh (ucmp_pd uc)) sp
+    | CohV (v,sp) ->
       let pi_tm = go pr v in
       let (g,a) = pi_to_tele pi_tm in
-      goSp pr (CohT (g,a)) sp
-        
+      (match a with
+       | HomT (c,s,t) -> goSp pr (CohT (g,c,s,t)) sp
+       | _ -> raise (Failure "rename coh has invalid type"))
+    | CylCohV _ -> raise (Failure "rename cylcoh")
+      
     | CylV (b,l,c) -> CylT (go pr b, go pr l, go pr c)
     | ArrV c -> ArrT (go pr c)
     | CatV -> CatT
@@ -140,32 +144,8 @@ let rec unify stgy top l t u =
   | (FlexV (m,sp) , t') when Poly.(<>) stgy UnfoldNone -> solve top l m sp t'
   | (FlexV (_,_) , _) -> raise (Unify_error "refusing to solve meta")
 
-
-  | (QuotV (_,sp,tv), QuotV (_,sp',tv')) when Poly.(=) stgy UnfoldAll ->
-    unify UnfoldAll top l (runSpV tv sp) (runSpV tv' sp')
-  | (QuotV (cmd,sp,_), QuotV (cmd',sp',_)) when Poly.(=) stgy UnfoldNone ->
-    if (Poly.(=) cmd cmd') then
-      unifySp UnfoldNone top l sp sp'
-    else raise (Unify_error "distinct quoting commands")
-  | (QuotV (cmd,sp,tv), QuotV (cmd',sp',tv')) when Poly.(=) stgy OneShot ->
-    if (Poly.(=) cmd cmd') then 
-      (try unifySp UnfoldNone top l sp sp'
-       with Unify_error _ -> unify UnfoldAll top l (runSpV tv sp) (runSpV tv' sp'))
-    else unify UnfoldAll top l (runSpV tv sp) (runSpV tv' sp')
-        
-
-  | (QuotV (_,_,_) , _) when Poly.(=) stgy UnfoldNone ->
-    raise (Unify_error "refusing to unfold top level quote")
-  | (QuotV (_,sp,tv) , t') -> unify stgy top l (runSpV tv sp) t'
-
-  | (_ , QuotV (_,_,_)) when Poly.(=) stgy UnfoldNone ->
-    raise (Unify_error "refusing to unfold top level quote")
-  | (t , QuotV (_,sp',tv')) -> unify stgy top l t (runSpV tv' sp')
-
-
   | (TopV (_,_,tv) , TopV (_,_,tv')) when Poly.(=) stgy UnfoldAll ->
     unify UnfoldAll top l tv tv'
-  (* Wait, shouldn't the names be the same? *)
   | (TopV (nm,sp,_) , TopV (nm',sp',_)) when Poly.(=) stgy UnfoldNone ->
     if (Poly.(=) nm nm') then 
       unifySp UnfoldNone top l sp sp'

@@ -31,9 +31,9 @@ type expr =
   | ArrE of expr
 
   (* Forms of coherences *)
-  | CompE of expr pd_desc * expr * expr * expr 
   | UCompE of ucmp_desc
-  | CohE of expr pd_desc * expr * expr disc * expr disc
+  | CohE of expr pd_desc * expr * expr * expr 
+  | CylCohE of expr pd_desc * expr * expr disc * expr disc
 
   (* cylinders *)
   | CylE of expr * expr * expr
@@ -45,8 +45,8 @@ type expr =
 (* This probably belongs elsewhere .... *)
 type defn =
   | TermDef of name * expr tele * expr * expr
-  | CompDef of name * expr pd_desc * expr * expr * expr 
-  | CohDef of name * expr pd_desc * expr * expr disc * expr disc
+  | CohDef of name * expr pd_desc * expr * expr * expr 
+  (* | CohDef of name * expr pd_desc * expr * expr disc * expr disc *)
 
 (*****************************************************************************)
 (*                        Expr Tele to Pasting Diagram                       *)
@@ -121,13 +121,6 @@ let is_pi e =
   | PiE (_,_,_,_) -> true
   | _ -> false
 
-(* let pp_quot_cmd ppf c =
- *   match c with
- *   | PComp pd ->
- *     pf ppf "pc %a" pp_tr pd 
- *   | SComp ds ->
- *     pf ppf "scmp %a" (list ~sep:(any " ") int) ds  *)
-
 let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   let ppe = pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs in 
   match expr with
@@ -156,37 +149,45 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   | PiE (nm,Expl,dom,cod) ->
     pf ppf "(%s : %a) -> %a" nm
       ppe dom ppe cod
-  (* | QuotE c -> pf ppf "`[ %a ]" pp_quot_cmd c *)
+  | TypE -> string ppf "U"
+  | HoleE -> string ppf "_"
+
+
+  | CatE -> string ppf "Cat"
+  | ArrE c ->
+    pf ppf "Arr %a" ppe c
   | ObjE e -> pf ppf "[%a]" ppe e
   | HomE (c,s,t) ->
     if full_homs then 
       pf ppf "%a | %a => %a" ppe c ppe s ppe t
     else
       pf ppf "@[%a@] =>@;@[%a@]" ppe s ppe t
-  (* | CohE (g,a) ->
-   *   if pd_ctxs then 
-   *     (match expr_tele_to_pd g with
-   *      | Ok (pd,_,_,_,_) ->
-   *        pf ppf "@[@[coh [ %a : @]@[%a ]@]@]" 
-   *          (pp_pd string) pd ppe a
-   *      | Error _ -> 
-   *        pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a)
-   *   else
-   *     pf ppf "coh [ %a : %a ]" (pp_tele ppe) g ppe a *)
-  | CylE (b,l,c) ->
-    pf ppf "[| %a | %a | %a |]" ppe b ppe l ppe c 
+
+  | UCompE (UnitPd pd) ->
+    pf ppf "ucomp [ %a ]" pp_tr pd
+  | UCompE (DimSeq ds) ->
+    pf ppf "ucomp [ %a ]" (list int) ds
+  | CohE (TelePd g,c,s,t) ->
+    pf ppf "coh [ %a : %a |> %a => %a ]"
+      (pp_tele ppe) g ppe c ppe s ppe t
+  | CohE (TreePd (_,g),c,s,t) ->
+    pf ppf "coh [ %a : %a |> %a => %a ]"
+      pp_tr g ppe c ppe s ppe t
+  | CylCohE (TelePd g,c,s,t) ->
+    pf ppf "coh [ %a : %a |> %a => %a ]"
+      (pp_tele ppe) g ppe c (pp_disc ppe) s (pp_disc ppe) t
+  | CylCohE (TreePd (_,g),c,s,t) ->
+    pf ppf "coh [ %a : %a |> %a => %a ]"
+      pp_tr g ppe c (pp_disc ppe) s (pp_disc ppe) t
+
   | BaseE c ->
     pf ppf "base %a" ppe c
   | LidE c ->
     pf ppf "lid %a" ppe c
   | CoreE c ->
     pf ppf "core %a" ppe c 
-  | ArrE c ->
-    pf ppf "Arr %a" ppe c
-  | CatE -> string ppf "Cat"
-  | TypE -> string ppf "U"
-  | HoleE -> string ppf "_"
-  | _ -> string ppf "unimplemented"
+  | CylE (b,l,c) ->
+    pf ppf "[| %a | %a | %a |]" ppe b ppe l ppe c 
 
 let pp_expr = pp_expr_gen ~si:false ~fh:false ~pc:true
 let pp_expr_with_impl = pp_expr_gen ~si:true ~fh:true ~pc:true
@@ -204,7 +205,7 @@ module ExprSyntax = struct
   let lam nm ict bdy = LamE (nm,ict,bdy)
   let pi nm ict dom cod = PiE (nm,ict,dom,cod)
   let hom c s t = HomE (c,s,t)
-  let comp g c s t = CompE (TelePd g,c,s,t)
+  let coh g c s t = CohE (TelePd g,c,s,t)
   let app u v ict = AppE (u,v,ict)
   let pd_vars k pd = pd_lvl_map pd 
       (fun _ k' -> VarE (str "x%d" (k+k')))

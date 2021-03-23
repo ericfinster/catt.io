@@ -23,11 +23,10 @@ rule token = parse
 
   | "let"        { LET }
   | "coh"        { COH }
-  | "comp"       { COMP }
   | "ucomp"      { UCOMP } 
+  | "cylcoh"     { CYLCOH }
   | "->"         { ARROW }
   | "=>"         { DBLARROW }
-  | "<=>"        { IFF } 
   | "("          { LPAR }
   | ")"          { RPAR }
   | "{"          { LBR }

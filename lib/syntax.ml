@@ -16,6 +16,9 @@ type idx = int
 type mvar = int
 type name = string
 
+let lvl_to_idx k l = k - l - 1
+let idx_to_lvl k i = k - i - 1
+
 type icit =
   | Impl
   | Expl
@@ -28,12 +31,28 @@ type 'a pd_desc =
 
 type ucmp_desc =
   | UnitPd of unit pd
-  | IntSeq of int list
+  | DimSeq of int list
 
+let pp_ucmp_desc ppf uc =
+  let open Fmt in 
+  match uc with
+  | UnitPd pd -> pf ppf "%a" pp_tr pd
+  | DimSeq ds -> pf ppf "%a" (list int) ds 
+
+let ucmp_pd uc =
+  match uc with
+  | UnitPd pd -> pd
+  | DimSeq ds -> comp_seq ds 
+    
 (*****************************************************************************)
-(*                         Pretty Printing Telescopes                        *)
+(*                                 Telescopes                                *)
 (*****************************************************************************)
-        
+
+let tele_fold_with_idx g l f =
+  fold_accum_cont g l
+    (fun (nm,ict,tm) l' ->
+       ((nm,ict,f tm l') , l'+1))
+
 let pp_tele pp_el ppf tl =
   let pp_trpl ppf (nm,ict,t) =
     match ict with
@@ -65,7 +84,7 @@ module type Syntax = sig
   val pi : name -> icit -> s -> s -> s 
   val app : s -> s -> icit -> s
 
-  val comp : s tele -> s -> s -> s -> s
+  val coh : s tele -> s -> s -> s -> s
   
   val fresh_cat : lvl -> string * s
   val nm_of : lvl -> s -> string 
@@ -180,7 +199,7 @@ module SyntaxUtil(Syn : Syntax) = struct
       match sph with
       | Emp -> raise (Failure "empty sphere in ucomp")
       | Ext (sph',(src,tgt)) ->
-        comp tele (suite_sph_typ sph' ct) src tgt
+        coh tele (suite_sph_typ sph' ct) src tgt
 
   (* Applied unbiased composite *)
   and ucomp : s -> s pd -> s = fun ct pd -> 

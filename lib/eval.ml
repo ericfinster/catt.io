@@ -32,11 +32,14 @@ let rec eval top loc tm =
   | LamT (nm,ict,u) -> LamV (nm, ict, Closure (top,loc,u))
   | AppT (u,v,ict) -> appV (eval top loc u) (eval top loc v) ict
   | PiT (nm,ict,u,v) -> PiV (nm, ict, eval top loc u, Closure (top,loc,v))
-  | QuotT (cmd,tm) -> QuotV (cmd, EmpSp, eval top loc tm)
   | ObjT c -> ObjV (eval top loc c)
   | HomT (c,s,t) ->
     HomV (eval top loc c, eval top loc s, eval top loc t)
-  | CohT (g,a) -> CohV (eval top loc (tele_to_pi g a),EmpSp)
+
+  | UCompT uc -> UCompV (uc,EmpSp)
+  | CohT (g,c,s,t) -> CohV (eval top loc (tele_to_pi g (HomT (c,s,t))),EmpSp)
+  | CylCohT (_,_,_,_) -> raise (Failure "eval cylcoh")
+                        
   | CylT (b,l,c) -> CylV (eval top loc b, eval top loc l, eval top loc c)
   | BaseT c -> baseV (eval top loc c)
   | LidT c -> lidV (eval top loc c)
@@ -63,7 +66,6 @@ and appV t u ict =
   | TopV (nm,sp,tv) -> TopV (nm,AppSp(sp,u,ict),appV tv u ict)
   | CohV (v,sp) -> CohV (v,AppSp(sp,u,ict))
   | LamV (_,_,cl) -> cl $$ u
-  | QuotV (cmd,sp,tv) -> QuotV (cmd,AppSp(sp,u,ict),tv)
   | _ -> raise (Eval_error "malformed application")
 
 and baseV v =
@@ -72,7 +74,6 @@ and baseV v =
   | RigidV (i,sp) -> RigidV (i,BaseSp sp)
   | TopV (nm,sp,tv) -> TopV (nm,BaseSp sp, baseV tv)
   | CohV (ga,sp) -> CohV (ga,BaseSp sp)
-  | QuotV (cmd,sp,tv) -> QuotV (cmd, BaseSp sp, tv)
   | CylV (b,_,_) -> b 
   | _ -> raise (Eval_error "malformed base projection")
 
@@ -82,7 +83,6 @@ and lidV v =
   | RigidV (i,sp) -> RigidV (i,LidSp sp)
   | TopV (nm,sp,tv) -> TopV (nm,LidSp sp, lidV tv)
   | CohV (ga,sp) -> CohV (ga,LidSp sp)
-  | QuotV (cmd,sp,tv) -> QuotV (cmd, LidSp sp, tv)
   | CylV (_,l,_) -> l
   | _ -> raise (Eval_error "malformed lid projection")
 
@@ -92,7 +92,6 @@ and coreV v =
   | RigidV (i,sp) -> RigidV (i,CoreSp sp)
   | TopV (nm,sp,tv) -> TopV (nm,CoreSp sp, coreV tv)
   | CohV (ga,sp) -> CohV (ga,CoreSp sp)
-  | QuotV (cmd,sp,tv) -> QuotV (cmd, CoreSp sp, tv)
   | CylV (_,_,c) -> c
   | _ -> raise (Eval_error "malformed core projection")
 
@@ -137,16 +136,21 @@ let rec quote k v ufld =
   | TopV (nm,sp,_) -> qcs (TopT nm) sp 
   | LamV (nm,ict,cl) -> LamT (nm, ict, quote (k+1) (cl $$ varV k) ufld)
   | PiV (nm,ict,u,cl) -> PiT (nm, ict, qc u, quote (k+1) (cl $$ varV k) ufld)
-  | QuotV (_,sp,tv) when ufld -> qcs (qc tv) sp 
-  | QuotV (cmd,sp,tv) -> qcs (QuotT (cmd, qc tv)) sp 
   | ObjV c -> ObjT (qc c)
   | HomV (c,s,t) -> HomT (qc c, qc s, qc t)
+
+  | UCompV (uc,sp) when ufld ->
+    qcs (term_ucomp_coh (ucmp_pd uc)) sp 
+  | UCompV (uc,sp) -> qcs (UCompT uc) sp
   | CohV (v,sp) ->
 
     let pi_tm = quote k v ufld in
     let (g,a) = pi_to_tele pi_tm in
-    
-    qcs (CohT (g,a)) sp 
+    (match a with
+     | HomT (c,s,t) -> qcs (CohT (g,c,s,t)) sp
+     | _ -> raise (Failure "invalid coherence return type"))
+                        
+  | CylCohV (_,_) -> raise (Failure "quote cylcoh")
 
   | CylV (b,l,c) -> CylT (qc b, qc l, qc c)
   | ArrV c -> ArrT (qc c)

@@ -34,7 +34,6 @@ let rec is_disc pd =
   | Br (_,Emp) -> true
   | Br (_,Ext(Emp,(_,pd'))) -> is_disc pd'
   | _ -> false
-  
 
 (* Truncate to the provided dimension.  The boolean
    flag dir is true for the source direction, false
@@ -231,7 +230,13 @@ let insert_left pd d lbl nbr =
 (*****************************************************************************)
 (*                                Custom Maps                                *)
 (*****************************************************************************)
+
+let map_sph sph ~f =
+  map_suite sph ~f:(fun (s,t) -> (f s, f t))
     
+let map_disc (sph,d) ~f =
+  (map_sph sph ~f , f d)
+
 let rec map_pd pd ~f =
   match pd with
   | Br (a, brs) ->
