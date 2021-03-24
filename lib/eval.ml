@@ -38,7 +38,7 @@ let rec eval top loc tm =
 
   | UCompT uc -> UCompV (uc,EmpSp)
   | CohT (g,c,s,t) -> CohV (eval top loc (tele_to_pi g (HomT (c,s,t))),EmpSp)
-  | CylCohT (_,_,_,_) -> raise (Failure "eval cylcoh")
+  | CylCohT (_,_,_,_) -> failwith "eval cylcoh"
                         
   | CylT (b,l,c) -> CylV (eval top loc b, eval top loc l, eval top loc c)
   | BaseT c -> baseV (eval top loc c)
@@ -148,9 +148,9 @@ let rec quote k v ufld =
     let (g,a) = pi_to_tele pi_tm in
     (match a with
      | HomT (c,s,t) -> qcs (CohT (g,c,s,t)) sp
-     | _ -> raise (Failure "invalid coherence return type"))
+     | _ -> failwith "invalid coherence return type")
                         
-  | CylCohV (_,_) -> raise (Failure "quote cylcoh")
+  | CylCohV (_,_) -> failwith "quote cylcoh"
 
   | CylV (b,l,c) -> CylT (qc b, qc l, qc c)
   | ArrV c -> ArrT (qc c)

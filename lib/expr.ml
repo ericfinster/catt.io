@@ -41,7 +41,6 @@ type expr =
   | LidE of expr
   | CoreE of expr 
 
-
 (* This probably belongs elsewhere .... *)
 type defn =
   | TermDef of name * expr tele * expr * expr
@@ -51,8 +50,8 @@ type defn =
 (*****************************************************************************)
 (*                        Expr Tele to Pasting Diagram                       *)
 (*****************************************************************************)
-
 (* FIXME: Can this also be generic? *)
+
 let (let*) m f = Base.Result.bind m ~f 
 
 let rec unhom e =
@@ -232,4 +231,35 @@ let expr_app_args = ExprUtil.app_args
 let ucomp_coh_expr : 'a pd -> expr = fun pd ->
   ExprUtil.ucomp_coh pd 
 
+(*****************************************************************************)
+(*                            Expression Matching                            *)
+(*****************************************************************************)
+
+module ExprMatch = struct
+  include ExprSyntax
+
+  let (let*) m f = Base.Option.bind m ~f 
+
+  (* Hmmm. Don't need option here ... *)
+  let rec match_cat e =
+    match e with
+    | HomE (c,s,t) ->
+      let* (bc,sph) = match_cat c in
+      Some (bc,sph |> (s,t))
+    | _ -> Some (e,Emp)
+
+  let match_obj e =
+    match e with
+    | ObjE c -> Some c
+    | _ -> None 
+      
+end
+
+module ExprMatchPd = MatchPd(ExprMatch)
+
+let expr_match_pd (tl : expr tele) : (expr pd , string) Result.t =
+  let (let*) m f = Base.Result.bind m ~f in
+  let* (pd,_,_,_,_,_) = ExprMatchPd.types_to_pd (length tl)
+      (map_suite tl ~f:(fun (_,_,ty) -> ty)) in
+  Ok pd
     

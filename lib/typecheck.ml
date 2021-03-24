@@ -180,7 +180,7 @@ let rec free_vars k tm =
       | Emp -> free_vars k (HomT (c,s,t))
       | Ext (g',_) -> go (k+1) g'
     in go k g
-  | CylCohT _ -> raise (Failure "fvs cylcoh")
+  | CylCohT _ -> failwith "fvs cylcoh"
   | CylT (b,l,c) ->
     Set.union (free_vars k b) (Set.union (free_vars k l) (free_vars k c))
   | BaseT c -> free_vars k c
@@ -208,7 +208,7 @@ let rec free_vars_val k v =
   | UCompV (_,sp) -> sp_vars sp 
   | CohV (v,sp) ->
     Set.union (free_vars_val k v) (sp_vars sp)
-  | CylCohV _ -> raise (Failure "fvs cylcohv")
+  | CylCohV _ -> failwith "fvs cylcohv"
   | CylV (b,l,c) ->
     Set.union_list (module Int) [fvc b; fvc l; fvc c]
   | ArrV c -> fvc c
@@ -271,12 +271,6 @@ type typing_error = [
   | `InvalidCylinder of string
   | `InternalError
 ]
-
-let get_or_else m f x =
-  match m with
-  | Ok a -> f a
-  | Error _ -> x
-
 
 let rec check gma expr typ = 
   (* let typ_tm = quote gma.lvl typ false in
@@ -500,6 +494,15 @@ and with_tele gma tl m =
           (Ext (tv,ty_val))
           (Ext (tt,(id,ict,ty_tm))))
 
+(* let rec fold_accum_cont : 'a suite -> 'c -> ('a -> 'c -> 'b * 'c) -> ('b suite -> 'c -> 'd) -> 'd =
+ *   fun s c f cont ->
+ *   match s with
+ *   | Emp -> cont Emp c
+ *   | Ext (s',a) ->
+ *     fold_accum_cont s' c f (fun s'' c' ->
+ *         let (b,c'') = f a c' in
+ *         cont (Ext (s'',b)) c'') *)
+  
 and check_coh gma g a =
   with_tele gma g (fun gma' gv gt ->
       match ctx_to_pd (length gma.loc) gv with
@@ -569,21 +572,14 @@ and check_coh gma g a =
       | Error msg -> Error (`PastingError msg))
 
 
-(* Make this generic .... *)
-let rec abstract_tele_with_tm tl ty tm =
-  match tl with
-  | Emp -> (ty,tm)
-  | Ext (tl',(nm,ict,expr)) ->
-    abstract_tele_with_tm tl'
-      (PiE (nm,ict,expr,ty)) (LamE (nm,ict,tm))
-              
 let rec check_defs gma defs =
+  let module E = ExprUtil in 
   match defs with
-  | [] -> additional_tests () ; Ok gma
+  | [] -> Ok gma
   | (TermDef (id,tl,ty,tm))::ds ->
     pr "----------------@,";
     pr "Checking definition: %s@," id;
-    let (abs_ty,abs_tm) = abstract_tele_with_tm tl ty tm in
+    let (abs_ty,abs_tm) = E.abstract_tele_with_type tl ty tm in
     let* ty_tm = check gma abs_ty TypV in
     let ty_val = eval gma.top gma.loc ty_tm in
     let* tm_tm = check gma abs_tm ty_val in
@@ -594,34 +590,23 @@ let rec check_defs gma defs =
     (* pr "Type: @[%a@]@," pp_expr ty_nf; *)
     (* pr "Term: @[%a@]@," pp_expr tm_nf; *)
     check_defs (define gma id tm_val ty_val) ds
-  | (CohDef _)::ds ->
+      
+  | (CohDef (_,TreePd (_,_),_,_,_))::ds ->
+     check_defs gma ds
+     
+  | (CohDef (id,TelePd _,_,_,_))::ds ->
     pr "----------------@,";
-    (* pr "Checking coherence: %s@," id;
-     * let* (gt,at) = check_coh gma g a in
-     * let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
-     * let coh_tm = eval gma.top gma.loc (CohT (gt , at)) in
-     * (\* let coh_ty_nf = term_to_expr Emp (quote gma.lvl coh_ty false) in *\)
-     * let coh_tm_nf = term_to_expr Emp (quote gma.lvl coh_tm false) in
-     * (\* pr "Coh type: @[%a@]@," pp_expr coh_ty_nf; *\)
-     * (\* pr "Coh term raw: %a@," pp_term (CohT (gt,at));
-     *  * pr "Coh term val: %a@," pp_value coh_tm;
-     *  * pr "Coh term nf: %a@," pp_term (quote gma.lvl coh_tm false); *\)
-     * pr "Coh expr: @[%a@]@," pp_expr coh_tm_nf; *)
+    pr "Checking coherence: %s@," id;
+    (* let* (gt,at) = check_coh gma g a in *)
+    (* let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in
+     * let coh_tm = eval gma.top gma.loc (CohT (gt , at)) in *)
+    (* let coh_ty_nf = term_to_expr Emp (quote gma.lvl coh_ty false) in *)
+    (* let coh_tm_nf = term_to_expr Emp (quote gma.lvl coh_tm false) in *)
+    (* pr "Coh type: @[%a@]@," pp_expr coh_ty_nf; *)
+    (* pr "Coh term raw: %a@," pp_term (CohT (gt,at));
+     * pr "Coh term val: %a@," pp_value coh_tm;
+     * pr "Coh term nf: %a@," pp_term (quote gma.lvl coh_tm false); *)
+    (* pr "Coh expr: @[%a@]@," pp_expr coh_tm_nf; *)
     (* check_defs (define gma id coh_tm coh_ty) ds *)
     check_defs gma ds
-
-and additional_tests _ =
-  let _ = Int.of_string "45" in ()
-  (* pr "----------------@,";
-   * let s = [3;0;3] in 
-   * match Pd.comp_seq s with
-   * | Ok pd ->
-   *   let pd_lvl = pd_to_lvl pd in 
-   *   let pd_idx = pd_to_idx pd in
-   *   let nms = map_suite (Pd.labels pd_lvl) ~f:(fun i -> str "x%a" pp_term i) in
-   *   let utm = unbiased_comp pd_idx (VarT (length nms)) in 
-   *   let uexp = term_to_expr (append (singleton "C") nms) utm in
-   *   (\* pr "%a\n" pp_term utm; *\)
-   *   pr "ucomp: @[<hov>%a@]@," pp_expr uexp
-   * | Error s -> pr "error: %s" s *)
 

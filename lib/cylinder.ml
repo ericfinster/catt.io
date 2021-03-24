@@ -40,12 +40,12 @@ let lid_disc ((ct,(_,l,_)) : 'a cyl) : 'a disc =
 
 let flat ((sph,ct) : 'a susp_cyl_typ) : 'a disc =
   match ct with
-  | [] -> raise (Failure "empty on flat")
+  | [] -> failwith "empty on flat"
   | ((sb,sl,sc),_)::_ -> (sph |> (sb,sl) , sc)
 
 let sharp ((sph,ct) : 'a susp_cyl_typ) : 'a disc =
   match ct with
-  | [] -> raise (Failure "empty on flat")
+  | [] -> failwith "empty on sharp"
   | (_,(tb,tl,tc))::_ -> (sph |> (tb,tl) , tc)
 
 (* Folding over lists with three parameters. *)
@@ -54,7 +54,7 @@ let rec fold3 a b c init f =
   | ([],[],[]) -> init
   | (x::a',y::b',z::c') ->
     fold3 a' b' c' (f init x y z) f
-  | _ -> raise (Failure "unequal fold3")
+  | _ -> failwith "unequal fold3"
          
 module CylinderOps(C: CatImpl) = struct
   include CatUtils(C)
@@ -64,7 +64,7 @@ module CylinderOps(C: CatImpl) = struct
     : s susp_cyl_typ * s disc * s disc * s * s * s * s = 
     
     match ct with
-    | [] -> raise (Failure "empty cylinder context")
+    | [] -> failwith "advance on empty cylinder context"
     | ((sb,sl,sc),(tb,tl,tc))::crem -> 
       
       let sph' = sph |> (sb,tl) in
@@ -122,7 +122,7 @@ module CylinderOps(C: CatImpl) = struct
       (sc : s) (tc : s) : s susp_cyl = 
 
     match sph with
-    | Emp -> raise (Failure "lift on unsuspended cylinder")
+    | Emp -> failwith "lift on unsuspended cylinder"
     | Ext (sph',(sb,tl)) -> 
     
       let i = length sph in
@@ -130,12 +130,12 @@ module CylinderOps(C: CatImpl) = struct
       let (tb,brem) =
         (match snd (split_at (i-1) bsph) with
          | ((_,tb)::brem) -> (tb,brem)
-         | _ -> raise (Failure "dimension error in base")) in 
+         | _ -> failwith "dimension error in base") in 
 
       let (sl,lrem) =
         (match snd (split_at (i-1) lsph) with
          | ((sl,_)::lrem) -> (sl,lrem)
-         | _ -> raise (Failure "dimension error in lid")) in 
+         | _ -> failwith "dimension error in lid") in 
       
       let go_fold ct (sb,tb) (sl,tl) ((_,_,sc),(_,_,tc))  =
         ct |> ((sb,sl,sc),(tb,tl,tc)) in 

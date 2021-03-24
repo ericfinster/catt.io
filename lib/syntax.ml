@@ -5,6 +5,7 @@
 (*****************************************************************************)
 
 open Suite
+open Base
 open Pd
 
 (*****************************************************************************)
@@ -160,12 +161,16 @@ module SyntaxUtil(Syn : Syntax) = struct
     fold_right (fun (nm,ict,_) tm'  ->
         lam nm ict tm') tele tm
 
+  let abstract_tele_with_type tl ty tm =
+    fold_right (fun (nm,ict,ty) (ty',tm') ->
+        (pi nm ict ty ty', lam nm ict tm'))
+      tl (ty,tm)
+  
   (* This could be better if we had a "var" map ... *)
   let fresh_pd pd =
     let k = length (labels pd) in
     pd_lvl_map pd (fun _ l -> var k l)
 
-  (* There is a another version where the sphere is a list ... *)
   let suite_sph_typ bdy ct =
     fold_left (fun ct' (s,t) ->
         hom ct' s t) ct bdy 
@@ -182,6 +187,14 @@ module SyntaxUtil(Syn : Syntax) = struct
       Ext (tele,(nm_of l flr,ict,lift (l - k - 1) ty))
     in fold_left_with_sph pd f (Ext (Emp,(cn,Impl,cat)))
 
+  let tele_with_pd (tl : s tele) (bc : s) (pd : s pd) =
+    let k = length (labels pd) in 
+    let f sph d (tele,l) is_lf =
+      let ict = if is_lf then Expl else Impl in
+      let ty = obj (suite_sph_typ sph bc) in
+      (Ext (tele,(nm_of l d,ict,lift (l-k-1) ty)) , l+1)
+    in fst (fold_left_with_sph pd f (tl,length tl))
+  
   (* Unbiased composition coherence *)
   let rec ucomp_coh : type a. a pd -> s = fun pd ->
     if (is_disc pd) then
@@ -197,7 +210,7 @@ module SyntaxUtil(Syn : Syntax) = struct
       let sph = map_suite bdry
           ~f:(fun (s,t) -> (ucomp ct s, ucomp ct t)) in
       match sph with
-      | Emp -> raise (Failure "empty sphere in ucomp")
+      | Emp -> failwith "empty sphere in ucomp"
       | Ext (sph',(src,tgt)) ->
         coh tele (suite_sph_typ sph' ct) src tgt
 
@@ -209,7 +222,6 @@ module SyntaxUtil(Syn : Syntax) = struct
       let coh = ucomp_coh pd in
       app_args coh (pd_args ct pd)
 
-  
   include CatUtils(
     struct
       type s = Syn.s
@@ -219,4 +231,75 @@ module SyntaxUtil(Syn : Syntax) = struct
     end)
       
 end
+
+(*****************************************************************************)
+(*                                  Matching                                 *)
+(*****************************************************************************)
+
+module type SyntaxMatch = sig
+  include Syntax
+  val match_cat : s -> (s * s sph) Option.t
+  val match_obj : s -> s Option.t
+end
+
+module MatchPd(S : SyntaxMatch) = struct
+  include S
+
+  let match_cat_type (ct : s) : (s * s sph) Option.t =
+    match (match_obj ct) with
+    | None -> None
+    | Some c -> match_cat c
+  
+  let rec types_to_pd (depth : int) (typs : s suite) : (s pd * s * s sph * s * int * int, string) Result.t =
+    match typs with
+    | Emp -> Error "Empty context is not a pasting diagram"
+    | Ext(Emp,_) -> Error "Singleton context is not a pasting diagram"
+                      
+    | Ext(Ext(tl',cat_tm),obj_tm) when depth = 2 ->
+
+      Fmt.pr "@[<v>cat_tm: %a@,@]" pp cat_tm;
+      Fmt.pr "@[<v>cat: %a@,@]" pp cat;
+      Fmt.pr "@[<v>obj_tm: %a@,@]" pp obj_tm;
+      let l = length tl' in
+      let cvar = var (l+1) l in
+      Fmt.pr "@[<v>obj cvar: %a@,@]" pp (obj cvar);
+      let svar = var (l+2) (l+1) in 
+      if (Poly.(<>) cat_tm cat) then
+        Error "Pasting diagram does not start with an abstract category"
+      else if (Poly.(<>) obj_tm (obj cvar)) then
+        Error "Initial object not in the correct category"
+      else Ok (Pd.Br (svar,Emp), cvar, Emp, svar, l+2, l)
+          
+    | Ext(Ext(tl',tobj),fobj) ->
+
+      (* FIXME!!! Handle lifting .... *)
+      let* (pd,ctm,ssph,stm,lvl,dim) = types_to_pd (depth - 2) tl' in
+
+      let* (tcat,tsph) = Result.of_option (match_cat_type tobj)
+          ~error:"Target cell does not have category type." in
+
+      let tdim = length tsph in 
+      let codim = dim - tdim in
+      let (ssph',stm') = Pd.nth_target (ssph,stm) codim in 
+      
+      if (Poly.(<>) (ctm,ssph') (tcat,tsph)) then
+        Error "Invalid target type"
+      else
+        
+        let* (fcat,fsph) = Result.of_option (match_cat_type fobj)
+            ~error:"Filling cell does not have category type." in
+
+        let ttm = var lvl (lvl-1) in
+        let fsph' = Ext (ssph',(stm', ttm)) in
+
+        if (Poly.(<>) (ctm,fsph') (fcat,fsph)) then
+          Error "Invalid filling type"
+
+        else
+          
+          let* pd' = Pd.insert_right pd tdim ttm (Pd.Br (var lvl lvl,Emp)) in
+          Ok (pd', ctm, fsph', ttm, lvl+1, tdim+1)
+  
+end
+
 

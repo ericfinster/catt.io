@@ -28,12 +28,12 @@ let is_empty s =
 let head s =
   match s with
   | Ext(_,a) -> a
-  | _ -> raise (Failure "head on empty")
+  | _ -> failwith "head on empty"
 
 let init s =
   match s with
   | Ext(s',_) -> s'
-  | _ -> raise (Failure "init on empty")
+  | _ -> failwith "init on empty"
            
 let rec length s =
   match s with

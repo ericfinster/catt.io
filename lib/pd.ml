@@ -12,12 +12,6 @@ let (let*) m f = Base.Result.bind m ~f
 type 'a pd =
   | Br of 'a * ('a * 'a pd) suite
 
-type 'a sph = ('a * 'a) suite
-type 'a disc = 'a sph * 'a 
-
-type 'a lsph = ('a * 'a) list
-type 'a ldisc = 'a lsph * 'a 
-
 let is_leaf pd = 
   match pd with
   | Br (_,Emp) -> true
@@ -97,6 +91,48 @@ let rec zip_with_addr_lcl addr pd =
 let zip_with_addr pd =
   zip_with_addr_lcl Emp pd
   
+(*****************************************************************************)
+(*                             Discs and Spheres                             *)
+(*****************************************************************************)
+
+type 'a sph = ('a * 'a) suite
+type 'a disc = 'a sph * 'a 
+
+type 'a lsph = ('a * 'a) list
+type 'a ldisc = 'a lsph * 'a 
+
+let map_sph sph ~f =
+  map_suite sph ~f:(fun (s,t) -> (f s, f t))
+    
+let map_disc (sph,d) ~f =
+  (map_sph sph ~f , f d)
+
+let pp_sph pp_el ppf sph =
+  let open Fmt in
+  pf ppf "@[<hov>%a@]" (pp_suite ~sep:(sps 1 ++ any "| ")
+                 (hovbox (pair ~sep:(any " =>" ++ sps 1) pp_el pp_el))) sph
+
+let pp_disc pp_el ppf (sph, flr) =
+  let open Fmt in
+  if (is_empty sph) then
+    pf ppf "%a" pp_el flr
+  else
+    pf ppf "@[%a | %a@]" (pp_sph pp_el)
+      sph pp_el flr
+
+let rec nth_target (sph,d) n =
+  if (n <= 0) then (sph,d)
+  else match sph with
+    | Emp -> failwith "No Target"
+    | Ext (sph',(_,t)) ->
+      nth_target (sph',t) (n-1)
+
+let rec nth_source (sph,d) n =
+  if (n <= 0) then (sph,d)
+  else match sph with
+    | Emp -> failwith "No Source"
+    | Ext (sph',(s,_)) ->
+      nth_source (sph',s) (n-1)
 
 (*****************************************************************************)
 (*                                   Zipper                                  *)
@@ -230,12 +266,6 @@ let insert_left pd d lbl nbr =
 (*****************************************************************************)
 (*                                Custom Maps                                *)
 (*****************************************************************************)
-
-let map_sph sph ~f =
-  map_suite sph ~f:(fun (s,t) -> (f s, f t))
-    
-let map_disc (sph,d) ~f =
-  (map_sph sph ~f , f d)
 
 let rec map_pd pd ~f =
   match pd with
@@ -379,19 +409,6 @@ let rec pp_tr ppf pd =
     Fmt.pf ppf "%a" (Fmt.parens (pp_suite ~sep:Fmt.nop pp_tr))
       (map_suite brs ~f:snd)
 
-let pp_sph pp_el ppf sph =
-  let open Fmt in
-  pf ppf "@[<hov>%a@]" (pp_suite ~sep:(sps 1 ++ any "| ")
-                 (hovbox (pair ~sep:(any " =>" ++ sps 1) pp_el pp_el))) sph
-
-let pp_disc pp_el ppf (sph, flr) =
-  let open Fmt in
-  if (is_empty sph) then
-    pf ppf "%a" pp_el flr
-  else
-    pf ppf "@[%a | %a@]" (pp_sph pp_el)
-      sph pp_el flr
-
 (*****************************************************************************)
 (*                              Pd Construction                              *)
 (*****************************************************************************)
@@ -430,7 +447,7 @@ let two_disc = ([("0","1");("2","3")],"4")
       
 let rec comp_seq s =
   match s with
-  | [] -> raise (Failure "invalid comp seq")
+  | [] -> failwith "Invalid Comp Seq"
   | n::[] -> unit_disc_pd n
   | n::i::s' ->
     Base.Result.ok_or_failwith
