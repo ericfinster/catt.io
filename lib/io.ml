@@ -6,7 +6,31 @@
 
 open Format
 open Expr
+open Uutf
 
+
+(*****************************************************************************)
+(*                              Unicode Reading                              *)
+(*****************************************************************************)
+
+(* I suspect this is not so efficient.  Better I think would be to
+   directly allocate the array and add the characters as we go.
+ *)
+
+let read_uchar_array f = 
+  let fi = open_in f in
+  let d = decoder (`Channel fi) in
+  let rec loop acc =
+    match decode d with
+    | `Uchar u -> loop (u::acc)
+    | `End -> Base.List.rev acc
+    | `Malformed _ -> loop (u_rep::acc)
+    | `Await -> failwith "awaiting input"
+  in
+  let chars = loop [] in
+  close_in fi;
+  Base.Array.of_list chars
+  
 (*****************************************************************************)
 (*                                  Parsing                                  *)
 (*****************************************************************************)
@@ -25,32 +49,25 @@ let get_parse_error env =
 let rec parse lexbuf (checkpoint : (defn list) I.checkpoint) =
   match checkpoint with
   | I.InputNeeded _env ->
-      let token = Lexer.token lexbuf in
-      let startp = lexbuf.lex_start_p
-      and endp = lexbuf.lex_curr_p in
-      let checkpoint = I.offer checkpoint (token, startp, endp) in
-      parse lexbuf checkpoint
+    let token = Lexer.token lexbuf in
+    let (startp,endp) = Sedlexing.lexing_positions lexbuf in 
+    let checkpoint = I.offer checkpoint (token, startp, endp) in
+    parse lexbuf checkpoint
   | I.Shifting _
   | I.AboutToReduce _ ->
-      let checkpoint = I.resume checkpoint in
-      parse lexbuf checkpoint
+    let checkpoint = I.resume checkpoint in
+    parse lexbuf checkpoint
   | I.HandlingError _env ->
-      let line, pos = Lexer.get_lexing_position lexbuf in
-      let err = get_parse_error _env in
-      raise (Parse_error (Some (line, pos), err))
+    let line, pos = Lexer.get_lexing_position lexbuf in
+    let err = get_parse_error _env in
+    raise (Parse_error (Some (line, pos), err))
   | I.Accepted v -> v
   | I.Rejected ->
-       raise (Parse_error (None, "Invalid syntax (parser rejected the input)"))
+    raise (Parse_error (None, "Invalid syntax (parser rejected the input)"))
 
 let parse_file f =
-  let lexbuf =
-    let fi = open_in f in
-    let flen = in_channel_length fi in
-    let buf = Bytes.create flen in
-    really_input fi buf 0 flen;
-    close_in fi;
-    Lexing.from_string (Bytes.to_string buf)
-  in try parse lexbuf (Parser.Incremental.prog lexbuf.lex_curr_p) with 
+  let lexbuf = Sedlexing.from_uchar_array (read_uchar_array f) in 
+  try parse lexbuf (Parser.Incremental.prog (fst (Sedlexing.lexing_positions lexbuf))) with 
   | Parse_error (Some (line,pos), err) ->
     printf "Parse error: %sLine: %d, Pos: %d@," err line pos;
     exit (-1)
@@ -76,29 +93,6 @@ let rec parse_all files =
     List.append ds dds
 
     
-(* let rec raw_check_all files =
- *   match files with
- *   | [] -> raw_complete_env
- *   | f::fs -> 
- *     print_string "-----------------";
- *     print_cut ();
- *     printf "Processing input file: %s\n" f;
- *     let (impts, cmds) = parse_file f in
- *     let imprt_nms = List.map (fun fn -> fn ^ ".catt") impts in
- *     let* (renv, tenv) = raw_check_all imprt_nms in
- *     if (List.mem f tenv.modules) then
- *       let _ = printf "Skipping repeated import: %s@," f in
- *       raw_with_env renv tenv (raw_check_all fs)
- *     else let* (renv', tenv') = raw_with_env renv tenv (check_cmds cmds) in
- *       let tenv'' = { tenv' with modules = f::tenv'.modules } in 
- *       raw_with_env renv' tenv'' (raw_check_all fs) *)
-
-(* let check_files files =
- *   let tenv = { empty_env with config = !global_config } in
- *   match raw_check_all files empty_raw_env tenv with
- *   | Ok (Ok env) -> env
- *     (\* A total hack.  Find a graceful way ... *\)
- *   | _ -> raise Not_found *)
            
 
 

@@ -1,6 +1,3 @@
-(ocamllex
-  (modules lexer))
-
 (menhir
   (infer false)
   (flags --table)
@@ -23,5 +20,5 @@
  (name catt)
  (public_name catt)
  (synopsis "Core routines and typechecker for catt.io")
- (libraries base fmt menhirLib sedlex)
+ (libraries base fmt menhirLib sedlex uutf)
  (preprocess (pps sedlex.ppx)))

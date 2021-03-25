@@ -1,0 +1,15 @@
+#
+#  basics.catt - basic definitions in the underyling type theory
+#
+
+let idf {A : U} (a : A) : A = a
+
+# Impredicative Lists
+let List : U -> U
+  = \A. (L : U) -> (A -> L -> L) -> L -> L
+let nil : (A : _) -> List A
+  = \A. \L. \cons. \nil. nil
+let cons : (A : U) -> A -> List A -> List A
+  = \A. \x. \xs. \L. \cons. \nil. cons x (xs _ cons nil)
+
+
