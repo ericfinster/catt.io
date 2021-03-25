@@ -275,6 +275,7 @@ module MatchPd(S : SyntaxMatch) = struct
       (* FIXME!!! Handle lifting .... *)
       let* (pd,ctm,ssph,stm,lvl,dim) = types_to_pd (depth - 2) tl' in
 
+
       let* (tcat,tsph) = Result.of_option (match_cat_type tobj)
           ~error:"Target cell does not have category type." in
 

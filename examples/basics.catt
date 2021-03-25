@@ -12,4 +12,6 @@ let nil : (A : _) -> List A
 let cons : (A : U) -> A -> List A -> List A
   = \A. \x. \xs. \L. \cons. \nil. cons x (xs _ cons nil)
 
+# Testing unicode
+let my-αfun {A : U} (a : A) : A = a 
 

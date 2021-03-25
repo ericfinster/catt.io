@@ -10,7 +10,7 @@ let letter = [%sedlex.regexp? 'a'..'z'|'A'..'Z']
 let space = [%sedlex.regexp? ' ' | '\t' | '\r']
 let digit = [%sedlex.regexp? '0'..'9']
 let number = [%sedlex.regexp? Plus digit]
-let ident = [%sedlex.regexp? letter, Star ('A'..'Z' | 'a' .. 'z' | digit)]
+let ident = [%sedlex.regexp? letter, Star ('A'..'Z' | 'a' .. 'z' | '_' | '-' | digit)]
 
 exception Lexing_error of ((int * int) option * string)
 
@@ -60,7 +60,7 @@ let rec token buf =
 
   | Plus space -> token buf
   | "#",Star (Compl '\n') -> token buf 
-  | "\n" -> Sedlexing.new_line buf ; token buf 
+  | "\n" -> token buf (* Sedlexing.new_line buf ; token buf  *)
   | eof -> EOF
   | _ -> lexing_error buf (Printf.sprintf "Unexpected character \'%s\'" (Sedlexing.Latin1.lexeme buf))
 

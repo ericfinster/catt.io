@@ -7,29 +7,6 @@
 open Format
 open Expr
 open Uutf
-
-
-(*****************************************************************************)
-(*                              Unicode Reading                              *)
-(*****************************************************************************)
-
-(* I suspect this is not so efficient.  Better I think would be to
-   directly allocate the array and add the characters as we go.
- *)
-
-let read_uchar_array f = 
-  let fi = open_in f in
-  let d = decoder (`Channel fi) in
-  let rec loop acc =
-    match decode d with
-    | `Uchar u -> loop (u::acc)
-    | `End -> Base.List.rev acc
-    | `Malformed _ -> loop (u_rep::acc)
-    | `Await -> failwith "awaiting input"
-  in
-  let chars = loop [] in
-  close_in fi;
-  Base.Array.of_list chars
   
 (*****************************************************************************)
 (*                                  Parsing                                  *)
@@ -66,18 +43,28 @@ let rec parse lexbuf (checkpoint : (defn list) I.checkpoint) =
     raise (Parse_error (None, "Invalid syntax (parser rejected the input)"))
 
 let parse_file f =
-  let lexbuf = Sedlexing.from_uchar_array (read_uchar_array f) in 
-  try parse lexbuf (Parser.Incremental.prog (fst (Sedlexing.lexing_positions lexbuf))) with 
+  let fi = open_in f in
+  let lexbuf = Sedlexing.Utf8.from_channel fi in 
+  try
+    let chkpt = Parser.Incremental.prog (fst (Sedlexing.lexing_positions lexbuf)) in
+    let defs = parse lexbuf chkpt in
+    close_in fi;
+    defs
+  with 
   | Parse_error (Some (line,pos), err) ->
     printf "Parse error: %sLine: %d, Pos: %d@," err line pos;
+    close_in fi;
     exit (-1)
   | Parse_error (None, err) -> 
     printf "Parse error: %s" err;
+    close_in fi;
     exit (-1)
   | Lexer.Lexing_error (Some (line,pos), err) ->
+    close_in fi;
     printf "Lexing error: %s@,Line: %d, Pos: %d@," err line pos;
     exit (-1)
   | Lexer.Lexing_error (None, err) -> 
+    close_in fi;
     printf "Lexing error: %s@," err;
     exit (-1)
 
