@@ -14,4 +14,5 @@ let cons : (A : U) -> A -> List A -> List A
 
 # Testing unicode
 let funα {Γ : U} (γ : Γ) : Γ = γ 
+let fun₁ {Γ₀ : U} (γ : Γ₀) : Γ₀ = γ
 

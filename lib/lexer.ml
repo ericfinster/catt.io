@@ -13,8 +13,10 @@ let number = [%sedlex.regexp? Plus digit]
 (* lower lambda is reserved ... *)
 let greek_lower = [%sedlex.regexp? 0x3B1 .. 0x3BA | 0x3BC .. 0x3C9]
 let greek_upper = [%sedlex.regexp? 0x391 .. 0x3A9]
+let subscripts = [%sedlex.regexp? 0x2080 .. 0x208E | 0x2090 .. 0x209C ]
+
 let letter = [%sedlex.regexp? 'a'..'z'|'A'..'Z'|greek_lower|greek_upper] 
-let ident = [%sedlex.regexp? letter, Star (letter | '_' | '-' | digit)]
+let ident = [%sedlex.regexp? letter, Star (letter | subscripts | '_' | '-' | digit)]
 
 exception Lexing_error of ((int * int) option * string)
 

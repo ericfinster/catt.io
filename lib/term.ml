@@ -250,7 +250,7 @@ module TermSyntax = struct
   let cat = CatT
   let obj c = ObjT c
   let hom c s t = HomT (c,s,t)
-  let var k l = VarT (lvl_to_idx k l)
+  let var k l _ = VarT (lvl_to_idx k l)
   let lam nm ict bdy = LamT (nm,ict,bdy)
   let pi nm ict dom cod = PiT (nm,ict,dom,cod)
   let coh g c s t = CohT (g,c,s,t)
@@ -271,4 +271,71 @@ let pd_to_term_tele : 'a Pd.pd -> term tele = fun pd ->
 
 let term_ucomp_coh : 'a Pd.pd -> term = fun pd ->
   TermUtil.ucomp_coh pd
+
+(*****************************************************************************)
+(*                             Term Pd Conversion                            *)
+(*****************************************************************************)
+
+module TermPdConvertible = struct
+
+  type s = term
+    
+  let cat = CatT
+  let obj c = ObjT c
+  let hom c s t = HomT (c,s,t)
+  
+  let match_hom e =
+    match e with
+    | HomT (c,s,t) -> Some (c,s,t)
+    | _ -> None
+
+  let match_obj e =
+    match e with
+    | ObjT c -> Some c
+    | _ -> None 
+
+  let lift i t = db_lift_by 0 i t
+  let var k l _ = VarT (lvl_to_idx k l)
+
+  let pp = pp_term
+    
+end
+
+module TermPdConv = PdConversion(TermPdConvertible)
+
+let term_fixup (pd : string pd) : (term decl) pd =
+  (pd_idx_map pd (fun s _ -> (s,Impl,VarT 0)))
+  
+let string_pd_to_term_tele (pd : string pd) : term tele = 
+  TermPdConv.pd_to_tele (VarT 0) (term_fixup pd)
+
+(*****************************************************************************)
+(*                               (OLD) Matching                              *)
+(*****************************************************************************)
+
+module TermMatch = struct
+  include TermSyntax
+
+  let (let*) m f = Base.Option.bind m ~f 
+
+  (* Hmmm. Don't need option here ... *)
+  let rec match_cat t =
+    match t with
+    | HomT (c,s,t) ->
+      let* (bc,sph) = match_cat c in
+      Some (bc,sph |> (s,t))
+    | _ -> Some (t,Emp)
+
+  let match_obj t =
+    match t with
+    | ObjT c -> Some c
+    | _ -> None 
+      
+end
+
+
+module TermMatchPd = MatchPd(TermMatch)
+
+let term_match_pd (tl : term tele) : (term pd , string) Result.t =
+  TermMatchPd.tele_to_pd (length tl) tl 
 

@@ -188,7 +188,7 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   | CylE (b,l,c) ->
     pf ppf "[| %a | %a | %a |]" ppe b ppe l ppe c 
 
-let pp_expr = pp_expr_gen ~si:false ~fh:false ~pc:true
+let pp_expr = pp_expr_gen ~si:false ~fh:true ~pc:true
 let pp_expr_with_impl = pp_expr_gen ~si:true ~fh:true ~pc:true
 
 (*****************************************************************************)
@@ -200,7 +200,7 @@ module ExprSyntax = struct
   let lift _ t = t
   let cat = CatE
   let obj c = ObjE c
-  let var _ l = VarE (str "x%d" l)
+  let var _ _ nm = VarE nm
   let lam nm ict bdy = LamE (nm,ict,bdy)
   let pi nm ict dom cod = PiE (nm,ict,dom,cod)
   let hom c s t = HomE (c,s,t)
@@ -231,6 +231,43 @@ let expr_app_args = ExprUtil.app_args
 let ucomp_coh_expr : 'a pd -> expr = fun pd ->
   ExprUtil.ucomp_coh pd 
 
+
+(*****************************************************************************)
+(*                             Expr Pd Conversion                            *)
+(*****************************************************************************)
+
+module ExprPdConvertible = struct
+
+  type s = expr
+    
+  let cat = CatE
+  let obj c = ObjE c
+  let hom c s t = HomE (c,s,t)
+  
+  let match_hom e =
+    match e with
+    | HomE (c,s,t) -> Some (c,s,t)
+    | _ -> None
+
+  let match_obj e =
+    match e with
+    | ObjE c -> Some c
+    | _ -> None 
+
+  let lift _ t = t
+  let var _ _ nm = VarE nm
+
+  let pp = pp_expr
+    
+end
+
+module ExprPdConv = PdConversion(ExprPdConvertible)
+
+let string_pd_to_expr_tele (pd : string pd) : expr tele = 
+  ExprPdConv.pd_to_tele (VarE "C")
+    (* FIXME! Use a better map to decide implicitness *)
+    (map_pd pd ~f:(fun s -> (s,Impl,VarE s)))
+
 (*****************************************************************************)
 (*                            Expression Matching                            *)
 (*****************************************************************************)
@@ -258,8 +295,7 @@ end
 module ExprMatchPd = MatchPd(ExprMatch)
 
 let expr_match_pd (tl : expr tele) : (expr pd , string) Result.t =
-  let (let*) m f = Base.Result.bind m ~f in
-  let* (pd,_,_,_,_,_) = ExprMatchPd.types_to_pd (length tl)
-      (map_suite tl ~f:(fun (_,_,ty) -> ty)) in
-  Ok pd
+  ExprMatchPd.tele_to_pd (length tl) tl 
     
+
+
