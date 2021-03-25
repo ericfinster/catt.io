@@ -66,7 +66,7 @@ let pp_tele pp_el ppf tl =
 (*                         Pasting Diagram Conversion                        *)
 (*****************************************************************************)
     
-module type PdConvertible = sig
+module type PdSyntax = sig
   
   type s
 
@@ -84,7 +84,7 @@ module type PdConvertible = sig
   
 end
 
-module PdConversion(P : PdConvertible) = struct
+module PdConversion(P : PdSyntax) = struct
   include P
 
   let rec match_homs (c : s) : (s * s sph) Option.t =
@@ -268,7 +268,7 @@ module CatUtils(C: CatImpl) = struct
     match sph with
     | Emp -> c
     | Ext (sph',(s,t)) ->
-      hom (sph_to_typ c sph') s t 
+      hom (sph_to_typ c sph') s t
   
 end
 
@@ -380,95 +380,4 @@ module SyntaxUtil(Syn : Syntax) = struct
     end)
       
 end
-
-(*****************************************************************************)
-(*                                  Matching                                 *)
-(*****************************************************************************)
-
-module type SyntaxMatch = sig
-  include Syntax
-  val match_cat : s -> (s * s sph) Option.t
-  val match_obj : s -> s Option.t
-end
-
-module MatchPd(S : SyntaxMatch) = struct
-  include S
-
-  let match_cat_type (ct : s) : (s * s sph) Option.t =
-    match (match_obj ct) with
-    | None -> None
-    | Some c -> match_cat c
-
-
-  let tele_to_pd (depth : int) (tl : s tele) : (s pd, string) Result.t =
-    
-    let rec go (depth : int) (tl : s tele) = 
-      match tl with 
-      | Emp -> Error "Empty context is not a pasting diagram"
-      | Ext(Emp,_) -> Error "Singleton context is not a pasting diagram"
-
-      | Ext(Ext(tl',(cnm,_,cty)),(onm,_,oty)) when depth = 2 ->
-
-        Fmt.pr "@[<v>cat_tm: %a@,@]" pp cty;
-        Fmt.pr "@[<v>cat: %a@,@]" pp cat;
-        Fmt.pr "@[<v>obj_tm: %a@,@]" pp oty;
-        let l = length tl' in
-        let cvar = var (l+1) l cnm in
-        Fmt.pr "@[<v>obj cvar: %a@,@]" pp (obj cvar);
-        let svar = var (l+2) (l+1) onm in 
-        if (Poly.(<>) cty cat) then
-          Error "Pasting diagram does not start with an abstract category"
-        else if (Poly.(<>) oty (obj cvar)) then
-          Error "Initial object not in the correct category"
-        else Ok (Pd.Br (svar,Emp), lift 1 cvar , Emp, svar, l+2, l)
-
-      | Ext(Ext(tl',(tnm,_,tty)),(fnm,_,fty)) ->
-
-        let* (pd,ctm,ssph,stm,lvl,dim) = go (depth - 2) tl' in
-
-        let* (tcat,tsph) = Result.of_option (match_cat_type tty)
-            ~error:"Target cell does not have category type." in
-
-        let tdim = length tsph in 
-        let codim = dim - tdim in
-        let (ssph',stm') = Pd.nth_target (ssph,stm) codim in 
-
-        Fmt.pr "@[<v>Expected target cat: %a@,Received target cat: %a@,@]"
-          pp ctm pp tcat;
-        Fmt.pr "@[<v>Expected target sphere: %a@,Received target sphere: %a@,@]"
-          (pp_sph pp) ssph' (pp_sph pp) tsph;
-
-        if (Poly.(<>) (ctm,ssph') (tcat,tsph)) then
-          Error "Invalid target type"
-        else
-
-          let* (fcat,fsph) = Result.of_option (match_cat_type fty)
-              ~error:"Filling cell does not have category type." in
-
-          let (lsph,ltm) = map_disc (ssph',stm') ~f:(lift 1) in 
-          let ttm = var (lvl+1) lvl tnm in
-          let fsph' = Ext (lsph,(ltm, ttm)) in
-
-          if (Poly.(<>) (lift 1 ctm,fsph') (fcat,fsph)) then
-
-            let _ = 5 in
-            
-            Fmt.pr "@[<v>Expected filling cat: %a@,Received filling cat: %a@,@]"
-              pp ctm pp fcat;
-            Fmt.pr "@[<v>Expected filling sphere: %a@,Received filling sphere: %a@,@]"
-              (pp_sph pp) fsph' (pp_sph pp) fsph;
-
-            Error "Invalid filling type"
-
-          else
-
-            let ftm = var (lvl+2) (lvl+1) fnm in
-            let lfsph = map_sph fsph' ~f:(lift 1) in 
-            let* pd' = Pd.insert_right pd tdim ttm (Pd.Br (ftm,Emp)) in
-            Ok (pd', lift 2 ctm, lfsph, ftm, lvl+2, tdim+1)
-
-    in let* (pd,_,_,_,_,_) = go depth tl in Ok pd 
-
-end
-
 

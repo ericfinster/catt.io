@@ -181,4 +181,79 @@ let quote_tele tl =
 let nf top loc tm =
   quote (length loc) (eval top loc tm) true
 
+(*****************************************************************************)
+(*                               Free Variables                              *)
+(*****************************************************************************)
+             
+let rec free_vars_val k v =
+  let module S = Base.Set in 
+  let fvc x = free_vars_val k x in 
+  let sp_vars sp = free_vars_sp k sp in 
+  match force_meta v with
+  | FlexV (_,sp) -> sp_vars sp
+  | RigidV (l,sp) -> S.add (sp_vars sp) (lvl_to_idx k l) 
+  | TopV (_,sp,_) -> sp_vars sp
+  | LamV (_,_,Closure (_,loc,tm)) -> free_vars (length loc) tm
+  | PiV (_,_,a,Closure (_,loc,b)) ->
+    S.union (free_vars_val k a) (free_vars (length loc) b)
+  | ObjV c -> free_vars_val k c
+  | HomV (c,s,t) ->
+    S.union_list (module Base.Int) [fvc c; fvc s; fvc t]
+  | UCompV (_,sp) -> sp_vars sp 
+  | CohV (v,sp) ->
+    S.union (free_vars_val k v) (sp_vars sp)
+  | CylCohV _ -> failwith "fvs cylcohv"
+  | CylV (b,l,c) ->
+    S.union_list (module Base.Int) [fvc b; fvc l; fvc c]
+  | ArrV c -> fvc c
+  | CatV -> fvs_empty
+  | TypV -> fvs_empty 
 
+and free_vars_sp k sp =
+  let module S = Base.Set in 
+  let fvc x = free_vars_val k x in 
+  let fvcs x = free_vars_sp k x in 
+  match sp with
+  | EmpSp -> fvs_empty
+  | AppSp (sp',u,_) ->
+    S.union (fvcs sp') (fvc u)
+  | BaseSp sp' -> fvcs sp'
+  | LidSp sp' -> fvcs sp'
+  | CoreSp sp' -> fvcs sp'
+
+(*****************************************************************************)
+(*                            Value Pd Conversion                            *)
+(*****************************************************************************)
+
+module ValuePdSyntax = struct
+
+  type s = value
+    
+  let cat = CatV
+  let obj c = ObjV c
+  let hom c s t = HomV (c,s,t)
+  
+  let match_hom v =
+    match force_meta v with
+    | HomV (c,s,t) -> Some (c,s,t)
+    | _ -> None
+
+  let match_obj v =
+    match force_meta v with
+    | ObjV c -> Some c
+    | _ -> None 
+
+  let lift _ v = v
+  let var _ l _ = RigidV (l,EmpSp)
+
+  let pp = pp_value
+    
+end
+
+module ValuePdConv = PdConversion(ValuePdSyntax)
+
+let value_fixup (pd : string Pd.pd) : (value decl) Pd.pd =
+  (Pd.pd_lvl_map pd (fun s l -> (s,Impl, varV (l+1))))
+  
+let string_pd_to_value_tele (pd : string Pd.pd) : value tele = 
+  ValuePdConv.pd_to_tele (varV 0) (value_fixup pd)

@@ -151,7 +151,6 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   | TypE -> string ppf "U"
   | HoleE -> string ppf "_"
 
-
   | CatE -> string ppf "Cat"
   | ArrE c ->
     pf ppf "Arr %a" ppe c
@@ -167,16 +166,16 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   | UCompE (DimSeq ds) ->
     pf ppf "ucomp [ %a ]" (list int) ds
   | CohE (TelePd g,c,s,t) ->
-    pf ppf "coh [ %a : %a |> %a => %a ]"
+    pf ppf "@[coh [ @[%a@] : @[%a@] |> %a => %a ]@]"
       (pp_tele ppe) g ppe c ppe s ppe t
   | CohE (TreePd (_,g),c,s,t) ->
-    pf ppf "coh [ %a : %a |> %a => %a ]"
+    pf ppf "@[coh [ @[%a@] : @[%a@] |> %a => %a ]@]"
       pp_tr g ppe c ppe s ppe t
   | CylCohE (TelePd g,c,s,t) ->
-    pf ppf "coh [ %a : %a |> %a => %a ]"
+    pf ppf "cylcoh [ %a : %a |> %a => %a ]"
       (pp_tele ppe) g ppe c (pp_disc ppe) s (pp_disc ppe) t
   | CylCohE (TreePd (_,g),c,s,t) ->
-    pf ppf "coh [ %a : %a |> %a => %a ]"
+    pf ppf "cylcoh [ %a : %a |> %a => %a ]"
       pp_tr g ppe c (pp_disc ppe) s (pp_disc ppe) t
 
   | BaseE c ->
@@ -236,7 +235,7 @@ let ucomp_coh_expr : 'a pd -> expr = fun pd ->
 (*                             Expr Pd Conversion                            *)
 (*****************************************************************************)
 
-module ExprPdConvertible = struct
+module ExprPdSyntax = struct
 
   type s = expr
     
@@ -261,41 +260,10 @@ module ExprPdConvertible = struct
     
 end
 
-module ExprPdConv = PdConversion(ExprPdConvertible)
+module ExprPdConv = PdConversion(ExprPdSyntax)
 
 let string_pd_to_expr_tele (pd : string pd) : expr tele = 
   ExprPdConv.pd_to_tele (VarE "C")
     (* FIXME! Use a better map to decide implicitness *)
     (map_pd pd ~f:(fun s -> (s,Impl,VarE s)))
-
-(*****************************************************************************)
-(*                            Expression Matching                            *)
-(*****************************************************************************)
-
-module ExprMatch = struct
-  include ExprSyntax
-
-  let (let*) m f = Base.Option.bind m ~f 
-
-  (* Hmmm. Don't need option here ... *)
-  let rec match_cat e =
-    match e with
-    | HomE (c,s,t) ->
-      let* (bc,sph) = match_cat c in
-      Some (bc,sph |> (s,t))
-    | _ -> Some (e,Emp)
-
-  let match_obj e =
-    match e with
-    | ObjE c -> Some c
-    | _ -> None 
-      
-end
-
-module ExprMatchPd = MatchPd(ExprMatch)
-
-let expr_match_pd (tl : expr tele) : (expr pd , string) Result.t =
-  ExprMatchPd.tele_to_pd (length tl) tl 
-    
-
 

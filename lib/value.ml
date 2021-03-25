@@ -113,39 +113,4 @@ and pp_spine ppf sp =
 let pp_top_env = hovbox (pp_suite (parens (pair ~sep:(any " : ") string pp_value)))
 let pp_loc_env = hovbox (pp_suite ~sep:comma pp_value)
 
-(*****************************************************************************)
-(*                            Value Pd Conversion                            *)
-(*****************************************************************************)
 
-module ValuePdConvertible = struct
-
-  type s = value
-    
-  let cat = CatV
-  let obj c = ObjV c
-  let hom c s t = HomV (c,s,t)
-  
-  let match_hom e =
-    match e with
-    | HomV (c,s,t) -> Some (c,s,t)
-    | _ -> None
-
-  let match_obj e =
-    match e with
-    | ObjV c -> Some c
-    | _ -> None 
-
-  let lift _ v = v
-  let var _ l _ = RigidV (l,EmpSp)
-
-  let pp = pp_value
-    
-end
-
-module ValuePdConv = PdConversion(ValuePdConvertible)
-
-let value_fixup (pd : string Pd.pd) : (value decl) Pd.pd =
-  (Pd.pd_lvl_map pd (fun s l -> (s,Impl, varV (l+1))))
-  
-let string_pd_to_value_tele (pd : string Pd.pd) : value tele = 
-  ValuePdConv.pd_to_tele (varV 0) (value_fixup pd)

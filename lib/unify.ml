@@ -109,7 +109,7 @@ let solve top k m sp v =
   let rhs = rename m prn v in
   let sol = eval top Emp (lams 0 sp rhs) in
   let mctx = ! metacontext in
-  (* pr "Meta solution : ?%d = %a@," m pp_value sol; *)
+  (* pr "Meta solution : ?%d = @[%a@]@," m pp_value sol; *)
   metacontext := Map.update mctx m ~f:(fun _ -> Solved sol)
 
 type strategy =

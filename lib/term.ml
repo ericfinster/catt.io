@@ -239,6 +239,44 @@ let rec pp_term ppf tm =
   | CylT (b,l,c) ->
     pf ppf "[| %a | %a | %a |]" pp_term b pp_term l pp_term c
 
+(*****************************************************************************)
+(*                               Free Variables                              *)
+(*****************************************************************************)
+
+let fvs_empty = Set.empty (module Int)
+let fvs_singleton k = Set.singleton (module Int) k
+    
+let rec free_vars k tm =
+  match tm with
+  | VarT i when i >= k -> fvs_singleton i 
+  | VarT _ -> fvs_empty
+  | TopT _ -> fvs_empty
+  | LamT (_,_,bdy) -> free_vars (k+1) bdy
+  | AppT (u,v,_) ->
+    Set.union (free_vars k u) (free_vars k v)
+  | PiT (_,_,a,b) ->
+    Set.union (free_vars k a) (free_vars (k+1) b)
+  | ObjT c -> free_vars k c
+  | HomT (c,s,t) ->
+    Set.union (free_vars k c) (Set.union (free_vars k s) (free_vars k t))
+  | UCompT _ -> fvs_empty
+  | CohT (g,c,s,t) ->
+    let rec go k g =
+      match g with
+      | Emp -> free_vars k (HomT (c,s,t))
+      | Ext (g',_) -> go (k+1) g'
+    in go k g
+  | CylCohT _ -> failwith "fvs cylcoh"
+  | CylT (b,l,c) ->
+    Set.union (free_vars k b) (Set.union (free_vars k l) (free_vars k c))
+  | BaseT c -> free_vars k c
+  | LidT c -> free_vars k c
+  | CoreT c -> free_vars k c
+  | ArrT c -> free_vars k c
+  | CatT -> fvs_empty
+  | TypT -> fvs_empty
+  | MetaT _ -> fvs_empty
+  | InsMetaT _ -> fvs_empty
 
 (*****************************************************************************)
 (*                         Term Syntax Implementation                        *)
@@ -276,7 +314,7 @@ let term_ucomp_coh : 'a Pd.pd -> term = fun pd ->
 (*                             Term Pd Conversion                            *)
 (*****************************************************************************)
 
-module TermPdConvertible = struct
+module TermPdSyntax = struct
 
   type s = term
     
@@ -301,41 +339,11 @@ module TermPdConvertible = struct
     
 end
 
-module TermPdConv = PdConversion(TermPdConvertible)
+module TermPdConv = PdConversion(TermPdSyntax)
 
 let term_fixup (pd : string pd) : (term decl) pd =
   (pd_idx_map pd (fun s _ -> (s,Impl,VarT 0)))
   
 let string_pd_to_term_tele (pd : string pd) : term tele = 
   TermPdConv.pd_to_tele (VarT 0) (term_fixup pd)
-
-(*****************************************************************************)
-(*                               (OLD) Matching                              *)
-(*****************************************************************************)
-
-module TermMatch = struct
-  include TermSyntax
-
-  let (let*) m f = Base.Option.bind m ~f 
-
-  (* Hmmm. Don't need option here ... *)
-  let rec match_cat t =
-    match t with
-    | HomT (c,s,t) ->
-      let* (bc,sph) = match_cat c in
-      Some (bc,sph |> (s,t))
-    | _ -> Some (t,Emp)
-
-  let match_obj t =
-    match t with
-    | ObjT c -> Some c
-    | _ -> None 
-      
-end
-
-
-module TermMatchPd = MatchPd(TermMatch)
-
-let term_match_pd (tl : term tele) : (term pd , string) Result.t =
-  TermMatchPd.tele_to_pd (length tl) tl 
 
