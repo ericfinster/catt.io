@@ -20,5 +20,5 @@
  (name catt)
  (public_name catt)
  (synopsis "Core routines and typechecker for catt.io")
- (libraries base fmt menhirLib sedlex uutf)
+ (libraries base fmt menhirLib sedlex)
  (preprocess (pps sedlex.ppx)))

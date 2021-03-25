@@ -6,11 +6,15 @@
 
 open Parser
     
-let letter = [%sedlex.regexp? 'a'..'z'|'A'..'Z'] 
 let space = [%sedlex.regexp? ' ' | '\t' | '\r']
 let digit = [%sedlex.regexp? '0'..'9']
 let number = [%sedlex.regexp? Plus digit]
-let ident = [%sedlex.regexp? letter, Star ('A'..'Z' | 'a' .. 'z' | '_' | '-' | digit)]
+
+(* lower lambda is reserved ... *)
+let greek_lower = [%sedlex.regexp? 0x3B1 .. 0x3BA | 0x3BC .. 0x3C9]
+let greek_upper = [%sedlex.regexp? 0x391 .. 0x3A9]
+let letter = [%sedlex.regexp? 'a'..'z'|'A'..'Z'|greek_lower|greek_upper] 
+let ident = [%sedlex.regexp? letter, Star (letter | '_' | '-' | digit)]
 
 exception Lexing_error of ((int * int) option * string)
 
@@ -48,19 +52,20 @@ let rec token buf =
   | "::"         -> DBLCOLON 
   | "="          -> EQUAL 
   | "."          -> DOT 
-  | "\\"         -> LAMBDA 
+  | "\\"         -> LAMBDA
+  | 0x03bb       -> LAMBDA
   | "_"          -> HOLE 
   | "|"          -> VBAR 
   | "U"          -> TYPE 
   | "Arr"        -> ARR  
   | "Cat"        -> CAT 
 
-  | ident -> IDENT (Sedlexing.Latin1.lexeme buf)
-  | number -> INT (Base.Int.of_string (Sedlexing.Latin1.lexeme buf))
+  | ident -> IDENT (Sedlexing.Utf8.lexeme buf)
+  | number -> INT (Base.Int.of_string (Sedlexing.Utf8.lexeme buf))
 
   | Plus space -> token buf
   | "#",Star (Compl '\n') -> token buf 
   | "\n" -> token buf (* Sedlexing.new_line buf ; token buf  *)
   | eof -> EOF
-  | _ -> lexing_error buf (Printf.sprintf "Unexpected character \'%s\'" (Sedlexing.Latin1.lexeme buf))
+  | _ -> lexing_error buf (Printf.sprintf "Unexpected character: %s" (Sedlexing.Utf8.lexeme buf))
 

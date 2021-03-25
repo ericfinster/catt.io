@@ -6,12 +6,12 @@ let idf {A : U} (a : A) : A = a
 
 # Impredicative Lists
 let List : U -> U
-  = \A. (L : U) -> (A -> L -> L) -> L -> L
+  = λ A. (L : U) -> (A -> L -> L) -> L -> L
 let nil : (A : _) -> List A
-  = \A. \L. \cons. \nil. nil
+  = λ A. λ L. λ cons. λ nil. nil
 let cons : (A : U) -> A -> List A -> List A
-  = \A. \x. \xs. \L. \cons. \nil. cons x (xs _ cons nil)
+  = λ A. λ x. λ xs. λ L. λ cons. λ nil. cons x (xs _ cons nil)
 
 # Testing unicode
-let my-αfun {A : U} (a : A) : A = a 
+let funα {Γ : U} (γ : Γ) : Γ = γ 
 
