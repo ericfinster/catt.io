@@ -442,8 +442,10 @@ let fold_left_with_sph pd f b =
 let rec pp_pd f ppf pd =
   match pd with
   | Br (s,brs) ->
-    Fmt.pf ppf "(%a|%a)" f s
-      (pp_suite ~sep:Fmt.nop (Fmt.parens (Fmt.pair f (pp_pd f)))) brs
+    let pp_pair ppf (x,br) =
+      Fmt.pf ppf "%a%a" (pp_pd f) br f x in 
+    Fmt.pf ppf "(%a%a)" f s
+      (pp_suite ~sep:Fmt.nop pp_pair) brs
 
 (* a simple parenthetic representation of a pasting diagram *)
 let rec pp_tr ppf pd =

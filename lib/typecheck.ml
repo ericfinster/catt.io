@@ -478,8 +478,9 @@ let rec check_defs gma defs =
     (* pr "Term: @[%a@]@," pp_expr tm_nf; *)
     check_defs (define gma id tm_val ty_val) ds
       
-  | (CohDef (_,TreePd (_,_),_,_,_))::ds ->
-     check_defs gma ds
+  | (CohDef (id,TreePd (bc,pd),c,s,t))::ds ->
+    let g = string_pd_to_expr_tele bc pd in
+    check_defs gma ((CohDef (id,TelePd g,c,s,t))::ds)
      
   | (CohDef (id,TelePd g,c,s,t))::ds ->
     pr "----------------@,";

@@ -66,6 +66,7 @@ and appV t u ict =
   | TopV (nm,sp,tv) -> TopV (nm,AppSp(sp,u,ict),appV tv u ict)
   | CohV (v,sp) -> CohV (v,AppSp(sp,u,ict))
   | LamV (_,_,cl) -> cl $$ u
+  | UCompV (ucd,sp) -> UCompV (ucd,AppSp(sp,u,ict))
   | _ -> raise (Eval_error "malformed application")
 
 and baseV v =
@@ -75,6 +76,7 @@ and baseV v =
   | TopV (nm,sp,tv) -> TopV (nm,BaseSp sp, baseV tv)
   | CohV (ga,sp) -> CohV (ga,BaseSp sp)
   | CylV (b,_,_) -> b 
+  | UCompV (ucd,sp) -> UCompV (ucd,BaseSp sp)
   | _ -> raise (Eval_error "malformed base projection")
 
 and lidV v =
@@ -84,6 +86,7 @@ and lidV v =
   | TopV (nm,sp,tv) -> TopV (nm,LidSp sp, lidV tv)
   | CohV (ga,sp) -> CohV (ga,LidSp sp)
   | CylV (_,l,_) -> l
+  | UCompV (ucd,sp) -> UCompV (ucd,LidSp sp)
   | _ -> raise (Eval_error "malformed lid projection")
 
 and coreV v =
@@ -93,6 +96,7 @@ and coreV v =
   | TopV (nm,sp,tv) -> TopV (nm,CoreSp sp, coreV tv)
   | CohV (ga,sp) -> CohV (ga,CoreSp sp)
   | CylV (_,_,c) -> c
+  | UCompV (ucd,sp) -> UCompV (ucd,CoreSp sp)
   | _ -> raise (Eval_error "malformed core projection")
 
 and appLocV loc v =

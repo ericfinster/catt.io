@@ -224,8 +224,8 @@ end
 
 module ExprPdConv = PdConversion(ExprPdSyntax)
 
-let string_pd_to_expr_tele (pd : string pd) : expr tele = 
-  ExprPdConv.pd_to_tele (VarE "C")
+let string_pd_to_expr_tele (c : string) (pd : string pd) : expr tele = 
+  ExprPdConv.pd_to_tele (VarE c)
     (* FIXME! Use a better map to decide implicitness *)
     (map_pd pd ~f:(fun s -> (s,Impl,VarE s)))
 

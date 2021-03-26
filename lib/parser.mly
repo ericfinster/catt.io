@@ -123,17 +123,17 @@ ucomp_pd:
 
 pd_with_tgt:
   | pd = id_pd tgt = IDENT
-    { (VarE tgt,pd) }
+    { (tgt,pd) }
 
 id_pd:
-  | LPAR src = IDENT brs = suite(pd_with_tgt)
-    { Pd.Br (VarE src,brs) }
+  | LPAR src = IDENT brs = suite(pd_with_tgt) RPAR
+    { Pd.Br (src,brs) }
 
 pd_expr:
   | tl = tele
     { TelePd tl }
   | cat = IDENT pd = id_pd
-    { TreePd (VarE cat,pd) }
+    { TreePd (cat,pd) }
 
 sph_expr:
   |

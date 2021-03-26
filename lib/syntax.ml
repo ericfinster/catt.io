@@ -29,7 +29,7 @@ type 'a tele = ('a decl) suite
 
 type 'a pd_desc =
   | TelePd of 'a tele
-  | TreePd of 'a * 'a pd 
+  | TreePd of string * string pd 
 
 type ucmp_desc =
   | UnitPd of unit pd
