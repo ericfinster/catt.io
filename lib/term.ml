@@ -333,3 +333,8 @@ let term_app_args = TermUtil.app_args
 
 let term_ucomp_coh : 'a Pd.pd -> term = fun pd ->
   TermUtil.ucomp_coh pd
+
+let term_ucomp_desc ud =
+  match ud with
+  | UnitPd pd -> term_ucomp_coh pd
+  | DimSeq ds -> term_ucomp_coh (comp_seq ds)

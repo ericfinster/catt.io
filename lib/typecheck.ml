@@ -477,7 +477,9 @@ let rec check_defs gma defs =
     (* pr "Type: @[%a@]@," pp_expr ty_nf; *)
     (* pr "Term: @[%a@]@," pp_expr tm_nf; *)
     check_defs (define gma id tm_val ty_val) ds
-      
+
+  (* Actually, I could just expand this in the parser.  That would make 
+     this simpler, no? *)
   | (CohDef (id,TreePd (bc,pd),c,s,t))::ds ->
     let g = string_pd_to_expr_tele bc pd in
     check_defs gma ((CohDef (id,TelePd g,c,s,t))::ds)

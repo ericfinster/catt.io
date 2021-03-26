@@ -13,7 +13,7 @@ let cyl1 {C : Cat}
     (xb :: C) (xl :: C) (xc :: xb => xl)
     (yb :: C) (yl :: C) (yc :: yb => yl)
     (fb :: xb => yb) (fl :: xl => yl)
-    (fc :: `[ scomp 1 0 1 ] fb yc => `[ scomp 1 0 1 ] xc fl)
+    (fc :: ucomp [ 1 0 1 ] fb yc => ucomp [ 1 0 1 ] xc fl)
   : [ Arr C | cyl xb xl xc => cyl yb yl yc ]
   = cyl fb fl fc
 
@@ -21,12 +21,12 @@ let cyl2 {C : Cat}
     (xb :: C) (xl :: C) (xc :: xb => xl)
     (yb :: C) (yl :: C) (yc :: yb => yl)
     (fb :: xb => yb) (fl :: xl => yl)
-    (fc :: `[ scomp 1 0 1 ] fb yc => `[ scomp 1 0 1 ] xc fl)
+    (fc :: ucomp [ 1 0 1 ] fb yc => ucomp [ 1 0 1 ] xc fl)
     (gb :: xb => yb) (gl :: xl => yl)
-    (gc :: `[ scomp 1 0 1 ] gb yc => `[ scomp 1 0 1 ] xc gl)
+    (gc :: ucomp [ 1 0 1 ] gb yc => ucomp [ 1 0 1 ] xc gl)
     (ab :: fb => gb) (al :: fl => gl)
-    (ac :: `[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] ab yc) gc =>
-           `[ scomp 2 1 2 ] fc (`[ scomp 1 0 2 ] xc al))
+    (ac :: ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] ab yc) gc =>
+           ucomp [ 2 1 2 ] fc (ucomp [ 1 0 2 ] xc al))
   : [ Arr C | cyl xb xl xc => cyl yb yl yc | cyl fb fl fc => cyl gb gl gc ]
   = cyl ab al ac
 
@@ -66,15 +66,18 @@ let core0 {C : Cat} (x :: Arr C) : [ base x => lid x ]
 let core1 {C : Cat}
     (x :: Arr C)
     (y :: Arr C) (f :: x => y)
-  : [ `[ scomp 1 0 1 ] (base f) (core y) =>
-      `[ scomp 1 0 1 ] (core x) (lid f) ]
+  : [ ucomp [ 1 0 1 ] (base f) (core y) =>
+      ucomp [ 1 0 1 ] (core x) (lid f) ]
   = core f
 
 let core2 {C : Cat}
     (x :: Arr C)
     (y :: Arr C) (f :: x => y)
                  (g :: x => y) (a :: f => g)
-  : [ `[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] (base a) (core y)) (core g) =>
-      `[ scomp 2 1 2 ] (core f) (`[ scomp 1 0 2 ] (core x) (lid a)) ]
+  : [ ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] (base a) (core y)) (core g) =>
+      ucomp [ 2 1 2 ] (core f) (ucomp [ 1 0 2 ] (core x) (lid a)) ]
   = core a
   
+
+
+

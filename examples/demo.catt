@@ -89,7 +89,7 @@ let comp_un_seq {C : Cat}
 
 coh id_abr C (x) : x => x
 coh comp_abr C (x(f)y(g)z) : x => z
-  
+
 coh assoc_abr C (x(f)y(g)z(h)w)
   : comp_abr f (comp_abr g h) =>
     comp_abr (comp_abr f g) h

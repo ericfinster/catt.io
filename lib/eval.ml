@@ -36,7 +36,7 @@ let rec eval top loc tm =
   | HomT (c,s,t) ->
     HomV (eval top loc c, eval top loc s, eval top loc t)
 
-  | UCompT uc -> UCompV (uc,EmpSp)
+  | UCompT uc -> UCompV (uc,eval top loc (term_ucomp_desc uc), EmpSp)
   | CohT (g,c,s,t) -> CohV (eval top loc (tele_to_pi g (HomT (c,s,t))),EmpSp)
   | CylCohT (_,_,_,_) -> failwith "eval cylcoh"
                         
@@ -66,7 +66,7 @@ and appV t u ict =
   | TopV (nm,sp,tv) -> TopV (nm,AppSp(sp,u,ict),appV tv u ict)
   | CohV (v,sp) -> CohV (v,AppSp(sp,u,ict))
   | LamV (_,_,cl) -> cl $$ u
-  | UCompV (ucd,sp) -> UCompV (ucd,AppSp(sp,u,ict))
+  | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,AppSp(sp,u,ict))
   | _ -> raise (Eval_error "malformed application")
 
 and baseV v =
@@ -76,7 +76,7 @@ and baseV v =
   | TopV (nm,sp,tv) -> TopV (nm,BaseSp sp, baseV tv)
   | CohV (ga,sp) -> CohV (ga,BaseSp sp)
   | CylV (b,_,_) -> b 
-  | UCompV (ucd,sp) -> UCompV (ucd,BaseSp sp)
+  | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,BaseSp sp)
   | _ -> raise (Eval_error "malformed base projection")
 
 and lidV v =
@@ -86,7 +86,7 @@ and lidV v =
   | TopV (nm,sp,tv) -> TopV (nm,LidSp sp, lidV tv)
   | CohV (ga,sp) -> CohV (ga,LidSp sp)
   | CylV (_,l,_) -> l
-  | UCompV (ucd,sp) -> UCompV (ucd,LidSp sp)
+  | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,LidSp sp)
   | _ -> raise (Eval_error "malformed lid projection")
 
 and coreV v =
@@ -96,7 +96,7 @@ and coreV v =
   | TopV (nm,sp,tv) -> TopV (nm,CoreSp sp, coreV tv)
   | CohV (ga,sp) -> CohV (ga,CoreSp sp)
   | CylV (_,_,c) -> c
-  | UCompV (ucd,sp) -> UCompV (ucd,CoreSp sp)
+  | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,CoreSp sp)
   | _ -> raise (Eval_error "malformed core projection")
 
 and appLocV loc v =
@@ -143,9 +143,9 @@ let rec quote k v ufld =
   | ObjV c -> ObjT (qc c)
   | HomV (c,s,t) -> HomT (qc c, qc s, qc t)
 
-  | UCompV (uc,sp) when ufld ->
-    qcs (term_ucomp_coh (ucmp_pd uc)) sp 
-  | UCompV (uc,sp) -> qcs (UCompT uc) sp
+  | UCompV (_,cohv,sp) when ufld ->
+    qcs (quote k cohv ufld) sp 
+  | UCompV (uc,_,sp) -> qcs (UCompT uc) sp
   | CohV (v,sp) ->
 
     let pi_tm = quote k v ufld in
@@ -203,7 +203,7 @@ let rec free_vars_val k v =
   | ObjV c -> free_vars_val k c
   | HomV (c,s,t) ->
     S.union_list (module Base.Int) [fvc c; fvc s; fvc t]
-  | UCompV (_,sp) -> sp_vars sp 
+  | UCompV (_,_,sp) -> sp_vars sp 
   | CohV (v,sp) ->
     S.union (free_vars_val k v) (sp_vars sp)
   | CylCohV _ -> failwith "fvs cylcohv"

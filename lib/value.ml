@@ -29,7 +29,7 @@ type value =
   | HomV of value * value * value
   | ArrV of value
 
-  | UCompV of ucmp_desc * spine
+  | UCompV of ucmp_desc * value * spine
   | CohV of value * spine
   | CylCohV of value * spine 
 
@@ -82,7 +82,7 @@ let rec pp_value ppf v =
   | HomV (c,s,t) ->
     pf ppf "%a | %a => %a" pp_value c pp_value s pp_value t
 
-  | UCompV (uc,sp) ->
+  | UCompV (uc,_,sp) ->
     pf ppf "ucomp [ %a ] %a"
       pp_ucmp_desc uc pp_spine sp 
   | CohV (v,sp) -> 

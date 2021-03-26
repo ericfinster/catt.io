@@ -215,6 +215,12 @@ module PdConversion(P : PdSyntax) = struct
           let nm = nm_lvl lvl in
           (nm,Impl,var (lvl+1) lvl nm))
 
+  let args_pd pd =
+    let nm_lvl l = Fmt.str "x%d" l in
+    let k = length (labels pd) in 
+    Pd.pd_lvl_map pd (fun _ l ->
+        var (k+1) (l+1) (nm_lvl (l+1)))
+      
 end
 
 let pd_args cat pd =
@@ -291,13 +297,15 @@ module SyntaxUtil(Syn : Syntax) = struct
       let fpd = fresh_pd pd in
       let ct = var 1 0 "C" in 
       let tele = pd_to_tele ct fpd in
-      let bdry = boundary (map_pd fpd ~f:(fun (_,_,t) -> t)) in
+      (* Ahh! Can't do this because we need to keep names in expr ... *)
+      let bdry = boundary (args_pd pd) in
+      let ct' = var (length tele) 0 "C" in 
       let sph = map_suite bdry
-          ~f:(fun (s,t) -> (ucomp ct s, ucomp ct t)) in
+          ~f:(fun (s,t) -> (ucomp ct' s, ucomp ct' t)) in
       match sph with
       | Emp -> failwith "empty sphere in ucomp"
       | Ext (sph',(src,tgt)) ->
-        coh tele (sph_to_cat ct sph') src tgt
+        coh tele (sph_to_cat ct' sph') src tgt
   
   (* Applied unbiased composite *)
   and ucomp : s -> s pd -> s = fun ct pd -> 

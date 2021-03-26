@@ -69,8 +69,8 @@ let rename m pren v =
     | ObjV c -> ObjT (go pr c)
     | HomV (c,s,t) -> HomT (go pr c, go pr s, go pr t)
 
-    | UCompV (uc,sp) ->
-      goSp pr (term_ucomp_coh (ucmp_pd uc)) sp
+    | UCompV (_,cohv,sp) ->
+      goSp pr (go pr cohv) sp
     | CohV (v,sp) ->
       let pi_tm = go pr v in
       let (g,a) = pi_to_tele pi_tm in
@@ -117,6 +117,21 @@ type strategy =
   | UnfoldNone
   | OneShot 
 
+let isUnfoldAll s =
+  match s with
+  | UnfoldAll -> true
+  | _ -> false
+
+let isUnfoldNone s =
+  match s with
+  | UnfoldNone -> true
+  | _ -> false
+
+let isOneShot s =
+  match s with
+  | OneShot -> true
+  | _ -> false
+  
 let rec unify stgy top l t u =
   match (force_meta t , force_meta u) with
   | (TypV , TypV) -> ()
@@ -144,23 +159,23 @@ let rec unify stgy top l t u =
   | (FlexV (m,sp) , t') when Poly.(<>) stgy UnfoldNone -> solve top l m sp t'
   | (FlexV (_,_) , _) -> raise (Unify_error "refusing to solve meta")
 
-  | (TopV (_,_,tv) , TopV (_,_,tv')) when Poly.(=) stgy UnfoldAll ->
+  | (TopV (_,_,tv) , TopV (_,_,tv')) when isUnfoldAll stgy ->
     unify UnfoldAll top l tv tv'
-  | (TopV (nm,sp,_) , TopV (nm',sp',_)) when Poly.(=) stgy UnfoldNone ->
+  | (TopV (nm,sp,_) , TopV (nm',sp',_)) when isUnfoldNone stgy  ->
     if (Poly.(=) nm nm') then 
       unifySp UnfoldNone top l sp sp'
     else raise (Unify_error "top level name mismatch")
-  | (TopV (nm,sp,tv) , TopV (nm',sp',tv')) when Poly.(=) stgy OneShot ->
+  | (TopV (nm,sp,tv) , TopV (nm',sp',tv')) when isOneShot stgy  ->
     if (Poly.(=) nm nm') then 
       (try unifySp UnfoldNone top l sp sp'
        with Unify_error _ -> unify UnfoldAll top l tv tv')
     else unify UnfoldAll top l tv tv'
         
-  | (TopV (_,_,_) , _) when Poly.(=) stgy UnfoldNone ->
+  | (TopV (_,_,_) , _) when isUnfoldNone stgy  ->
     raise (Unify_error "refusing to unfold top level def")
   | (TopV (_,_,tv) , t') -> unify stgy top l tv t'
 
-  | (_ , TopV (_,_,_)) when Poly.(=) stgy UnfoldNone ->
+  | (_ , TopV (_,_,_)) when isUnfoldNone stgy  ->
     raise (Unify_error "refusing to unfold top level def")
   | (t , TopV (_,_,tv')) -> unify stgy top l t tv'
 
@@ -179,9 +194,37 @@ let rec unify stgy top l t u =
     unify stgy top l ga ga';
     unifySp stgy top l sp sp'
 
+  | (UCompV (_,cohv,sp), UCompV (_,cohv',sp')) when isUnfoldAll stgy ->
+    unify UnfoldAll top l (runSpV cohv sp) (runSpV cohv' sp')
+  | (UCompV (uc,_,sp), UCompV (uc',_,sp')) when isUnfoldNone stgy ->
+    if (Poly.(=) (ucmp_pd uc) (ucmp_pd uc')) then
+      unifySp UnfoldNone top l sp sp'
+    else raise (Unify_error "incompatible unbiased comps")
+  | (UCompV (uc,cohv,sp), UCompV (uc',cohv',sp')) when isOneShot stgy ->
+    if (Poly.(=) (ucmp_pd uc) (ucmp_pd uc')) then
+      (try unifySp UnfoldNone top l sp sp'
+       with Unify_error _ -> unify UnfoldAll top l
+                               (runSpV cohv sp) (runSpV cohv' sp'))
+    else unify UnfoldAll top l (runSpV cohv sp) (runSpV cohv' sp')
+
+  | (UCompV (_,_,_), _) when isUnfoldNone stgy ->
+    raise (Unify_error "refusing to unfold unbiased comp")
+  | (UCompV (_,cohv,sp), t) ->
+    (* pr "unify ucomp left"; *)
+    unify stgy top l (runSpV cohv sp) t
+
+  | (_, UCompV (_,_,_)) when isUnfoldNone stgy ->
+    raise (Unify_error "refusing to unfold unbiased comp")
+  | (t, UCompV (_,cohv,sp)) ->
+    (* pr "unify ucomp right\n";
+     * pr "t: @[%a@]\n" pp_value t;
+     * pr "rcs: @[%a@]\n" pp_value (runSpV cohv sp); *)
+    unify stgy top l t (runSpV cohv sp)
+
   | (tm,um) ->
     let msg = str "Failed to unify: %a =/= %a"
-        pp_value tm pp_value um in 
+        pp_value tm pp_value um in
+    pr "unfiy failed: %s\n" msg;
     raise (Unify_error msg)
 
 and unifySp stgy top l sp sp' =
