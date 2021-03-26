@@ -50,7 +50,8 @@ type defn =
 (*****************************************************************************)
 (*                        Expr Tele to Pasting Diagram                       *)
 (*****************************************************************************)
-(* FIXME: Can this also be generic? *)
+
+(* FIXME: This is now generic. Use that version in pp .... *)
 
 let (let*) m f = Base.Result.bind m ~f 
 
@@ -190,45 +191,6 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
 let pp_expr = pp_expr_gen ~si:false ~fh:true ~pc:true
 let pp_expr_with_impl = pp_expr_gen ~si:true ~fh:true ~pc:true
 
-(*****************************************************************************)
-(*                      Expression Syntax Implementation                     *)
-(*****************************************************************************)
-              
-module ExprSyntax = struct
-  type s = expr
-  let lift _ t = t
-  let cat = CatE
-  let obj c = ObjE c
-  let var _ _ nm = VarE nm
-  let lam nm ict bdy = LamE (nm,ict,bdy)
-  let pi nm ict dom cod = PiE (nm,ict,dom,cod)
-  let hom c s t = HomE (c,s,t)
-  let coh g c s t = CohE (TelePd g,c,s,t)
-  let app u v ict = AppE (u,v,ict)
-  let pd_vars k pd = pd_lvl_map pd 
-      (fun _ k' -> VarE (str "x%d" (k+k')))
-
-  let fresh_cat _ = ("C", VarE "C")
-  let nm_of _ e = str "%a" pp_expr e
-  let pp = pp_expr
-    
-end
-
-module ExprUtil = SyntaxUtil(ExprSyntax)
-
-let pd_to_expr_tele : string pd -> expr tele = fun pd ->
-  ExprUtil.pd_to_tele (map_pd pd ~f:(fun s -> VarE s)) 
-
-let str_expr_ucomp_coh : string pd -> expr = fun pd ->
-  ExprUtil.ucomp_coh (Pd.map_pd pd ~f:(fun s -> VarE s))
-
-let str_expr_ucomp : string pd -> expr = fun pd ->
-  ExprUtil.ucomp (VarE "C") (Pd.map_pd pd ~f:(fun s -> VarE s))
-
-let expr_app_args = ExprUtil.app_args
-
-let ucomp_coh_expr : 'a pd -> expr = fun pd ->
-  ExprUtil.ucomp_coh pd 
 
 
 (*****************************************************************************)
@@ -267,3 +229,29 @@ let string_pd_to_expr_tele (pd : string pd) : expr tele =
     (* FIXME! Use a better map to decide implicitness *)
     (map_pd pd ~f:(fun s -> (s,Impl,VarE s)))
 
+(*****************************************************************************)
+(*                      Expression Syntax Implementation                     *)
+(*****************************************************************************)
+              
+module ExprSyntax = struct
+  include ExprPdSyntax
+
+  let lam nm ict bdy = LamE (nm,ict,bdy)
+  let pi nm ict dom cod = PiE (nm,ict,dom,cod)
+  let app u v ict = AppE (u,v,ict)
+  let coh g c s t = CohE (TelePd g,c,s,t)
+  
+end
+
+module ExprUtil = SyntaxUtil(ExprSyntax)
+
+let str_expr_ucomp_coh : string pd -> expr = fun pd ->
+  ExprUtil.ucomp_coh (Pd.map_pd pd ~f:(fun s -> VarE s))
+
+let str_expr_ucomp : string pd -> expr = fun pd ->
+  ExprUtil.ucomp (VarE "C") (Pd.map_pd pd ~f:(fun s -> VarE s))
+
+let expr_app_args = ExprUtil.app_args
+
+let ucomp_coh_expr : 'a pd -> expr = fun pd ->
+  ExprUtil.ucomp_coh pd 

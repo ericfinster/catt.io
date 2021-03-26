@@ -273,6 +273,49 @@ let rec map_pd pd ~f =
     let fm (l, b) = (f l, map_pd b ~f:f) in
     Br (f a, map_suite brs ~f:fm)
 
+let fold_pd_lf_nd pd init ~lf ~nd =
+
+  let rec fold_pd_lf_nd_br acc br =
+    match br with
+    | Br (x,brs) ->
+      let acc' =
+        if (is_empty brs) then
+          lf acc x
+        else nd acc x
+      in fold_pd_lf_nd_brs acc' brs
+
+  and fold_pd_lf_nd_brs acc brs =
+    match brs with
+    | Emp -> acc
+    | Ext (brs',(x,br)) ->
+      let acc' = fold_pd_lf_nd_brs acc brs' in
+      let acc'' = nd acc' x in 
+      fold_pd_lf_nd_br acc'' br 
+
+  in fold_pd_lf_nd_br init pd
+
+let map_pd_lf_nd_lvl pd ~lf ~nd =
+
+  let rec map_pd_lf_nd_lvl_br k br =
+    match br with
+    | Br (x,brs) ->
+      let x' =
+        if (is_empty brs) then
+          lf k x
+        else nd k x in
+      let (k',brs') = map_pd_lf_nd_lvl_brs (k+1) brs in
+      (k',Br (x',brs'))
+
+  and map_pd_lf_nd_lvl_brs k brs =
+    match brs with
+    | Emp -> (k,Emp)
+    | Ext (brs',(x,br)) ->
+      let (k',brs'') = map_pd_lf_nd_lvl_brs k brs' in
+      let x' = nd k' x in 
+      let (k'',br') = map_pd_lf_nd_lvl_br (k'+1) br in
+      (k'',Ext (brs'',(x',br')))
+
+  in snd (map_pd_lf_nd_lvl_br 1 pd)
 
 (* FIXME! Write a "variable" map which provides the length so far, as
    well as the position. This way, it matches the variable

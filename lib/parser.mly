@@ -66,8 +66,6 @@ expr:
     { HomE (HoleE,s,t) }
   | c = expr VBAR s = expr1 DBLARROW t = expr1
     { HomE (c,s,t) }
-  | coh = coh_expr
-    { coh }
 
 expr1:
   | e = expr2
@@ -82,6 +80,8 @@ expr1:
 expr2:
   | e = expr3
     { e }
+  | coh = coh_expr
+    { coh }
   | u = expr2 LBR v = expr2 RBR
     { AppE (u,v,Impl) }
   | u = expr2 v = expr3

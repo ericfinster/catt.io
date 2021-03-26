@@ -55,9 +55,10 @@ let rec fold3 a b c init f =
   | (x::a',y::b',z::c') ->
     fold3 a' b' c' (f init x y z) f
   | _ -> failwith "unequal fold3"
-         
-module CylinderOps(C: CatImpl) = struct
-  include CatUtils(C)
+
+module CylinderOps(C : CylinderSyntax) = struct
+  
+  include CylinderUtil(C)
 
   (* Anti lifting? *)
   let advance (bc : s) ((sph,ct) : s susp_cyl_typ) (b : s) (l : s)
@@ -150,33 +151,13 @@ module CylinderOps(C: CatImpl) = struct
   
 end
 
-
-(* module CoherenceCylinders(Syn: Syntax) = struct
- *   open Syn
- *   open SyntaxUtil(Syn) 
- * 
- *   
- *   (\* Coherence cylinders *\)
- *   let coh_cyl : type a. a pd -> s sph -> s disc -> s disc -> s susp_cyl =
- *     fun _ sph (usph,u) (vsph,v) ->
- * 
- *     match (usph,vsph) with
- *     | (Emp,Emp) -> ((sph,[]),(u,u,v))
- *     | _ -> ((sph,[]),(u,u,v))
- * 
- *   
- * end *)
-
-
 (*****************************************************************************)
 (*                          Category Implementations                         *)
 (*****************************************************************************)
 
-module ValueImpl = struct
-  type s = value
-
-  let obj c = ObjV c
-  let hom c s t = HomV (c,s,t)
+module ValueCylinderSyntax = struct
+  include ValuePdSyntax
+  
   let ucomp c pd =
     if (is_disc pd) then
       head (labels pd)
@@ -186,22 +167,8 @@ module ValueImpl = struct
 
 end
 
-module ExprImpl = struct
-  
-  type s = expr
-    
-  let obj c = ObjE c
-  let hom c s t = HomE (c,s,t)
-  let ucomp c pd =
-    if (is_disc pd) then
-      head (labels pd)
-    else
-      ExprUtil.app_args (UCompE (UnitPd (Pd.blank pd)))
-        (pd_args c pd)
-end
-
-module ExprCyl = CylinderOps(ExprImpl)
-module ValueCyl = CylinderOps(ValueImpl)
+module ExprCyl = CylinderOps(ExprUtil)
+module ValueCyl = CylinderOps(ValueCylinderSyntax)
 
 (*****************************************************************************)
 (*                          Value Matching Routines                          *)

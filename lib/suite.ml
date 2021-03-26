@@ -54,6 +54,15 @@ let map_with_lvl s ~f =
       (Ext (r,f l x),l+1)
   in fst (go s)
 
+let rec filter s f =
+  match s with
+  | Emp -> Emp
+  | Ext (s',x) ->
+    let s'' = filter s' f in 
+    if (f x) then
+      Ext (s'',x)
+    else s''
+      
 let rec fold_left f a s =
   match s with
   | Emp -> a

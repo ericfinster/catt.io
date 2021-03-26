@@ -205,53 +205,37 @@ module PdConversion(P : PdSyntax) = struct
   
     in let* (pd,_,_,_,_,_) = go depth tl in Ok pd
 
+  let fresh_pd pd =
+    let nm_lvl l = Fmt.str "x%d" l in 
+    Pd.map_pd_lf_nd_lvl pd
+      ~lf:(fun lvl _ ->
+          let nm = nm_lvl lvl in
+          (nm,Expl,var (lvl+1) lvl nm))
+      ~nd:(fun lvl _ -> 
+          let nm = nm_lvl lvl in
+          (nm,Impl,var (lvl+1) lvl nm))
+
 end
 
-(*****************************************************************************)
-(*                           Generic Syntax Module                           *)
-(*****************************************************************************)
-
-module type CatSyntax = sig
-
-  type s
-
-  val obj : s -> s
-  val hom : s -> s -> s -> s
-  
-end
-
-module type Syntax = sig
-
-  include CatSyntax
-  
-  val lift : int -> s -> s
-  val cat : s
-  val var : lvl -> lvl -> name -> s
-  val lam : name -> icit -> s -> s
-  val pi : name -> icit -> s -> s -> s 
-  val app : s -> s -> icit -> s
-
-  val coh : s tele -> s -> s -> s -> s
-  
-  val fresh_cat : lvl -> string * s
-  val nm_of : lvl -> s -> string 
-  val pp : s Fmt.t
-  
-end
+let pd_args cat pd =
+  Pd.fold_pd_lf_nd pd (Ext (Emp,(Impl,cat)))
+    ~lf:(fun args arg -> Ext (args,(Expl,arg)))
+    ~nd:(fun args arg -> Ext (args,(Impl,arg)))
 
 (*****************************************************************************)
-(*                     Semantic Category Implementations                     *)
+(*                              Cylinder Syntax                              *)
 (*****************************************************************************)
 
-module type CatImpl = sig
-  include CatSyntax
+module type CylinderSyntax = sig
+  include PdSyntax
   val ucomp : s -> s pd -> s
 end
 
-module CatUtils(C: CatImpl) = struct
+module CylinderUtil(C: CylinderSyntax) = struct
 
   include C
-
+  include PdConversion(C)
+  
   let ucomp_with_type : s -> s pd -> s disc = fun ct pd -> 
     let bdry = boundary pd in
     let suite_sph = map_suite bdry
@@ -263,45 +247,26 @@ module CatUtils(C: CatImpl) = struct
     let wpd = Base.Result.ok_or_failwith
         (whisk_right (disc_pd left) i right) in 
     ucomp_with_type ct wpd
-
-  let rec sph_to_typ : s -> s sph -> s = fun c sph ->
-    match sph with
-    | Emp -> c
-    | Ext (sph',(s,t)) ->
-      hom (sph_to_typ c sph') s t
   
 end
 
 (*****************************************************************************)
-(*                              Utility Routines                             *)
+(*                               Generic Syntax                              *)
 (*****************************************************************************)
-
-let pd_args cat pd =
-  let open Pd in
-  
-  let rec pd_args_br args br =
-    match br with
-    | Br (v,brs) ->
-      let ict = if (is_empty brs) then Expl else Impl in
-      pd_args_brs (Ext (args,(ict,v))) brs
-
-  and pd_args_brs args brs =
-    match brs with
-    | Emp -> args
-    | Ext (brs',(v,br)) ->
-      let args' = pd_args_brs args brs' in
-      pd_args_br (Ext (args',(Impl,v))) br 
-
-  in pd_args_br (Ext (Emp,(Impl,cat))) pd 
+    
+module type Syntax = sig
+  include PdSyntax
+  val lam : name -> icit -> s -> s
+  val pi : name -> icit -> s -> s -> s 
+  val app : s -> s -> icit -> s
+  val coh : s tele -> s -> s -> s -> s
+end
 
 module SyntaxUtil(Syn : Syntax) = struct
-  open Syn
+  include Syn
+  open PdConversion(Syn)
 
-  let varl k l =
-    var k l (Fmt.str "x%d" l)
-  
   (* Utility Routines *)
-  
   let app_args t args =
     fold_left (fun t' (ict,arg) ->
         app t' arg ict) t args 
@@ -315,54 +280,25 @@ module SyntaxUtil(Syn : Syntax) = struct
         (pi nm ict ty ty', lam nm ict tm'))
       tl (ty,tm)
   
-  (* This could be better if we had a "var" map ... *)
-  let fresh_pd pd =
-    let k = length (labels pd) in
-    pd_lvl_map pd (fun _ l -> varl k l)
-
-  let suite_sph_typ bdy ct =
-    fold_left (fun ct' (s,t) ->
-        hom ct' s t) ct bdy 
-
-    (* Yeah, the inefficiency here is annoying.  
-       Surely this can be improved ... *)
-  let pd_to_tele pd =
-    let k = length (labels pd) in 
-    let (cn,ct) = fresh_cat k in 
-    let f sph flr tele is_lf =
-      let l = length tele in 
-      let ict = if is_lf then Expl else Impl in
-      let ty = obj (suite_sph_typ sph ct) in
-      Ext (tele,(nm_of l flr,ict,lift (l - k - 1) ty))
-    in fold_left_with_sph pd f (Ext (Emp,(cn,Impl,cat)))
-
-  let tele_with_pd (tl : s tele) (bc : s) (pd : s pd) =
-    let k = length (labels pd) in 
-    let f sph d (tele,l) is_lf =
-      let ict = if is_lf then Expl else Impl in
-      let ty = obj (suite_sph_typ sph bc) in
-      (Ext (tele,(nm_of l d,ict,lift (l-k-1) ty)) , l+1)
-    in fst (fold_left_with_sph pd f (tl,length tl))
-  
   (* Unbiased composition coherence *)
   let rec ucomp_coh : type a. a pd -> s = fun pd ->
     if (is_disc pd) then
       let fpd = fresh_pd pd in 
-      let tele = pd_to_tele fpd in
-      let tm = head (labels fpd) in
+      let tele = pd_to_tele (var 1 0 "C") fpd in
+      let (_,_,tm) = head (labels fpd) in
       abstract_tele tele tm
     else
       let fpd = fresh_pd pd in
-      let tele = pd_to_tele fpd in
-      let (_,ct) = fresh_cat (length tele - 1) in 
-      let bdry = boundary fpd in
+      let ct = var 1 0 "C" in 
+      let tele = pd_to_tele ct fpd in
+      let bdry = boundary (map_pd fpd ~f:(fun (_,_,t) -> t)) in
       let sph = map_suite bdry
           ~f:(fun (s,t) -> (ucomp ct s, ucomp ct t)) in
       match sph with
       | Emp -> failwith "empty sphere in ucomp"
       | Ext (sph',(src,tgt)) ->
-        coh tele (suite_sph_typ sph' ct) src tgt
-
+        coh tele (sph_to_cat ct sph') src tgt
+  
   (* Applied unbiased composite *)
   and ucomp : s -> s pd -> s = fun ct pd -> 
     if (is_disc pd) then
@@ -371,13 +307,17 @@ module SyntaxUtil(Syn : Syntax) = struct
       let coh = ucomp_coh pd in
       app_args coh (pd_args ct pd)
 
-  include CatUtils(
-    struct
-      type s = Syn.s
-      let ucomp = ucomp
-      let obj = Syn.obj
-      let hom = Syn.hom 
-    end)
-      
+  let ucomp_with_type : s -> s pd -> s disc = fun ct pd -> 
+    let bdry = boundary pd in
+    let suite_sph = map_suite bdry
+        ~f:(fun (s,t) -> (ucomp ct s, ucomp ct t)) in
+    (suite_sph , ucomp ct pd)
+
+  let whisker : s -> s disc -> int -> s disc -> s disc =
+    fun ct left i right ->
+    let wpd = Base.Result.ok_or_failwith
+        (whisk_right (disc_pd left) i right) in 
+    ucomp_with_type ct wpd
+
 end
 

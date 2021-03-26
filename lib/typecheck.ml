@@ -41,7 +41,19 @@ let empty_ctx = {
   lvl = 0;
   types = Emp;
 }
- 
+
+let empty_loc gma = {
+  top = gma.top;
+  loc = Emp;
+  lvl = 0;
+  types = filter gma.types
+      (fun (_,(bd,_)) ->
+         match bd with
+         | Defined -> true
+         | Bound -> false)
+         
+}
+  
 let bind gma nm ty =
   let l = gma.lvl in {
     loc = Ext (gma.loc, varV l);
@@ -168,10 +180,10 @@ let rec check gma expr typ =
     begin match value_to_cyl_typ cat with
      | Error _ -> switch expr (ObjV cat)
      | Ok (bc,ct) ->
-       let module C = CylinderOps(ValueImpl) in
+       let module C = ValueCyl in
 
-       let btyp = ObjV (C.sph_to_typ bc (base_sph ct)) in
-       let ltyp = ObjV (C.sph_to_typ bc (lid_sph ct)) in
+       let btyp = ObjV (C.sph_to_cat bc (base_sph ct)) in
+       let ltyp = ObjV (C.sph_to_cat bc (lid_sph ct)) in
 
        (* pr "@[base typ: %a@]@," pp_value btyp;
         * pr "@[lid typ: %a@]@," pp_value ltyp; *)
@@ -181,7 +193,7 @@ let rec check gma expr typ =
 
        let bv = eval gma.top gma.loc bt in 
        let lv = eval gma.top gma.loc lt in
-       let ctyp = ObjV (C.sph_to_typ bc
+       let ctyp = ObjV (C.sph_to_cat bc
                           (C.core_sph bc (Emp,to_list ct) bv lv)) in
 
        (* pr "@[core typ: %a@]@," pp_value ctyp; *)
@@ -255,14 +267,30 @@ and infer gma expr =
     let* t' = check gma t (ObjV cv) in
     Ok (HomT (c',s',t'), CatV)
 
-  | UCompE _ -> Error (`NotImplemented "ucomp")
+  | UCompE (UnitPd pd) -> 
+    let e = ucomp_coh_expr pd in
+    (* pr "@[<v>Generated ucomp: @[%a]@,@]" pp_expr e; *)
+    let* (_,ty) = infer gma e in
+    (* pr "@[<b>Result of inferrence: @[%a]@,@]" pp_term tm; *)
+    Ok (UCompT (UnitPd pd),ty)
+
+  | UCompE (DimSeq ds) ->
+    let pd = Pd.comp_seq ds in
+    let e = ucomp_coh_expr pd in
+    (* pr "@[<v>Generated ucomp: @[%a]@,@]" pp_expr e; *)
+    let* (_,ty) = infer gma e in 
+    Ok (UCompT (DimSeq ds),ty)
+
+
   | CylCohE _ -> Error (`NotImplemented "cylcoh")
-  | CohE _ -> Error (`NotImplemented "coh")
+  | CohE (TelePd g,c,s,t) ->
     (* pr "Inferring a coherence: @[<hov>%a@]@," pp_expr (CohE (g,a)); *)
-    (* let* (gt,at) = check_coh gma g (HomT (c,s,t)) in
-     * let coh_ty = eval gma.top gma.loc (tele_to_pi gt (ObjT at)) in *)
+    let* (gt,ct,st,tt) = check_coh gma g c s t in
+    let coh_ty = eval gma.top gma.loc
+        (tele_to_pi gt (ObjT (HomT (ct,st,tt)))) in
     (* pr "Finished with coherence: @[<hov>%a@]@," pp_expr (CohE (g,a)); *)
-    (* Ok (CohT (gt,at) , coh_ty) *)
+    Ok (CohT (gt,ct,st,tt) , coh_ty)
+  | CohE _ -> failwith "unimplmented"
 
   | CylE (b,l,c) ->
     (* This could be much smarter.  By deconstructing the 
@@ -283,8 +311,8 @@ and infer gma expr =
        (match value_to_cyl_typ cat with
         | Error _ -> Ok (btm,obj_meta gma cyl_typ)
         | Ok (bc,ct) ->
-          let module C = CylinderOps(ValueImpl) in
-          let btyp = ObjV (C.sph_to_typ bc (base_sph ct)) in
+          let module C = ValueCyl in
+          let btyp = ObjV (C.sph_to_cat bc (base_sph ct)) in
           (* pr "@[inferred base typ: %a@]@," pp_value btyp; *)
           Ok (btm,btyp))
      | _ -> Ok (btm,obj_meta gma cyl_typ))
@@ -298,8 +326,8 @@ and infer gma expr =
        (match value_to_cyl_typ cat with
         | Error _ -> Ok (ltm,obj_meta gma cyl_typ)
         | Ok (bc,ct) ->
-          let module C = CylinderOps(ValueImpl) in
-          let ltyp = ObjV (C.sph_to_typ bc (lid_sph ct)) in
+          let module C = ValueCyl in
+          let ltyp = ObjV (C.sph_to_cat bc (lid_sph ct)) in
           (* pr "@[inferred lid typ: %a@]@," pp_value ltyp; *)
           Ok (ltm,ltyp))
      | _ -> Ok (ltm,obj_meta gma cyl_typ))
@@ -313,8 +341,8 @@ and infer gma expr =
        (match value_to_cyl_typ cat with
         | Error _ -> Ok (ctm,obj_meta gma cyl_typ)
         | Ok (bc,ct) ->
-          let module C = CylinderOps(ValueImpl) in
-          let ctyp = ObjV (C.sph_to_typ bc
+          let module C = ValueCyl in
+          let ctyp = ObjV (C.sph_to_cat bc
                              (C.core_sph bc (Emp,to_list ct)
                              (baseV cyl_val) (lidV cyl_val))) in
           (* pr "@[inferred core typ: %a@]@," pp_value ctyp; *)
@@ -347,8 +375,13 @@ and with_tele gma tl m =
           (Ext (tt,(id,ict,ty_tm))))
 
 and check_coh gma g c s t =
-  with_tele gma g (fun gma' gv gt ->
+  (* pr "@[<v>check_coh@,gma: @[%a@]@,c: @[%a@]@,s: @[%a@]@,t: @[%a@]@,@]"
+   *   (pp_tele pp_expr) g pp_expr c pp_expr s pp_expr t; *)
+  with_tele (empty_loc gma) g (fun gma' gv gt ->
 
+      (* pr "@[<b>gv: @[%a@]@,@]" (pp_tele pp_value) gv; *)
+      
+      (* Yikes. We've got a bit of a level problem ... *)
       match ValuePdConv.tele_to_pd (length gv) gv with
       | Error msg -> Error (`PastingError msg)
       | Ok pd ->
@@ -369,8 +402,8 @@ and check_coh gma g c s t =
         let* s' = check gma' s (ObjV cv) in
         let* t' = check gma' t (ObjV cv) in
         
-        (* pr "@[<v>source: %a@,@]" pp_term s'; *)
-        (* pr "@[<v>target: %a@,@]" pp_term t'; *)
+        (* pr "@[<v>source: %a@,@]" pp_term s';
+         * pr "@[<v>target: %a@,@]" pp_term t'; *)
 
         let sv = eval tp lc s' in 
         let tv = eval tp lc t' in 

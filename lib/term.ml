@@ -279,38 +279,6 @@ let rec free_vars k tm =
   | InsMetaT _ -> fvs_empty
 
 (*****************************************************************************)
-(*                         Term Syntax Implementation                        *)
-(*****************************************************************************)
-
-module TermSyntax = struct
-  type s = term
-  let lift i t = db_lift_by 0 i t
-  let cat = CatT
-  let obj c = ObjT c
-  let hom c s t = HomT (c,s,t)
-  let var k l _ = VarT (lvl_to_idx k l)
-  let lam nm ict bdy = LamT (nm,ict,bdy)
-  let pi nm ict dom cod = PiT (nm,ict,dom,cod)
-  let coh g c s t = CohT (g,c,s,t)
-  let app u v ict = AppT (u,v,ict)
-  let pp = pp_term
-  let nm_of k _ = str "x%d" (k-1)
-  let fresh_cat k = ("C", VarT k)
-end
-
-module TermUtil = SyntaxUtil(TermSyntax)
-
-let term_app_args = TermUtil.app_args
-
-let pd_to_term_tele : 'a Pd.pd -> term tele = fun pd ->
-  (* let k = length (Pd.labels pd) in *)
-  let fr_pd = Pd.pd_idx_map pd (fun _ i -> VarT i) in
-  TermUtil.pd_to_tele fr_pd
-
-let term_ucomp_coh : 'a Pd.pd -> term = fun pd ->
-  TermUtil.ucomp_coh pd
-
-(*****************************************************************************)
 (*                             Term Pd Conversion                            *)
 (*****************************************************************************)
 
@@ -347,3 +315,21 @@ let term_fixup (pd : string pd) : (term decl) pd =
 let string_pd_to_term_tele (pd : string pd) : term tele = 
   TermPdConv.pd_to_tele (VarT 0) (term_fixup pd)
 
+(*****************************************************************************)
+(*                         Term Syntax Implementation                        *)
+(*****************************************************************************)
+
+module TermSyntax = struct
+  include TermPdSyntax
+  let lam nm ict bdy = LamT (nm,ict,bdy)
+  let pi nm ict dom cod = PiT (nm,ict,dom,cod)
+  let app u v ict = AppT (u,v,ict)
+  let coh g c s t = CohT (g,c,s,t)
+end
+
+module TermUtil = SyntaxUtil(TermSyntax)
+
+let term_app_args = TermUtil.app_args
+
+let term_ucomp_coh : 'a Pd.pd -> term = fun pd ->
+  TermUtil.ucomp_coh pd

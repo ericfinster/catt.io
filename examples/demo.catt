@@ -65,3 +65,20 @@ coh vert {C : Cat}
 #   : [ x => y ] -> [ x => z ]
 #   = \f. comp f g
   
+#
+#  Unbiased composites
+#
+
+let comp_un_pd {C : Cat}
+    {x :: C}
+    {y :: C} (f :: x => y)
+    {z :: C} (g :: y => z)
+  : [ x => z ]
+  = ucomp [ (()()) ] f g
+
+let comp_un_seq {C : Cat}
+    {x :: C}
+    {y :: C} (f :: x => y)
+    {z :: C} (g :: y => z)
+  : [ x => z ]
+  = ucomp [ 1 0 1 ] f g

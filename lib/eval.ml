@@ -257,3 +257,28 @@ let value_fixup (pd : string Pd.pd) : (value decl) Pd.pd =
   
 let string_pd_to_value_tele (pd : string Pd.pd) : value tele = 
   ValuePdConv.pd_to_tele (varV 0) (value_fixup pd)
+
+(*****************************************************************************)
+(*                              Value Coherences                             *)
+(*****************************************************************************)
+
+(* could have an initial level .... *)
+(* let rec quote_tele (ufld : bool) (tl : value tele) : term tele * lvl =
+ *   match tl with
+ *   | Emp -> (Emp,0)
+ *   | Ext (tl',(nm,ict,v)) ->
+ *     let (tl'',lvl) = quote_tele ufld tl' in
+ *     let t = quote lvl v ufld in
+ *     (Ext (tl'',(nm,ict,t)),lvl+1)
+ * 
+ * (\* val coh : s tele -> s -> s -> s -> s *\)
+ * let val_coh (g : value tele) (c : value) (s : value) (t : value) : value =
+ * 
+ *   (\* Is it actually necessary to unfold here? *\)
+ *   let (gt,lvl) = quote_tele true g in
+ *   let ct = quote lvl c true in
+ *   let st = quote lvl s true in
+ *   let tt = quote lvl t true in
+ * 
+ *   let cohtm = CohT (gt,ct,st,tt) in
+ *   eval Emp Emp cohtm  *)
