@@ -3,162 +3,199 @@
 #
 
 #
+#  Some basic sanity checks
+#
+
+coh id {C : Cat} (x :: C) : x => x
+
+cylcoh id_test {C : Cat} (x :: C) : C
+  |> x
+  |> x
+  
+cylcoh id_test_2 {C : Cat} (x :: C) : C
+  |> x => x | id x 
+  |> x => x | id x 
+
+
+#
 #  The interchange problem ....
 #
 
-let ichg_base {C : Cat} 
+# let ichg_base {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} {a :: f => g}
+#                            {b :: f => g}  (m :: a => b)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : [ C | x => z
+#     | ucomp [ 1 0 1 ] f i => ucomp [ 1 0 1 ] h i 
+#     | ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] a c) i =>
+#       ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] b c) i ]
+#   = ucomp [ 3 0 1 ] (ucomp [ 3 1 2 ] m c) i
+
+# let ichg_lid {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} {a :: f => g}
+#                            {b :: f => g}  (m :: a => b)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : [ C | x => z
+#     | ucomp [ 1 0 1 ] f i => ucomp [ 1 0 1 ] h i
+#     | ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] a i) (ucomp [ 2 0 1 ] c i) =>
+#       ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] b i) (ucomp [ 2 0 1 ] c i) ]
+#   = ucomp [ 3 1 2 ] (ucomp [ 3 0 1 ] m i) (ucomp [ 2 0 1 ] c i) 
+
+# The cylinder coherence syntax for this problem ....
+
+cylcoh ichg_coh {C : Cat} 
     {x :: C}
     {y :: C} {f :: x => y}
              {g :: x => y} {a :: f => g}
                            {b :: f => g}  (m :: a => b)
              {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : [ C | x => z
-    | `[ scomp 1 0 1 ] f i => `[ scomp 1 0 1 ] h i 
-    | `[ scomp 2 0 1 ] (`[ scomp 2 1 2 ] a c) i =>
-      `[ scomp 2 0 1 ] (`[ scomp 2 1 2 ] b c) i ]
-  = `[ scomp 3 0 1 ] (`[ scomp 3 1 2 ] m c) i
+    {z :: C} (i :: y => z) : 
+  ucomp [ 1 0 1 ] f i =>
+  ucomp [ 1 0 1 ] h i
+    |> ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] a c) i =>
+       ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] b c) i
+     | ucomp [ 3 0 1 ] (ucomp [ 3 1 2 ] m c) i
+    |> ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] a i) (ucomp [ 2 0 1 ] c i) =>
+       ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] b i) (ucomp [ 2 0 1 ] c i)
+     | ucomp [ 3 1 2 ] (ucomp [ 3 0 1 ] m i) (ucomp [ 2 0 1 ] c i)
 
-let ichg_lid {C : Cat} 
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} {a :: f => g}
-                           {b :: f => g}  (m :: a => b)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : [ C | x => z
-    | `[ scomp 1 0 1 ] f i => `[ scomp 1 0 1 ] h i
-    | `[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] a i) (`[ scomp 2 0 1 ] c i) =>
-      `[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] b i) (`[ scomp 2 0 1 ] c i) ]
-  = `[ scomp 3 1 2 ] (`[ scomp 3 0 1 ] m i) (`[ scomp 2 0 1 ] c i) 
-
+# In practice, this is what you want to write:
+# cylcoh C (x(f(a(m)b)g(c)h)y(i)z) : <2> | 
+#   ucomp [ 3 0 1 ] (ucomp [ 3 1 2 ] m c) i => 
+#   ucomp [ 3 1 2 ] (ucomp [ 3 0 1 ] m i) (ucomp [ 2 0 1 ] c i)
 
 # An interchange example ....
 
-let base_cat {C : Cat} 
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} (a :: f => g)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : Cat
-  = C | x => z | `[ scomp 1 0 1 ] f i => `[ scomp 1 0 1 ] h i 
+# let base_cat {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (a :: f => g)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : Cat
+#   = C | x => z | ucomp [ 1 0 1 ] f i => ucomp [ 1 0 1 ] h i 
 
-let xb {C : Cat} 
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} (a :: f => g)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : [ base_cat a c i ] 
-  = `[ scomp 2 0 1 ] (`[ scomp 2 1 2 ] a c) i
+# let xb {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (a :: f => g)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : [ base_cat a c i ] 
+#   = ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] a c) i
 
-let xl {C : Cat} 
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} (a :: f => g)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : [ base_cat a c i ]
-  = `[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] a i) (`[ scomp 2 0 1 ] c i)
+# let xl {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (a :: f => g)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : [ base_cat a c i ]
+#   = ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] a i) (ucomp [ 2 0 1 ] c i)
 
-coh xc {C : Cat} 
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} (a :: f => g)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : xb a c i => xl a c i 
+# coh xc {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (a :: f => g)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : xb a c i => xl a c i 
 
-let x_cyl {C : Cat} 
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} (a :: f => g)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : [ Arr (C | x => z | `[ scomp 1 0 1 ] f i => `[ scomp 1 0 1 ] h i) ]
-  = cyl (xb a c i) (xl a c i) (xc a c i)
+# let x_cyl {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (a :: f => g)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : [ Arr (C | x => z | ucomp [ 1 0 1 ] f i => ucomp [ 1 0 1 ] h i) ]
+#   = cyl (xb a c i) (xl a c i) (xc a c i)
 
-let yb {C : Cat} 
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} (b :: f => g)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : [ base_cat b c i ]
-  = `[ scomp 2 0 1 ] (`[ scomp 2 1 2 ] b c) i
+# let yb {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (b :: f => g)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : [ base_cat b c i ]
+#   = ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] b c) i
 
-let yl {C : Cat} 
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} (b :: f => g)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : [ base_cat b c i ]
-  = `[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] b i) (`[ scomp 2 0 1 ] c i)
+# let yl {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (b :: f => g)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : [ base_cat b c i ]
+#   = ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] b i) (ucomp [ 2 0 1 ] c i)
 
-coh yc {C : Cat} 
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} (b :: f => g)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : yb b c i => yl b c i 
+# coh yc {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (b :: f => g)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : yb b c i => yl b c i 
 
-let y_cyl {C : Cat} 
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} (b :: f => g)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : [ Arr (base_cat b c i) ]
-  = cyl (yb b c i) (yl b c i) (yc b c i)
+# let y_cyl {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (b :: f => g)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : [ Arr (base_cat b c i) ]
+#   = cyl (yb b c i) (yl b c i) (yc b c i)
 
-let fb {C : Cat} 
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} {a :: f => g}
-                           {b :: f => g}  (m :: a => b)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : [ C | x => z
-    | `[ scomp 1 0 1 ] f i => `[ scomp 1 0 1 ] h i 
-    | `[ scomp 2 0 1 ] (`[ scomp 2 1 2 ] a c) i =>
-      `[ scomp 2 0 1 ] (`[ scomp 2 1 2 ] b c) i ]
-  = `[ scomp 3 0 1 ] (`[ scomp 3 1 2 ] m c) i
+# let fb {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} {a :: f => g}
+#                            {b :: f => g}  (m :: a => b)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : [ C | x => z
+#     | ucomp [ 1 0 1 ] f i => ucomp [ 1 0 1 ] h i 
+#     | ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] a c) i =>
+#       ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] b c) i ]
+#   = ucomp [ 3 0 1 ] (ucomp [ 3 1 2 ] m c) i
 
-let fl {C : Cat} 
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} {a :: f => g}
-                           {b :: f => g}  (m :: a => b)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : [ C | x => z
-    | `[ scomp 1 0 1 ] f i => `[ scomp 1 0 1 ] h i
-    | `[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] a i) (`[ scomp 2 0 1 ] c i) =>
-      `[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] b i) (`[ scomp 2 0 1 ] c i) ]
-  = `[ scomp 3 1 2 ] (`[ scomp 3 0 1 ] m i) (`[ scomp 2 0 1 ] c i) 
+# let fl {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} {a :: f => g}
+#                            {b :: f => g}  (m :: a => b)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : [ C | x => z
+#     | ucomp [ 1 0 1 ] f i => ucomp [ 1 0 1 ] h i
+#     | ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] a i) (ucomp [ 2 0 1 ] c i) =>
+#       ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] b i) (ucomp [ 2 0 1 ] c i) ]
+#   = ucomp [ 3 1 2 ] (ucomp [ 3 0 1 ] m i) (ucomp [ 2 0 1 ] c i) 
 
-coh fc {C : Cat} 
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} {a :: f => g}
-                           {b :: f => g}  (m :: a => b)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : `[ scomp 1 0 1 ] (fb m c i) (yc b c i) =>
-    `[ scomp 1 0 1 ] (xc a c i) (fl m c i) 
+# coh fc {C : Cat} 
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} {a :: f => g}
+#                            {b :: f => g}  (m :: a => b)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : ucomp [ 1 0 1 ] (fb m c i) (yc b c i) =>
+#     ucomp [ 1 0 1 ] (xc a c i) (fl m c i) 
     
-let f_cyl {C : Cat}
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} {a :: f => g}
-                           {b :: f => g}  (m :: a => b)
-             {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z)
-  : [ Arr (base_cat b c i) | x_cyl a c i => y_cyl b c i ]
-  = cyl (fb m c i) (fl m c i) (fc m c i)
+# let f_cyl {C : Cat}
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} {a :: f => g}
+#                            {b :: f => g}  (m :: a => b)
+#              {h :: x => y} (c :: g => h)
+#     {z :: C} (i :: y => z)
+#   : [ Arr (base_cat b c i) | x_cyl a c i => y_cyl b c i ]
+#   = cyl (fb m c i) (fl m c i) (fc m c i)
 
 
 

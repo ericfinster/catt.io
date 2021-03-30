@@ -32,6 +32,7 @@ let pp_error ppf e =
   | `IcityMismatch (_, _) -> Fmt.pf ppf "Icity mismatch"
   | `BadCohQuot msg -> Fmt.pf ppf "%s" msg 
   | `NotImplemented f -> Fmt.pf ppf "Feature not implemented: %s" f
+  | `InvalidCylinder msg -> Fmt.pf ppf "Invalid cylinder: %s" msg 
   | `InternalError -> Fmt.pf ppf "Internal Error"
 
 let () = 

@@ -38,6 +38,9 @@ defn:
     { CohDef (id,pd,cat,src,tgt) }
   | COH id = IDENT pd = pd_expr COLON src = expr1 DBLARROW tgt = expr1
     { CohDef (id,pd,HoleE,src,tgt) }
+  | CYLCOH id = IDENT pd = pd_expr COLON cat = expr
+      src = disc_expr tgt = disc_expr 
+    { CylCohDef (id,pd,cat,src,tgt) }
 
 var_decl:
   | LPAR id = IDENT COLON ty = expr RPAR
@@ -131,18 +134,18 @@ id_pd:
 
 pd_expr:
   | tl = tele
-    { TelePd tl }
+    { tl }
   | cat = IDENT pd = id_pd
-    { TreePd (cat,pd) }
+    { string_pd_to_expr_tele cat pd }
 
 sph_expr:
-  |
+  | BARARROW
     {Emp}
-  | sph = sph_expr VBAR src = expr1 DBLARROW tgt = expr1
+  | sph = sph_expr src = expr1 DBLARROW tgt = expr1 VBAR
     { Ext (sph,(src,tgt)) }
 
 disc_expr:
-  | sph = sph_expr VBAR d = expr1
+  | sph = sph_expr d = expr1
     { (sph,d) }
 
 coh_expr:
@@ -152,5 +155,5 @@ coh_expr:
       BARARROW src = expr1 DBLARROW tgt = expr1 RBRKT
     { CohE (pd,cat,src,tgt) }
   | CYLCOH LBRKT pd = pd_expr COLON cat = expr
-      BARARROW src = disc_expr BARARROW tgt = disc_expr RBRKT
+      src = disc_expr tgt = disc_expr RBRKT
     { CylCohE (pd,cat,src,tgt) }

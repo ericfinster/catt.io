@@ -10,6 +10,7 @@ open Meta
 open Value
 open Suite
 open Syntax
+open Cylinder
     
 (*****************************************************************************)
 (*                                 Evaluation                                *)
@@ -38,8 +39,10 @@ let rec eval top loc tm =
 
   | UCompT uc -> UCompV (uc,eval top loc (term_ucomp_desc uc), EmpSp)
   | CohT (g,c,s,t) -> CohV (eval top loc (tele_to_pi g (HomT (c,s,t))),EmpSp)
-  | CylCohT (_,_,_,_) -> failwith "eval cylcoh"
-                        
+  | CylCohT (g,c,s,t) ->
+    let ctm = TermCylCoh.cylcoh g c s t in 
+    eval top loc (TermUtil.abstract_tele g ctm)
+      
   | CylT (b,l,c) -> CylV (eval top loc b, eval top loc l, eval top loc c)
   | BaseT c -> baseV (eval top loc c)
   | LidT c -> lidV (eval top loc c)
@@ -67,7 +70,7 @@ and appV t u ict =
   | CohV (v,sp) -> CohV (v,AppSp(sp,u,ict))
   | LamV (_,_,cl) -> cl $$ u
   | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,AppSp(sp,u,ict))
-  | _ -> raise (Eval_error "malformed application")
+  | _ -> raise (Eval_error (Fmt.str "malformed application: %a" pp_value t))
 
 and baseV v =
   match v with
@@ -154,7 +157,7 @@ let rec quote k v ufld =
      | HomT (c,s,t) -> qcs (CohT (g,c,s,t)) sp
      | _ -> failwith "invalid coherence return type")
                         
-  | CylCohV (_,_) -> failwith "quote cylcoh"
+  (* | CylCohV (_,_) -> failwith "quote cylcoh" *)
 
   | CylV (b,l,c) -> CylT (qc b, qc l, qc c)
   | ArrV c -> ArrT (qc c)
@@ -206,7 +209,7 @@ let rec free_vars_val k v =
   | UCompV (_,_,sp) -> sp_vars sp 
   | CohV (v,sp) ->
     S.union (free_vars_val k v) (sp_vars sp)
-  | CylCohV _ -> failwith "fvs cylcohv"
+  (* | CylCohV _ -> failwith "fvs cylcohv" *)
   | CylV (b,l,c) ->
     S.union_list (module Base.Int) [fvc b; fvc l; fvc c]
   | ArrV c -> fvc c
@@ -263,26 +266,31 @@ let string_pd_to_value_tele (pd : string Pd.pd) : value tele =
   ValuePdConv.pd_to_tele (varV 0) (value_fixup pd)
 
 (*****************************************************************************)
-(*                              Value Coherences                             *)
+(*                              Value Cylinders                              *)
 (*****************************************************************************)
 
-(* could have an initial level .... *)
-(* let rec quote_tele (ufld : bool) (tl : value tele) : term tele * lvl =
- *   match tl with
- *   | Emp -> (Emp,0)
- *   | Ext (tl',(nm,ict,v)) ->
- *     let (tl'',lvl) = quote_tele ufld tl' in
- *     let t = quote lvl v ufld in
- *     (Ext (tl'',(nm,ict,t)),lvl+1)
- * 
- * (\* val coh : s tele -> s -> s -> s -> s *\)
- * let val_coh (g : value tele) (c : value) (s : value) (t : value) : value =
- * 
- *   (\* Is it actually necessary to unfold here? *\)
- *   let (gt,lvl) = quote_tele true g in
- *   let ct = quote lvl c true in
- *   let st = quote lvl s true in
- *   let tt = quote lvl t true in
- * 
- *   let cohtm = CohT (gt,ct,st,tt) in
- *   eval Emp Emp cohtm  *)
+module ValueCylinderSyntax = struct
+  include ValuePdSyntax
+  
+  let ucomp c pd =
+    if (Pd.is_disc pd) then
+      head (Pd.labels pd)
+    else
+      let v = eval Emp Emp (UCompT (UnitPd (Pd.blank pd))) in 
+      appArgs v (pd_args c pd)
+
+end
+
+module ValueCyl = CylinderOps(ValueCylinderSyntax)
+
+(* Revisit whether we really need these now ... *)
+(* here, you could keep going and get a suspended one ... *)
+let rec value_to_cyl_typ (cat : value) : (value * value cyl_typ , string) Result.t =
+  match force_meta cat with
+  | ArrV bc ->
+    Ok (bc , Emp)
+  | HomV (cat',s,t) ->
+    let* (bc,ct) = value_to_cyl_typ cat' in
+    Ok (bc, ct |> ((baseV s, lidV s, coreV s),
+                   (baseV t, lidV t, coreV t)))
+  | _ -> Error "Not a cylinder type"

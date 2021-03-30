@@ -77,7 +77,7 @@ let rename m pren v =
       (match a with
        | HomT (c,s,t) -> goSp pr (CohT (g,c,s,t)) sp
        | _ -> raise (Failure "rename coh has invalid type"))
-    | CylCohV _ -> raise (Failure "rename cylcoh")
+    (* | CylCohV _ -> raise (Failure "rename cylcoh") *)
       
     | CylV (b,l,c) -> CylT (go pr b, go pr l, go pr c)
     | ArrV c -> ArrT (go pr c)

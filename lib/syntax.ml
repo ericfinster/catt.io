@@ -27,10 +27,6 @@ type icit =
 type 'a decl = (name * icit * 'a)
 type 'a tele = ('a decl) suite
 
-type 'a pd_desc =
-  | TelePd of 'a tele
-  | TreePd of string * string pd 
-
 type ucmp_desc =
   | UnitPd of unit pd
   | DimSeq of int list
@@ -87,15 +83,15 @@ end
 module PdConversion(P : PdSyntax) = struct
   include P
 
-  let rec match_homs (c : s) : (s * s sph) Option.t =
+  let rec match_homs (c : s) : (s * s sph) =
     match match_hom c with
-    | None -> Some (c,Emp)
+    | None -> (c,Emp)
     | Some (c',s,t) ->
-      Base.Option.bind (match_homs c')
-        ~f:(fun (ct,sph) -> Some (ct, Ext (sph,(s,t))))
+      let (c'',sph) = match_homs c' in
+      (c'', Ext (sph,(s,t)))
     
   let match_cat_type (c : s) : (s * s sph) Option.t =
-    Base.Option.bind (match_obj c) ~f:(match_homs)
+    Base.Option.map (match_obj c) ~f:(match_homs)
 
   let rec sph_to_cat (c : s) (sph : s sph) : s =
     match sph with
@@ -266,17 +262,23 @@ module type Syntax = sig
   val pi : name -> icit -> s -> s -> s 
   val app : s -> s -> icit -> s
   val coh : s tele -> s -> s -> s -> s
+  val cyl : s -> s -> s -> s
 end
 
 module SyntaxUtil(Syn : Syntax) = struct
   include Syn
-  open PdConversion(Syn)
+  include PdConversion(Syn)
 
   (* Utility Routines *)
   let app_args t args =
     fold_left (fun t' (ict,arg) ->
         app t' arg ict) t args 
 
+  let id_sub t =
+    let k = length t in
+    map_with_lvl t ~f:(fun l (nm,ict,_) ->
+        (ict, var k l nm))
+          
   let abstract_tele tele tm =
     fold_right (fun (nm,ict,_) tm'  ->
         lam nm ict tm') tele tm

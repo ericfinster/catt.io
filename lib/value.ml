@@ -29,9 +29,9 @@ type value =
   | HomV of value * value * value
   | ArrV of value
 
+  (* Coherences *)
   | UCompV of ucmp_desc * value * spine
   | CohV of value * spine
-  | CylCohV of value * spine 
 
   (* Cylinders *)
   | CylV of value * value * value
@@ -88,9 +88,9 @@ let rec pp_value ppf v =
   | CohV (v,sp) -> 
     pf ppf "coh @[%a@] %a" 
       pp_value v pp_spine sp
-  | CylCohV (v,sp) ->
-    pf ppf "cylcoh @[%a@] %a" 
-      pp_value v pp_spine sp
+  (* | CylCohV (v,sp) ->
+   *   pf ppf "cylcoh @[%a@] %a" 
+   *     pp_value v pp_spine sp *)
     
   | CylV (b,l,c) ->
     pf ppf "[| %a | %a | %a |]"

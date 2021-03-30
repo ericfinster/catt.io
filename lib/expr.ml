@@ -32,8 +32,8 @@ type expr =
 
   (* Forms of coherences *)
   | UCompE of ucmp_desc
-  | CohE of expr pd_desc * expr * expr * expr 
-  | CylCohE of expr pd_desc * expr * expr disc * expr disc
+  | CohE of expr tele * expr * expr * expr 
+  | CylCohE of expr tele * expr * expr disc * expr disc
 
   (* cylinders *)
   | CylE of expr * expr * expr
@@ -44,8 +44,8 @@ type expr =
 (* This probably belongs elsewhere .... *)
 type defn =
   | TermDef of name * expr tele * expr * expr
-  | CohDef of name * expr pd_desc * expr * expr * expr 
-  (* | CohDef of name * expr pd_desc * expr * expr disc * expr disc *)
+  | CohDef of name * expr tele * expr * expr * expr
+  | CylCohDef of name * expr tele * expr * expr disc * expr disc 
 
 (*****************************************************************************)
 (*                        Expr Tele to Pasting Diagram                       *)
@@ -166,18 +166,12 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
     pf ppf "ucomp [ %a ]" pp_tr pd
   | UCompE (DimSeq ds) ->
     pf ppf "ucomp [ %a ]" (list int) ds
-  | CohE (TelePd g,c,s,t) ->
+  | CohE (g,c,s,t) ->
     pf ppf "@[coh [ @[%a@] : @[%a@] |> %a => %a ]@]"
       (pp_tele ppe) g ppe c ppe s ppe t
-  | CohE (TreePd (_,g),c,s,t) ->
-    pf ppf "@[coh [ @[%a@] : @[%a@] |> %a => %a ]@]"
-      pp_tr g ppe c ppe s ppe t
-  | CylCohE (TelePd g,c,s,t) ->
+  | CylCohE (g,c,s,t) ->
     pf ppf "cylcoh [ %a : %a |> %a => %a ]"
       (pp_tele ppe) g ppe c (pp_disc ppe) s (pp_disc ppe) t
-  | CylCohE (TreePd (_,g),c,s,t) ->
-    pf ppf "cylcoh [ %a : %a |> %a => %a ]"
-      pp_tr g ppe c (pp_disc ppe) s (pp_disc ppe) t
 
   | BaseE c ->
     pf ppf "base %a" ppe c
@@ -188,7 +182,7 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   | CylE (b,l,c) ->
     pf ppf "[| %a | %a | %a |]" ppe b ppe l ppe c 
 
-let pp_expr = pp_expr_gen ~si:false ~fh:true ~pc:true
+let pp_expr = pp_expr_gen ~si:false ~fh:false ~pc:true
 let pp_expr_with_impl = pp_expr_gen ~si:true ~fh:true ~pc:true
 
 
@@ -239,8 +233,9 @@ module ExprSyntax = struct
   let lam nm ict bdy = LamE (nm,ict,bdy)
   let pi nm ict dom cod = PiE (nm,ict,dom,cod)
   let app u v ict = AppE (u,v,ict)
-  let coh g c s t = CohE (TelePd g,c,s,t)
-  
+  let coh g c s t = CohE (g,c,s,t)
+  let cyl b l c = CylE (b,l,c)
+      
 end
 
 module ExprUtil = SyntaxUtil(ExprSyntax)
@@ -255,3 +250,4 @@ let expr_app_args = ExprUtil.app_args
 
 let ucomp_coh_expr : 'a pd -> expr = fun pd ->
   ExprUtil.ucomp_coh pd 
+

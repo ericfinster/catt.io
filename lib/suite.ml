@@ -34,7 +34,15 @@ let init s =
   match s with
   | Ext(s',_) -> s'
   | _ -> failwith "init on empty"
-           
+
+let rec match_init s =
+  match s with
+  | Emp -> failwith "match init on empty"
+  | Ext (Emp,x) -> (x,Emp)
+  | Ext (s',x) ->
+    let (i,s'') = match_init s' in
+    (i,Ext (s'',x))
+
 let rec length s =
   match s with
   | Emp -> 0

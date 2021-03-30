@@ -129,7 +129,7 @@ let rec term_to_expr nms tm =
          let c' = tte nms' c in
          let s' = tte nms' s in
          let t' = tte nms' t in
-         CohE (TelePd g',c',s',t'))
+         CohE (g',c',s',t'))
   | CylCohT (g,c,s,t) ->
     fold_accum_cont g nms
       (fun (nm,ict,tm) nms' ->
@@ -138,7 +138,7 @@ let rec term_to_expr nms tm =
          let c' = tte nms' c in
          let s' = map_disc ~f:(tte nms') s in
          let t' = map_disc ~f:(tte nms') t in
-         CylCohE (TelePd g',c',s',t'))
+         CylCohE (g',c',s',t'))
 
   | BaseT c -> BaseE (tte nms c)
   | LidT c -> LidE (tte nms c)
@@ -186,8 +186,9 @@ let rec pp_term ppf tm =
     pf ppf "\\{%s}. %a" nm pp_term t
   | LamT (nm,Expl,t) ->
     pf ppf "\\%s. %a" nm pp_term t
-  | AppT (u,v,Impl) ->
-    pf ppf "%a {%a}" pp_term u pp_term v
+  | AppT (u,_,Impl) ->
+    (* pf ppf "%a {%a}" pp_term u pp_term v *)
+    pf ppf "%a" pp_term u
   | AppT (u,v,Expl) ->
     (* Need's a generic lookahead for parens routine ... *)
     let pp_v = if (is_app_tm v) then
@@ -279,6 +280,25 @@ let rec free_vars k tm =
   | InsMetaT _ -> fvs_empty
 
 (*****************************************************************************)
+(*                          Cylinder Coherence Types                         *)
+(*****************************************************************************)
+
+
+(* Okay, now I think this might be wrong, no? *)
+(* Yeah, because we should be taking sources and targets of the pasting 
+   diagram as we go here.  
+*)
+let rec cyl_coh_typ gt ct ssph tsph = 
+  match (ssph,tsph) with
+  | (Emp,Emp) -> ArrT ct
+  | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
+    let cc = cyl_coh_typ gt ct ssph' tsph' in
+    let src_cyl = CylCohT (gt,ct,(ssph',ss),(tsph',ts)) in
+    let tgt_cyl = CylCohT (gt,ct,(ssph',st),(tsph',tt)) in 
+    HomT (cc,src_cyl,tgt_cyl)
+  | _ -> failwith "unequal dims in cyl_coh_typ"
+
+(*****************************************************************************)
 (*                             Term Pd Conversion                            *)
 (*****************************************************************************)
 
@@ -325,6 +345,7 @@ module TermSyntax = struct
   let pi nm ict dom cod = PiT (nm,ict,dom,cod)
   let app u v ict = AppT (u,v,ict)
   let coh g c s t = CohT (g,c,s,t)
+  let cyl b l c = CylT (b,l,c)
 end
 
 module TermUtil = SyntaxUtil(TermSyntax)

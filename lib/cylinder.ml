@@ -10,8 +10,6 @@ open Pd
 open Suite
 open Term
 open Expr
-open Value
-open Eval
 open Syntax
 
 (* Monadic bind for errors in scope *)
@@ -151,48 +149,77 @@ module CylinderOps(C : CylinderSyntax) = struct
   
 end
 
-(*****************************************************************************)
-(*                          Category Implementations                         *)
-(*****************************************************************************)
+(***************************************************************************)
+(*                           Cylinder Coherences                           *)
+(***************************************************************************)
 
-module ValueCylinderSyntax = struct
-  include ValuePdSyntax
-  
-  let ucomp c pd =
-    if (is_disc pd) then
-      head (labels pd)
-    else
-      let v = eval Emp Emp (UCompT (UnitPd (blank pd))) in 
-      appArgs v (pd_args c pd)
+module CylinderCoh(S: Syntax) = struct 
+    include S
 
+    module Su = SyntaxUtil(S)
+    module Ops = CylinderOps(Su)
+    
+    let rec cylcoh_susp (g : s tele) (c : s) (bsph : s sph)
+        ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
+      match (ssph,tsph) with 
+      | (Emp,Emp) ->
+        let coh_tm = Su.app_args (coh g c s t) (Su.id_sub g) in 
+        ((bsph, []), (s, t, coh_tm))
+      | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
+
+        let ((bsph',ct),(sb,sl,sc)) = cylcoh_susp g c bsph (ssph',ss) (tsph',ts) in
+        let (_,(tb,tl,tc)) = cylcoh_susp g c bsph (ssph',st) (tsph',tt) in
+
+        (* Yuck.  Inefficient. *)
+        let ct' = List.append ct [(sb,sl,sc),(tb,tl,tc)] in
+        let (_,b,l) = Ops.iter_advance c (bsph',ct') s t (List.length ct') in 
+        let coh_tm = Su.app_args (coh g c b l) (Su.id_sub g) in 
+        
+        ((bsph',ct'),(s,t,coh_tm))
+    
+      | _ -> failwith "cylcoh dimension error"
+
+    (* let rec cylcoh_susp_pd (pd : s pd) (c : s) (bsph : s sph)
+     *     ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
+     *   match (ssph,tsph) with 
+     *   | (Emp,Emp) ->
+     *     let coh_tm = Su.app_args (coh g c s t) (Su.id_sub g) in 
+     *     ((bsph, []), (s, t, coh_tm))
+     *   | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
+     * 
+     *     let ((bsph',ct),(sb,sl,sc)) = cylcoh_susp_pd g c bsph (ssph',ss) (tsph',ts) in
+     *     let (_,(tb,tl,tc)) = cylcoh_susp_pd g c bsph (ssph',st) (tsph',tt) in
+     * 
+     *     (\* Yuck.  Inefficient. *\)
+     *     let ct' = List.append ct [(sb,sl,sc),(tb,tl,tc)] in
+     *     let (_,b,l) = Ops.iter_advance c (bsph',ct') s t (List.length ct') in 
+     *     let coh_tm = Su.app_args (coh g c b l) (Su.id_sub g) in 
+     *     
+     *     ((bsph',ct'),(s,t,coh_tm))
+     * 
+     *   | _ -> failwith "cylcoh dimension error" *)
+
+    let cylcoh g c s t =
+      (* let pd = Result.ok_or_failwith (Su.tele_to_pd (length g) g) in  *)
+      let (bc, sph) = Ops.match_homs c in
+      let (_,(b,l,cr)) = cylcoh_susp g bc sph s t in
+      let result = cyl b l cr  in
+      Fmt.pr "@[<v>generated cylcoh: @[%a@]@,@]" pp result;
+      result
+    
+        
+    
 end
 
+(*****************************************************************************)
+(*                   Expr and Term Cylinder Implementations                  *)
+(*****************************************************************************)
+
 module ExprCyl = CylinderOps(ExprUtil)
-module ValueCyl = CylinderOps(ValueCylinderSyntax)
-
-(*****************************************************************************)
-(*                          Value Matching Routines                          *)
-(*****************************************************************************)
-
-(* here, you could keep going and get a suspended one ... *)
-let rec value_to_cyl_typ (cat : value) : (value * value cyl_typ , string) Result.t =
-  match cat with
-  | ArrV bc ->
-    Ok (bc , Emp)
-  | HomV (cat',s,t) ->
-    let* (bc,ct) = value_to_cyl_typ cat' in
-    Ok (bc, ct |> ((baseV s, lidV s, coreV s),
-                   (baseV t, lidV t, coreV t)))
-  | _ -> Error "Not a cylinder type"
-
-let rec value_unhom (cat : value) : (value * value sph) =
-  match cat with
-  | HomV (cat',src,tgt) ->
-    let (bc,sph) = value_unhom cat' in
-    (bc, sph |> (src,tgt))
-  | ObjV bc -> (bc,Emp)
-  | _ -> (cat,Emp)
-
+module ExprCylCoh = CylinderCoh(ExprSyntax)
+module TermCyl = CylinderOps(TermUtil)
+module TermCylCoh = CylinderCoh(TermSyntax)
+    
 (*****************************************************************************)
 (*                                  Testing                                  *)
 (*****************************************************************************)
