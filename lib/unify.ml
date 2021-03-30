@@ -71,13 +71,22 @@ let rename m pren v =
 
     | UCompV (_,cohv,sp) ->
       goSp pr (go pr cohv) sp
-    | CohV (v,sp) ->
-      let pi_tm = go pr v in
-      let (g,a) = pi_to_tele pi_tm in
-      (match a with
-       | HomT (c,s,t) -> goSp pr (CohT (g,c,s,t)) sp
-       | _ -> raise (Failure "rename coh has invalid type"))
-    (* | CylCohV _ -> raise (Failure "rename cylcoh") *)
+    (* | CohV (v,sp) ->
+     *   let pi_tm = go pr v in
+     *   let (g,a) = pi_to_tele pi_tm in
+     *   (match a with
+     *    | HomT (c,s,t) -> goSp pr (CohT (g,c,s,t)) sp
+     *    | _ -> raise (Failure "rename coh has invalid type")) *)
+
+    (* Coherences are closed, so we just quote.... *)
+    | CohV (cn,pd,c,s,t,sp) ->
+
+      let k' = Suite.length (Pd.labels pd) + 1 in 
+      let c' = quote true k' c in 
+      let s' = quote true k' s in
+      let t' = quote true k' t in 
+      
+      goSp pr (CohT (cn,pd,c',s',t')) sp 
       
     | CylV (b,l,c) -> CylT (go pr b, go pr l, go pr c)
     | ArrV c -> ArrT (go pr c)
@@ -190,9 +199,9 @@ let rec unify stgy top l t u =
   | (ArrV c, ArrV c') ->
     unify stgy top l c c'
 
-  | (CohV (ga,sp), CohV (ga',sp')) ->
-    unify stgy top l ga ga';
-    unifySp stgy top l sp sp'
+  (* | (CohV (ga,sp), CohV (ga',sp')) ->
+   *   unify stgy top l ga ga';
+   *   unifySp stgy top l sp sp' *)
 
   | (UCompV (_,cohv,sp), UCompV (_,cohv',sp')) when isUnfoldAll stgy ->
     unify UnfoldAll top l (runSpV cohv sp) (runSpV cohv' sp')

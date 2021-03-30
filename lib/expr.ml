@@ -219,9 +219,7 @@ end
 module ExprPdConv = PdConversion(ExprPdSyntax)
 
 let string_pd_to_expr_tele (c : string) (pd : string pd) : expr tele = 
-  ExprPdConv.pd_to_tele (VarE c)
-    (* FIXME! Use a better map to decide implicitness *)
-    (map_pd pd ~f:(fun s -> (s,Impl,VarE s)))
+  ExprPdConv.string_pd_to_tele c pd 
 
 (*****************************************************************************)
 (*                      Expression Syntax Implementation                     *)
@@ -233,7 +231,9 @@ module ExprSyntax = struct
   let lam nm ict bdy = LamE (nm,ict,bdy)
   let pi nm ict dom cod = PiE (nm,ict,dom,cod)
   let app u v ict = AppE (u,v,ict)
-  let coh g c s t = CohE (g,c,s,t)
+  let coh cnm pd c s t =
+    let g = ExprPdConv.nm_ict_pd_to_tele cnm pd in 
+    CohE (g,c,s,t)
   let cyl b l c = CylE (b,l,c)
       
 end

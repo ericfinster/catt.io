@@ -35,8 +35,11 @@ type term =
 
   (* Coherences *)
   | UCompT of ucmp_desc 
-  | CohT of term tele * term * term * term 
+  (* | CohT of term tele * term * term * term  *)
   | CylCohT of term tele * term * term disc * term disc
+
+  (* New style coherences *)
+  | CohT of (name * icit) * (name * icit) pd * term * term * term 
 
   (* Cylinders *)
   | CylT of term * term * term
@@ -69,14 +72,14 @@ let rec db_lift_by l k tm =
   | CatT -> CatT
 
   | UCompT pd -> UCompT pd
-  | CohT (g,c,s,t) -> 
-    tele_fold_with_idx g l
-      (fun tm l' -> db_lift_by l' k tm)
-      (fun g' l' ->
-         let c' = db_lift_by l' k c in
-         let s' = db_lift_by l' k s in
-         let t' = db_lift_by l' k t in 
-         CohT (g',c',s',t'))
+  (* | CohT (g,c,s,t) -> 
+   *   tele_fold_with_idx g l
+   *     (fun tm l' -> db_lift_by l' k tm)
+   *     (fun g' l' ->
+   *        let c' = db_lift_by l' k c in
+   *        let s' = db_lift_by l' k s in
+   *        let t' = db_lift_by l' k t in 
+   *        CohT (g',c',s',t')) *)
   | CylCohT (g,c,s,t) ->
     tele_fold_with_idx g l
       (fun tm l' -> db_lift_by l' k tm)
@@ -85,6 +88,10 @@ let rec db_lift_by l k tm =
          let s' = map_disc s ~f:(db_lift_by l' k) in
          let t' = map_disc t ~f:(db_lift_by l' k) in 
          CylCohT (g',c',s',t'))
+
+  (* New coherences are always closed ... *)
+  | CohT (cnm,pd,sph,s,t) ->
+    CohT (cnm,pd,sph,s,t)
 
   | BaseT t -> BaseT (lft t)
   | LidT t -> LidT (lft t)
@@ -121,15 +128,15 @@ let rec term_to_expr nms tm =
     HomE (tte nms c, tte nms s, tte nms t)
 
   | UCompT pd -> UCompE pd
-  | CohT (g,c,s,t) -> 
-    fold_accum_cont g nms
-      (fun (nm,ict,tm) nms' ->
-         ((nm,ict,tte nms' tm), Ext (nms',nm)))
-      (fun g' nms' ->
-         let c' = tte nms' c in
-         let s' = tte nms' s in
-         let t' = tte nms' t in
-         CohE (g',c',s',t'))
+  (* | CohT (g,c,s,t) -> 
+   *   fold_accum_cont g nms
+   *     (fun (nm,ict,tm) nms' ->
+   *        ((nm,ict,tte nms' tm), Ext (nms',nm)))
+   *     (fun g' nms' ->
+   *        let c' = tte nms' c in
+   *        let s' = tte nms' s in
+   *        let t' = tte nms' t in
+   *        CohE (g',c',s',t')) *)
   | CylCohT (g,c,s,t) ->
     fold_accum_cont g nms
       (fun (nm,ict,tm) nms' ->
@@ -139,6 +146,16 @@ let rec term_to_expr nms tm =
          let s' = map_disc ~f:(tte nms') s in
          let t' = map_disc ~f:(tte nms') t in
          CylCohE (g',c',s',t'))
+
+  | CohT (cn,pd,c,s,t) ->
+    let g = ExprPdConv.nm_ict_pd_to_tele cn pd in
+    fold_accum_cont g nms
+      (fun (nm,_,_) nms' -> ((),Ext (nms',nm)))
+      (fun _ nms' ->
+         let c' = tte nms' c in
+         let s' = tte nms' s in
+         let t' = tte nms' t in
+         CohE (g,c',s',t'))
 
   | BaseT c -> BaseE (tte nms c)
   | LidT c -> LidE (tte nms c)
@@ -223,16 +240,22 @@ let rec pp_term ppf tm =
     pf ppf "ucomp [ %a ]" pp_tr pd
   | UCompT (DimSeq ds) ->
     pf ppf "ucomp [ %a ]" (list int) ds
-  | CohT (g,c,s,t) ->
-    pf ppf "coh [ %a : %a |> %a <=> %a ]"
-      (pp_tele pp_term) g pp_term c
-      pp_term s
-      pp_term t
+  (* | CohT (g,c,s,t) ->
+   *   pf ppf "coh [ %a : %a |> %a <=> %a ]"
+   *     (pp_tele pp_term) g pp_term c
+   *     pp_term s
+   *     pp_term t *)
   | CylCohT (g,c,s,t) ->
     pf ppf "cylcoh [ %a : %a |> %a <=> %a ]"
       (pp_tele pp_term) g pp_term c
       (pp_disc pp_term) s
       (pp_disc pp_term) t
+
+  | CohT (cn,pd,c,s,t) ->
+    pf ppf "@[coh [ %a %a : %a |> %a => %a ]@]"
+      pp_nm_ict cn
+      (pp_pd pp_nm_ict) pd
+      pp_term c pp_term s pp_term t
 
   | BaseT c -> pf ppf "base %a" pp_term c
   | LidT c -> pf ppf "lid %a" pp_term c
@@ -261,15 +284,16 @@ let rec free_vars k tm =
   | HomT (c,s,t) ->
     Set.union (free_vars k c) (Set.union (free_vars k s) (free_vars k t))
   | UCompT _ -> fvs_empty
-  | CohT (g,c,s,t) ->
-    let rec go k g =
-      match g with
-      | Emp -> free_vars k (HomT (c,s,t))
-      | Ext (g',_) -> go (k+1) g'
-    in go k g
+  (* | CohT (g,c,s,t) ->
+   *   let rec go k g =
+   *     match g with
+   *     | Emp -> free_vars k (HomT (c,s,t))
+   *     | Ext (g',_) -> go (k+1) g'
+   *   in go k g *)
   | CylCohT _ -> failwith "fvs cylcoh"
   | CylT (b,l,c) ->
     Set.union (free_vars k b) (Set.union (free_vars k l) (free_vars k c))
+  | CohT (_,_,_,_,_) -> fvs_empty 
   | BaseT c -> free_vars k c
   | LidT c -> free_vars k c
   | CoreT c -> free_vars k c
@@ -329,11 +353,8 @@ end
 
 module TermPdConv = PdConversion(TermPdSyntax)
 
-let term_fixup (pd : string pd) : (term decl) pd =
-  (pd_idx_map pd (fun s _ -> (s,Impl,VarT 0)))
-  
-let string_pd_to_term_tele (pd : string pd) : term tele = 
-  TermPdConv.pd_to_tele (VarT 0) (term_fixup pd)
+let string_pd_to_term_tele (c : string) (pd : string pd) : term tele =
+  TermPdConv.string_pd_to_tele c pd 
 
 (*****************************************************************************)
 (*                         Term Syntax Implementation                        *)
@@ -344,7 +365,7 @@ module TermSyntax = struct
   let lam nm ict bdy = LamT (nm,ict,bdy)
   let pi nm ict dom cod = PiT (nm,ict,dom,cod)
   let app u v ict = AppT (u,v,ict)
-  let coh g c s t = CohT (g,c,s,t)
+  let coh n g c s t = CohT (n,g,c,s,t)
   let cyl b l c = CylT (b,l,c)
 end
 

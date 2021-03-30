@@ -4,6 +4,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open Pd
 open Fmt
 open Term
 open Suite
@@ -31,7 +32,9 @@ type value =
 
   (* Coherences *)
   | UCompV of ucmp_desc * value * spine
-  | CohV of value * spine
+  (* | CohV of value * spine *)
+
+  | CohV of (name * icit) * (name * icit) pd * value * value * value * spine
 
   (* Cylinders *)
   | CylV of value * value * value
@@ -85,13 +88,13 @@ let rec pp_value ppf v =
   | UCompV (uc,_,sp) ->
     pf ppf "ucomp [ %a ] %a"
       pp_ucmp_desc uc pp_spine sp 
-  | CohV (v,sp) -> 
-    pf ppf "coh @[%a@] %a" 
-      pp_value v pp_spine sp
-  (* | CylCohV (v,sp) ->
-   *   pf ppf "cylcoh @[%a@] %a" 
+  (* | CohV (v,sp) -> 
+   *   pf ppf "coh @[%a@] %a" 
    *     pp_value v pp_spine sp *)
-    
+
+  | CohV _ ->
+    pf ppf "newcoh value not done"
+      
   | CylV (b,l,c) ->
     pf ppf "[| %a | %a | %a |]"
       pp_value b pp_value l pp_value c

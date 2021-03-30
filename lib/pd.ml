@@ -294,6 +294,9 @@ let fold_pd_lf_nd pd init ~lf ~nd =
 
   in fold_pd_lf_nd_br init pd
 
+let fold_pd pd init ~f =
+  fold_pd_lf_nd pd init ~lf:f ~nd:f
+    
 let map_pd_lf_nd_lvl pd ~lf ~nd =
 
   let rec map_pd_lf_nd_lvl_br k br =
@@ -317,53 +320,30 @@ let map_pd_lf_nd_lvl pd ~lf ~nd =
 
   in snd (map_pd_lf_nd_lvl_br 1 pd)
 
-(* FIXME! Write a "variable" map which provides the length so far, as
-   well as the position. This way, it matches the variable
-   constructors for generic syntax, and eliminates the need for
-   repetition here.  *)
 
-let pd_lvl_map_with_lvl pd f =
+let map_pd_lvls (pd : 'a pd) (init : int)
+    ~f:(f : int -> int -> bool -> 'a -> 'b) : 'b pd =
 
-  let rec pd_to_lvl_br k br =
-    match br with
-    | Br (l,brs) ->
-      let (k', brs') = pd_to_lvl_brs (k+1) brs
-      in (k', Br (f l k, brs'))
-
-  and pd_to_lvl_brs k brs =
-    match brs with
-    | Emp -> (k,Emp)
-    | Ext (bs,(l,b)) ->
-      let (k', bs') = pd_to_lvl_brs k bs in
-      let (k'', b') = pd_to_lvl_br (k'+1) b in 
-      (k'', Ext (bs',(f l k', b')))
-
-  in pd_to_lvl_br 0 pd
-
-let pd_lvl_map pd f =
-  snd (pd_lvl_map_with_lvl pd f)
-
-(* label a pasting diagram with deBruijn indices *)
-let pd_idx_map_with_idx pd f =
+  let k = length (labels pd) in
   
-  let rec pd_to_idx_br k br =
+  let rec pd_info_br l br =
     match br with
-    | Br (l,brs) ->
-      let (k', brs') = pd_to_idx_brs k brs in
-      (k'+1, Br (f l k', brs'))
+    | Br (x,brs) ->
+      let x' = f k l (is_empty brs) x in
+      let (brs',l') = pd_info_brs (l+1) brs in
+      (Br (x',brs'), l')
 
-  and pd_to_idx_brs k brs =
+
+  and pd_info_brs l brs =
     match brs with
-    | Emp -> (k,Emp)
-    | Ext (brs',(l,br)) ->
-      let (k', br') = pd_to_idx_br k br in
-      let (k'', brs'') = pd_to_idx_brs (k'+1) brs' in
-      (k'', Ext (brs'',(f l k',br')))
-      
-  in pd_to_idx_br 0 pd
+    | Emp -> (Emp,l)
+    | Ext (brs',(x,br)) ->
+      let (brs'',l') = pd_info_brs l brs' in
+      let x' = f k l' false x in
+      let (br',l'') = pd_info_br (l'+1) br in
+      (Ext (brs'',(x',br')) , l'')
 
-let pd_idx_map pd f =
-  snd (pd_idx_map_with_idx pd f)
+  in fst (pd_info_br init pd)
 
 (* Map over the pasting diagram with 
    the boundary sphere of labels in context *)
@@ -407,33 +387,6 @@ let fold_left_with_sph pd f b =
       (b''',tgt)
 
   in fst (fold_left_with_disc_br Emp pd b)
-
-(* let map_sph_test pd =
- *   let open Fmt in 
- *   map_with_sph pd (fun sph flr ->
- *       pr "Passing: @[<hov> %a %s@]\n" (pp_suite (pair string string)) sph flr;
- *       ()) *)
-  
-(* module PdTraverse(A : Applicative) = struct
- * 
- *   type 'a t = 'a pd
- *   type 'a m = 'a A.t
- *   
- *   open ApplicativeSyntax(A)
- *   module ST = SuiteTraverse(A)
- * 
- *   let rec traverse f pd =
- *     match pd with
- *     | Br (a,abrs) ->
- *       let tr (l,b) =
- *         let+ l' = f l
- *         and+ b' = traverse f b
- *         in (l',b') in 
- *       let+ b = f a
- *       and+ bbrs = ST.traverse tr abrs in
- *       Br (b,bbrs)
- *         
- * end *)
 
 (*****************************************************************************)
 (*                              Pretty Printing                              *)

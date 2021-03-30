@@ -159,25 +159,25 @@ module CylinderCoh(S: Syntax) = struct
     module Su = SyntaxUtil(S)
     module Ops = CylinderOps(Su)
     
-    let rec cylcoh_susp (g : s tele) (c : s) (bsph : s sph)
-        ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
-      match (ssph,tsph) with 
-      | (Emp,Emp) ->
-        let coh_tm = Su.app_args (coh g c s t) (Su.id_sub g) in 
-        ((bsph, []), (s, t, coh_tm))
-      | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
-
-        let ((bsph',ct),(sb,sl,sc)) = cylcoh_susp g c bsph (ssph',ss) (tsph',ts) in
-        let (_,(tb,tl,tc)) = cylcoh_susp g c bsph (ssph',st) (tsph',tt) in
-
-        (* Yuck.  Inefficient. *)
-        let ct' = List.append ct [(sb,sl,sc),(tb,tl,tc)] in
-        let (_,b,l) = Ops.iter_advance c (bsph',ct') s t (List.length ct') in 
-        let coh_tm = Su.app_args (coh g c b l) (Su.id_sub g) in 
-        
-        ((bsph',ct'),(s,t,coh_tm))
-    
-      | _ -> failwith "cylcoh dimension error"
+    (* let rec cylcoh_susp (g : s tele) (c : s) (bsph : s sph)
+     *     ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
+     *   match (ssph,tsph) with 
+     *   | (Emp,Emp) ->
+     *     let coh_tm = Su.app_args (coh g c s t) (Su.id_sub g) in 
+     *     ((bsph, []), (s, t, coh_tm))
+     *   | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
+     * 
+     *     let ((bsph',ct),(sb,sl,sc)) = cylcoh_susp g c bsph (ssph',ss) (tsph',ts) in
+     *     let (_,(tb,tl,tc)) = cylcoh_susp g c bsph (ssph',st) (tsph',tt) in
+     * 
+     *     (\* Yuck.  Inefficient. *\)
+     *     let ct' = List.append ct [(sb,sl,sc),(tb,tl,tc)] in
+     *     let (_,b,l) = Ops.iter_advance c (bsph',ct') s t (List.length ct') in 
+     *     let coh_tm = Su.app_args (coh g c b l) (Su.id_sub g) in 
+     *     
+     *     ((bsph',ct'),(s,t,coh_tm))
+     * 
+     *   | _ -> failwith "cylcoh dimension error" *)
 
     (* let rec cylcoh_susp_pd (pd : s pd) (c : s) (bsph : s sph)
      *     ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
@@ -199,14 +199,13 @@ module CylinderCoh(S: Syntax) = struct
      * 
      *   | _ -> failwith "cylcoh dimension error" *)
 
-    let cylcoh g c s t =
-      (* let pd = Result.ok_or_failwith (Su.tele_to_pd (length g) g) in  *)
-      let (bc, sph) = Ops.match_homs c in
-      let (_,(b,l,cr)) = cylcoh_susp g bc sph s t in
-      let result = cyl b l cr  in
-      Fmt.pr "@[<v>generated cylcoh: @[%a@]@,@]" pp result;
-      result
-    
+    (* let cylcoh g c s t =
+     *   (\* let pd = Result.ok_or_failwith (Su.tele_to_pd (length g) g) in  *\)
+     *   let (bc, sph) = Ops.match_homs c in
+     *   let (_,(b,l,cr)) = cylcoh_susp g bc sph s t in
+     *   let result = cyl b l cr  in
+     *   Fmt.pr "@[<v>generated cylcoh: @[%a@]@,@]" pp result;
+     *   result *)    
         
     
 end
