@@ -21,13 +21,20 @@ let rec dim_pd pd =
   match pd with
   | Br (_,brs) ->
     let f d (_,b) = max d (dim_pd b) in 
-    1 + fold_left f (-1) brs 
+    1 + fold_left brs (-1) f
 
 let rec is_disc pd =
   match pd with
   | Br (_,Emp) -> true
   | Br (_,Ext(Emp,(_,pd'))) -> is_disc pd'
   | _ -> false
+
+let rec pd_length pd =
+  match pd with
+  | Br (_,brs) ->
+    fold_left brs 1
+      (fun l (_,br) ->
+         l + pd_length br + 1)
 
 let rec shape_eq pd_a pd_b =
   match (pd_a,pd_b) with
@@ -40,14 +47,13 @@ let rec shape_eq pd_a pd_b =
 (* Truncate to the provided dimension.  The boolean
    flag dir is true for the source direction, false
    for the target *)
-
 let rec truncate dir d pd =
   match pd with
   | Br (a, brs) ->
     if (d <= 0) then
       (
         if dir then Br (a, Emp)
-        else let a' = fold_left (fun _ (y,_) -> y) a brs in 
+        else let a' = fold_left brs a (fun _ (y,_) -> y) in 
           Br (a', Emp)
       )
     else Br (a, map_suite brs ~f:(fun (l,b) -> (l,truncate dir (d-1) b)))
@@ -281,58 +287,39 @@ let rec map_pd pd ~f =
     let fm (l, b) = (f l, map_pd b ~f:f) in
     Br (f a, map_suite brs ~f:fm)
 
-let fold_pd_lf_nd pd init ~lf ~nd =
+let fold_pd_lvls (pd : 'a pd) ?off:(off=0) (init : 'b)
+    ~f:(f : int -> int -> bool -> 'a -> 'b -> 'b) : 'b =
 
-  let rec fold_pd_lf_nd_br acc br =
+  let k = pd_length pd + off in 
+  
+  let rec fold_pd_lvls_br l acc br =
     match br with
     | Br (x,brs) ->
-      let acc' =
-        if (is_empty brs) then
-          lf acc x
-        else nd acc x
-      in fold_pd_lf_nd_brs acc' brs
-
-  and fold_pd_lf_nd_brs acc brs =
+      let acc' = f k l (is_empty brs) x acc in
+      fold_pd_lvls_brs (l+1) acc' brs
+        
+  and fold_pd_lvls_brs l acc brs =
     match brs with
-    | Emp -> acc
+    | Emp -> (acc,l)
     | Ext (brs',(x,br)) ->
-      let acc' = fold_pd_lf_nd_brs acc brs' in
-      let acc'' = nd acc' x in 
-      fold_pd_lf_nd_br acc'' br 
+      let (acc',l') = fold_pd_lvls_brs l acc brs' in
+      let acc'' = f k l' false x acc' in
+      fold_pd_lvls_br (l'+1) acc'' br
 
-  in fold_pd_lf_nd_br init pd
+  in fst (fold_pd_lvls_br off init pd) 
+
+let fold_pd_lf_nd pd init ~lf ~nd =
+  let f _ _ is_lf x b =
+    if is_lf then (lf b x) else (nd b x) in 
+  fold_pd_lvls pd init ~f:f
 
 let fold_pd pd init ~f =
   fold_pd_lf_nd pd init ~lf:f ~nd:f
     
-let map_pd_lf_nd_lvl pd ~lf ~nd =
-
-  let rec map_pd_lf_nd_lvl_br k br =
-    match br with
-    | Br (x,brs) ->
-      let x' =
-        if (is_empty brs) then
-          lf k x
-        else nd k x in
-      let (k',brs') = map_pd_lf_nd_lvl_brs (k+1) brs in
-      (k',Br (x',brs'))
-
-  and map_pd_lf_nd_lvl_brs k brs =
-    match brs with
-    | Emp -> (k,Emp)
-    | Ext (brs',(x,br)) ->
-      let (k',brs'') = map_pd_lf_nd_lvl_brs k brs' in
-      let x' = nd k' x in 
-      let (k'',br') = map_pd_lf_nd_lvl_br (k'+1) br in
-      (k'',Ext (brs'',(x',br')))
-
-  in snd (map_pd_lf_nd_lvl_br 1 pd)
-
-
 let map_pd_lvls (pd : 'a pd) (init : int)
     ~f:(f : int -> int -> bool -> 'a -> 'b) : 'b pd =
 
-  let k = length (labels pd) in
+  let k = pd_length pd in 
   
   let rec pd_info_br l br =
     match br with
@@ -340,7 +327,6 @@ let map_pd_lvls (pd : 'a pd) (init : int)
       let x' = f k l (is_empty brs) x in
       let (brs',l') = pd_info_brs (l+1) brs in
       (Br (x',brs'), l')
-
 
   and pd_info_brs l brs =
     match brs with
@@ -353,9 +339,18 @@ let map_pd_lvls (pd : 'a pd) (init : int)
 
   in fst (pd_info_br init pd)
 
+let map_pd_lf_nd_lvl pd ~lf ~nd =
+  let f _ l is_lf x =
+    if is_lf then lf l x else nd l x
+  in  map_pd_lvls pd 1 ~f:f
+
+let map_pd_lf_nd pd ~lf ~nd =
+  let f _ _ is_lf x =
+    if is_lf then lf x else nd x
+  in  map_pd_lvls pd 1 ~f:f
+
 (* Map over the pasting diagram with 
    the boundary sphere of labels in context *)
-    
 let map_with_sph pd f =
   
   let rec map_with_disc_br sph br =
@@ -478,7 +473,7 @@ let rec join_pd d pd =
   match pd with
   | Br (p,brs) ->
     let jr (_,b) = join_pd (d+1) b in
-    fold_left (merge d) p (map_suite brs ~f:jr)
+    fold_left (map_suite brs ~f:jr) p (merge d) 
 
 let blank pd = map_pd pd ~f:(fun _ -> ()) 
 let subst pd sub = map_pd pd ~f:(fun id -> Suite.assoc id sub) 

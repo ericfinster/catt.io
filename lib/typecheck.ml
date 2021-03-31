@@ -467,96 +467,88 @@ and check_sph gma sph c =
     let tv = eval gma.top gma.loc t' in
     Ok (HomV (c',sv,tv), Ext (sph'',(s',t')))
 
-(* and cyl_coh_typ gt ct ssph tsph =
- *   match (ssph,tsph) with
- *   | (Emp,Emp) -> Ok (ArrT ct)
- *   | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
- *     let* cc = cyl_coh_typ gt ct ssph tsph in
- *     let src_cyl = CylCohT (gt,ct,(ssph',ss),(tsph',ts)) in
- *     let tgt_cyl = CylCohT (gt,ct,(ssph',st),(tsph',tt)) in 
- *     Ok (HomT (cc,src_cyl,tgt_cyl))
- *   | _ -> Error (`InternalError) *)
+and check_cyl_coh gma g c (ssph,s) (tsph,t) =
+  (* pr "@[<v>check_cyl_coh@,gma: @[%a@]@,c: @[%a@]@,s: @[%a@]@,t: @[%a@]@,@]"
+   *   (pp_tele pp_expr) g pp_expr c pp_expr s pp_expr t; *)
+  with_tele (empty_loc gma) g (fun gma' gv gt ->
+      
+      match ValuePdConv.tele_to_pd gv with
+      | Error msg -> Error (`PastingError msg)
+      | Ok (cn,pd) ->
+          
+        let lc = gma'.loc in
+        let tp = gma'.top in
 
-(* and check_cyl_coh gma g c (ssph,s) (tsph,t) =
- *   (\* pr "@[<v>check_cyl_coh@,gma: @[%a@]@,c: @[%a@]@,s: @[%a@]@,t: @[%a@]@,@]"
- *    *   (pp_tele pp_expr) g pp_expr c pp_expr s pp_expr t; *\)
- *   with_tele (empty_loc gma) g (fun gma' gv gt ->
- * 
- *       match ValuePdConv.tele_to_pd (length gv) gv with
- *       | Error msg -> Error (`PastingError msg)
- *       | Ok pd ->
- *           
- *         let lc = gma'.loc in
- *         let tp = gma'.top in
- * 
- *         let cat_lvl = (length gma'.loc) - (length gv) in
- *         let cat_idx = length gv - 1 in
- *         
- *         let* c' = check gma' c CatV in
- *         let cv = eval tp lc c' in
- * 
- *         let* (scatv,ssph') = check_sph gma' ssph cv in
- *         let* (tcatv,tsph') = check_sph gma' tsph cv in 
- *         
- *         let* s' = check gma' s (ObjV scatv) in
- *         let* t' = check gma' t (ObjV tcatv) in
- * 
- *         let sv = eval tp lc s' in 
- *         let tv = eval tp lc t' in 
- *         
- *         let (bc,bsphv) = ValuePdConv.match_homs cv in 
- * 
- *         let bdim = length bsphv in 
- *         let sdim = length ssph' + bdim in
- *         let tdim = length tsph' + bdim in
- * 
- *         let* _ = Result.ok_if_true (sdim = tdim)
- *             ~error:(`PastingError "cylcoh source and target cells have different dims") in 
- *         
- *         begin try unify OneShot gma'.top gma'.lvl (varV cat_lvl) bc ;
- * 
- *             let k = length gma'.loc in 
- *             let src_cat_vars = free_vars_val k scatv in
- *             let src_vars = free_vars_val k sv in
- *             let tgt_cat_vars = free_vars_val k tcatv in 
- *             let tgt_vars = free_vars_val k tv in
- *             let pd_dim = Pd.dim_pd pd in 
- * 
- *             if (sdim > pd_dim) then
- *               (\* Coherence Case *\)
- * 
- *               let pd_vars = fold_left (fun vs v -> Set.union vs (free_vars_val k v))
- *                   (fvs_singleton cat_idx) (Pd.labels pd) in
- *               let tot_src_vars = Set.union src_cat_vars src_vars in
- *               let tot_tgt_vars = Set.union tgt_cat_vars tgt_vars in 
- * 
- *               if (not (Set.is_subset pd_vars ~of_:tot_src_vars) ||
- *                   not (Set.is_subset pd_vars ~of_:tot_tgt_vars)) then
- *                 Error (`FullnessError "coherence case is not full")                 
- *               else Ok (gt,c',(ssph',s'),(tsph',t'))
- *           
- *             else
- * 
- *               let pd_src = Pd.truncate true (pd_dim - 1) pd in
- *               let pd_tgt = Pd.truncate false (pd_dim - 1) pd in
- * 
- *               let pd_src_vars = fold_left (fun vs v -> Set.union vs (free_vars_val k v))
- *                   (fvs_singleton cat_idx) (Pd.labels pd_src) in
- *               let pd_tgt_vars = fold_left (fun vs v -> Set.union vs (free_vars_val k v))
- *                   (fvs_singleton cat_idx) (Pd.labels pd_tgt) in
- * 
- *               let tot_src_vars = Set.union src_cat_vars src_vars in
- *               let tot_tgt_vars = Set.union tgt_cat_vars tgt_vars in
- * 
- *               if (not (Set.is_subset pd_src_vars ~of_:tot_src_vars)) then
- *                 Error (`FullnessError "non-full source")
- *               else if (not (Set.is_subset pd_tgt_vars ~of_:tot_tgt_vars)) then
- *                 Error (`FullnessError "non-full target")
- *               else Ok (gt,c',(ssph',s'),(tsph',t'))
- * 
- *           with Unify_error _ -> Error (`FullnessError "invalid base category") end 
- * 
- *     ) *)
+        let cat_idx = length gv - 1 in
+        let ipd = idx_pd pd in 
+
+        let* c' = check gma' c CatV in
+        let cv = eval tp lc c' in
+
+        let* (scatv,ssph') = check_sph gma' ssph cv in
+        let* (tcatv,tsph') = check_sph gma' tsph cv in 
+        
+        let* s' = check gma' s (ObjV scatv) in
+        let* t' = check gma' t (ObjV tcatv) in
+
+        let sv = eval tp lc s' in 
+        let tv = eval tp lc t' in 
+        
+        let (bc,bsphv) = ValuePdConv.match_homs cv in 
+
+        let bdim = length bsphv in 
+        let sdim = length ssph' + bdim in
+        let tdim = length tsph' + bdim in
+
+        let* _ = Result.ok_if_true (sdim = tdim)
+            ~error:(`PastingError "cylcoh source and target cells have different dims") in 
+        
+        begin try unify OneShot gma'.top gma'.lvl (varV 0) bc ;
+
+            let k = length gma'.loc in 
+            let src_cat_vars = free_vars_val k scatv in
+            let src_vars = free_vars_val k sv in
+            let tgt_cat_vars = free_vars_val k tcatv in 
+            let tgt_vars = free_vars_val k tv in
+            let pd_dim = Pd.dim_pd pd in 
+
+            if (sdim > pd_dim) then
+              (* Coherence Case *)
+
+
+              let pd_vars = Pd.fold_pd ipd (fvs_singleton cat_idx)
+                  ~f:(fun vs i -> Set.add vs i) in 
+              let tot_src_vars = Set.union src_cat_vars src_vars in
+              let tot_tgt_vars = Set.union tgt_cat_vars tgt_vars in 
+
+              if (not (Set.is_subset pd_vars ~of_:tot_src_vars) ||
+                  not (Set.is_subset pd_vars ~of_:tot_tgt_vars)) then
+                Error (`FullnessError "cylinder coherence case is not full")                 
+              else Ok (gt,cn,pd,c',(ssph',s'),(tsph',t'))
+          
+            else
+
+              let pd_src = Pd.truncate true (pd_dim - 1) ipd in
+              let pd_tgt = Pd.truncate false (pd_dim - 1) ipd in
+
+              
+              let pd_src_vars = Pd.fold_pd pd_src (fvs_singleton cat_idx)
+                  ~f:(fun vs i -> Set.add vs i) in 
+              let pd_tgt_vars = Pd.fold_pd pd_tgt (fvs_singleton cat_idx)
+                  ~f:(fun vs i -> Set.add vs i) in
+
+              let tot_src_vars = Set.union src_cat_vars src_vars in
+              let tot_tgt_vars = Set.union tgt_cat_vars tgt_vars in
+
+              if (not (Set.is_subset pd_src_vars ~of_:tot_src_vars)) then
+                Error (`FullnessError "non-full source")
+              else if (not (Set.is_subset pd_tgt_vars ~of_:tot_tgt_vars)) then
+                Error (`FullnessError "non-full target")
+              else Ok (gt,cn,pd,c',(ssph',s'),(tsph',t'))
+
+          with Unify_error _ -> Error (`FullnessError "invalid base category") end 
+
+    )
 
 let rec check_defs gma defs =
   let module E = ExprUtil in 
@@ -589,19 +581,17 @@ let rec check_defs gma defs =
     (* pr "@[<v>Coh term: @[%a@]@,@]" pp_term (CohT (cn,pd,ct,st,tt)); *)
     pr "@[<v>Coh expr: @[%a@]@,@]" pp_expr coh_tm_nf;
     check_defs (define gma id coh_tm coh_ty) ds
-  | (CylCohDef _)::ds ->
-    check_defs gma ds
-  (* | (CylCohDef (id,g,c,s,t))::ds ->
-   *   pr "----------------@,";
-   *   pr "Checking cylinder coherence: %s@," id;
-   *   let* (gt,ct,(ssph,s),(tsph,t)) = check_cyl_coh gma g c s t in
-   *   let cctt = cyl_coh_typ gt ct ssph tsph in
-   *   pr "cylinder type: %a@," pp_term cctt; 
-   *   let cyl_ctm = eval gma.top gma.loc
-   *       (CylCohT (gt,ct,(ssph,s),(tsph,t))) in 
-   *   let cyl_cty = eval gma.top gma.loc
-   *       (tele_to_pi gt (ObjT cctt)) in
-   *   let cyl_nf = term_to_expr Emp (quote false gma.lvl cyl_ctm) in
-   *   pr "@[<v>Cylcoh expr: @[%a@]@,@]" pp_expr cyl_nf;
-   *   check_defs (define gma id cyl_ctm cyl_cty) ds *)
+  | (CylCohDef (id,g,c,s,t))::ds ->
+    pr "----------------@,";
+    pr "Checking cylinder coherence: %s@," id;
+    let* (gt,cn,pd,ct,(ssph,s),(tsph,t)) = check_cyl_coh gma g c s t in
+    let cctt = cyl_coh_typ cn pd ct ssph tsph in
+    pr "cylinder type: %a@," pp_term cctt; 
+    let cyl_ctm = eval gma.top gma.loc
+        (CylCohT (cn,pd,ct,(ssph,s),(tsph,t))) in 
+    let cyl_cty = eval gma.top gma.loc
+        (tele_to_pi gt (ObjT cctt)) in
+    let cyl_nf = term_to_expr Emp (quote false gma.lvl cyl_ctm) in
+    pr "@[<v>Cylcoh expr: @[%a@]@,@]" pp_expr cyl_nf;
+    check_defs (define gma id cyl_ctm cyl_cty) ds
      

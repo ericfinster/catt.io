@@ -163,10 +163,10 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   | CatE -> string ppf "Cat"
   | ArrE c ->
     pf ppf "Arr %a" ppe c
-  | ObjE e -> pf ppf "[%a]" ppe e
+  | ObjE e -> pf ppf "[@[<hov>%a@]]" ppe e
   | HomE (c,s,t) ->
     if full_homs then 
-      pf ppf "%a | %a => %a" ppe c ppe s ppe t
+      pf ppf "@[%a@] |@;@[%a@] =>@;@[%a@]" ppe c ppe s ppe t
     else
       pf ppf "@[%a@] =>@;@[%a@]" ppe s ppe t
 
@@ -175,7 +175,7 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   | UCompE (DimSeq ds) ->
     pf ppf "ucomp [ %a ]" (list int) ds
   | CohE (g,_,s,t) ->
-    pf ppf "@[coh [ @[%a@] :@;@[<hov>%a =>@;%a@]]@]"
+    pf ppf "@[coh [ @[%a@] :@;@[<hov>@[%a@] =>@;@[%a@]@]]@]"
       (pp_tele ppe) g ppe s ppe t
     (* pf ppf "@[coh [ @[%a@] :@;@[%a@]@;|> %a =>@;%a ]@]"
      *   (pp_tele ppe) g ppe c ppe s ppe t *)
@@ -190,11 +190,10 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   | CoreE c ->
     pf ppf "core %a" ppe c 
   | CylE (b,l,c) ->
-    pf ppf "[| %a | %a | %a |]" ppe b ppe l ppe c 
+    pf ppf "@[<hov>[|@;%a@;|@;%a@;|@;%a@;|]@]" ppe b ppe l ppe c 
 
 let pp_expr = pp_expr_gen ~si:false ~fh:false ~pc:true
 let pp_expr_with_impl = pp_expr_gen ~si:true ~fh:true ~pc:true
-
 
 
 (*****************************************************************************)

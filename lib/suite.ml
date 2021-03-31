@@ -71,15 +71,15 @@ let rec filter s f =
       Ext (s'',x)
     else s''
       
-let rec fold_left f a s =
+let rec fold_left s a f =
   match s with
   | Emp -> a
-  | Ext (s',x) -> f (fold_left f a s') x
+  | Ext (s',x) -> f (fold_left s' a f) x
 
-let rec fold_right f s a =
+let rec fold_right s a f =
   match s with
   | Emp -> a
-  | Ext (s',x) -> fold_right f s' (f x a)
+  | Ext (s',x) -> fold_right s' (f x a) f 
 
 let rec fold_accum_cont : 'a suite -> 'c -> ('a -> 'c -> 'b * 'c) -> ('b suite -> 'c -> 'd) -> 'd =
   fun s c f cont ->

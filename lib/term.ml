@@ -35,11 +35,8 @@ type term =
 
   (* Coherences *)
   | UCompT of ucmp_desc 
-  (* | CohT of term tele * term * term * term  *)
-  | CylCohT of term tele * term * term disc * term disc
-
-  (* New style coherences *)
-  | CohT of (name * icit) * (name * icit) pd * term * term * term 
+  | CohT of nm_ict * nm_ict pd * term * term * term 
+  | CylCohT of nm_ict * nm_ict pd * term * term disc * term disc
 
   (* Cylinders *)
   | CylT of term * term * term
@@ -72,26 +69,8 @@ let rec db_lift_by l k tm =
   | CatT -> CatT
 
   | UCompT pd -> UCompT pd
-  (* | CohT (g,c,s,t) -> 
-   *   tele_fold_with_idx g l
-   *     (fun tm l' -> db_lift_by l' k tm)
-   *     (fun g' l' ->
-   *        let c' = db_lift_by l' k c in
-   *        let s' = db_lift_by l' k s in
-   *        let t' = db_lift_by l' k t in 
-   *        CohT (g',c',s',t')) *)
-  | CylCohT (g,c,s,t) ->
-    tele_fold_with_idx g l
-      (fun tm l' -> db_lift_by l' k tm)
-      (fun g' l' ->
-         let c' = db_lift_by l' k c in
-         let s' = map_disc s ~f:(db_lift_by l' k) in
-         let t' = map_disc t ~f:(db_lift_by l' k) in 
-         CylCohT (g',c',s',t'))
-
-  (* New coherences are always closed ... *)
-  | CohT (cnm,pd,sph,s,t) ->
-    CohT (cnm,pd,sph,s,t)
+  | CohT (cnm,pd,c,s,t) -> CohT (cnm,pd,c,s,t)
+  | CylCohT (cn,pd,c,s,t) -> CylCohT (cn,pd,c,s,t)
 
   | BaseT t -> BaseT (lft t)
   | LidT t -> LidT (lft t)
@@ -128,25 +107,6 @@ let rec term_to_expr nms tm =
     HomE (tte nms c, tte nms s, tte nms t)
 
   | UCompT pd -> UCompE pd
-  (* | CohT (g,c,s,t) -> 
-   *   fold_accum_cont g nms
-   *     (fun (nm,ict,tm) nms' ->
-   *        ((nm,ict,tte nms' tm), Ext (nms',nm)))
-   *     (fun g' nms' ->
-   *        let c' = tte nms' c in
-   *        let s' = tte nms' s in
-   *        let t' = tte nms' t in
-   *        CohE (g',c',s',t')) *)
-  | CylCohT (g,c,s,t) ->
-    fold_accum_cont g nms
-      (fun (nm,ict,tm) nms' ->
-         ((nm,ict,tte nms' tm), Ext (nms',nm)))
-      (fun g' nms' ->
-         let c' = tte nms' c in
-         let s' = map_disc ~f:(tte nms') s in
-         let t' = map_disc ~f:(tte nms') t in
-         CylCohE (g',c',s',t'))
-
   | CohT (cn,pd,c,s,t) ->
     let g = ExprPdConv.nm_ict_pd_to_tele cn pd in
     fold_accum_cont g nms
@@ -156,6 +116,15 @@ let rec term_to_expr nms tm =
          let s' = tte nms' s in
          let t' = tte nms' t in
          CohE (g,c',s',t'))
+  | CylCohT (cn,pd,c,s,t) ->
+    let g = ExprPdConv.nm_ict_pd_to_tele cn pd in
+    fold_accum_cont g nms
+      (fun (nm,_,_) nms' -> ((),Ext (nms',nm)))
+      (fun _ nms' ->
+         let c' = tte nms' c in
+         let s' = map_disc ~f:(tte nms') s in
+         let t' = map_disc ~f:(tte nms') t in
+         CylCohE (g,c',s',t'))
 
   | BaseT c -> BaseE (tte nms c)
   | LidT c -> LidE (tte nms c)
@@ -240,22 +209,17 @@ let rec pp_term ppf tm =
     pf ppf "ucomp [ %a ]" pp_tr pd
   | UCompT (DimSeq ds) ->
     pf ppf "ucomp [ %a ]" (list int) ds
-  (* | CohT (g,c,s,t) ->
-   *   pf ppf "coh [ %a : %a |> %a <=> %a ]"
-   *     (pp_tele pp_term) g pp_term c
-   *     pp_term s
-   *     pp_term t *)
-  | CylCohT (g,c,s,t) ->
-    pf ppf "cylcoh [ %a : %a |> %a <=> %a ]"
-      (pp_tele pp_term) g pp_term c
-      (pp_disc pp_term) s
-      (pp_disc pp_term) t
 
   | CohT ((cn,_),pd,c,s,t) ->
     pf ppf "@[coh [ %s %a : %a |> %a => %a ]@]" cn
       (pp_pd string) (map_pd pd ~f:fst)
       pp_term c pp_term s pp_term t
-
+      
+  | CylCohT ((cn,_),pd,c,s,t) ->
+    pf ppf "@[cylcoh [ %s %a : %a |> %a => %a ]@]" cn
+      (pp_pd string) (map_pd pd ~f:fst)
+      pp_term c (pp_disc pp_term) s (pp_disc pp_term) t
+      
   | BaseT c -> pf ppf "base %a" pp_term c
   | LidT c -> pf ppf "lid %a" pp_term c
   | CoreT c -> pf ppf "core %a" pp_term c
@@ -283,16 +247,10 @@ let rec free_vars k tm =
   | HomT (c,s,t) ->
     Set.union (free_vars k c) (Set.union (free_vars k s) (free_vars k t))
   | UCompT _ -> fvs_empty
-  (* | CohT (g,c,s,t) ->
-   *   let rec go k g =
-   *     match g with
-   *     | Emp -> free_vars k (HomT (c,s,t))
-   *     | Ext (g',_) -> go (k+1) g'
-   *   in go k g *)
-  | CylCohT _ -> failwith "fvs cylcoh"
+  | CohT _ -> fvs_empty 
+  | CylCohT _ -> fvs_empty
   | CylT (b,l,c) ->
     Set.union (free_vars k b) (Set.union (free_vars k l) (free_vars k c))
-  | CohT (_,_,_,_,_) -> fvs_empty 
   | BaseT c -> free_vars k c
   | LidT c -> free_vars k c
   | CoreT c -> free_vars k c
@@ -301,25 +259,6 @@ let rec free_vars k tm =
   | TypT -> fvs_empty
   | MetaT _ -> fvs_empty
   | InsMetaT _ -> fvs_empty
-
-(*****************************************************************************)
-(*                          Cylinder Coherence Types                         *)
-(*****************************************************************************)
-
-
-(* Okay, now I think this might be wrong, no? *)
-(* Yeah, because we should be taking sources and targets of the pasting 
-   diagram as we go here.  
-*)
-let rec cyl_coh_typ gt ct ssph tsph = 
-  match (ssph,tsph) with
-  | (Emp,Emp) -> ArrT ct
-  | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
-    let cc = cyl_coh_typ gt ct ssph' tsph' in
-    let src_cyl = CylCohT (gt,ct,(ssph',ss),(tsph',ts)) in
-    let tgt_cyl = CylCohT (gt,ct,(ssph',st),(tsph',tt)) in 
-    HomT (cc,src_cyl,tgt_cyl)
-  | _ -> failwith "unequal dims in cyl_coh_typ"
 
 (*****************************************************************************)
 (*                             Term Pd Conversion                            *)
@@ -379,3 +318,23 @@ let term_ucomp_desc ud =
   match ud with
   | UnitPd pd -> term_ucomp_coh pd
   | DimSeq ds -> term_ucomp_coh (comp_seq ds)
+
+(*****************************************************************************)
+(*                          Cylinder Coherence Types                         *)
+(*****************************************************************************)
+
+let rec cyl_coh_typ cn pd ct ssph tsph = 
+  match (ssph,tsph) with
+  | (Emp,Emp) -> ArrT ct
+  | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
+    let d = dim_pd pd in
+    (* inefficient ... you extract this every time .... *)
+    let (_,bsph) = TermUtil.match_homs ct in 
+    let cd = (length ssph) + (length bsph) in 
+    let cc = cyl_coh_typ cn pd ct ssph' tsph' in
+    let src_pd = if (cd <= d) then Pd.truncate true (d-1) pd else pd in
+    let tgt_pd = if (cd <= d) then Pd.truncate false (d-1) pd else pd in 
+    let src_cyl = CylCohT (cn,src_pd,ct,(ssph',ss),(tsph',ts)) in
+    let tgt_cyl = CylCohT (cn,tgt_pd,ct,(ssph',st),(tsph',tt)) in 
+    HomT (cc,src_cyl,tgt_cyl)
+  | _ -> failwith "unequal dims in cyl_coh_typ"

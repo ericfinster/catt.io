@@ -28,6 +28,7 @@ type icit =
   | Impl
   | Expl
 
+type nm_ict = (name * icit)
 type 'a decl = (name * icit * 'a)
 type 'a tele = ('a decl) suite
 
@@ -270,78 +271,6 @@ module PdConversion(P : PdSyntax) = struct
     Result.bind (tele_to_pd_fold tl f)
       ~f:(fun (_,pd) -> Ok pd)
 
-  
-  (* DEPRECATED *)
-  (* let tele_to_pd (depth : int) (tl : s tele) : (s pd, string) Result.t =
-   *   let (let*\) m f = Base.Result.bind m ~f in
-   *   
-   *   let rec go (depth : int) (tl : s tele) = 
-   *     match tl with 
-   *     | Emp -> Error "Empty context is not a pasting diagram"
-   *     | Ext(Emp,_) -> Error "Singleton context is not a pasting diagram"
-   * 
-   *     | Ext(Ext(tl',(cnm,_,cty)),(onm,_,oty)) when depth = 2 ->
-   * 
-   *       (\* Fmt.pr "@[<v>cat_tm: %a@,@]" pp cty;
-   *        * Fmt.pr "@[<v>cat: %a@,@]" pp cat;
-   *        * Fmt.pr "@[<v>obj_tm: %a@,@]" pp oty; *\)
-   *       let l = length tl' in
-   *       let cvar = var (l+1) l cnm in
-   *       (\* Fmt.pr "@[<v>obj cvar: %a@,@]" pp (obj cvar); *\)
-   *       let svar = var (l+2) (l+1) onm in 
-   *       if (Poly.(<>) cty cat) then
-   *         Error "Pasting diagram does not start with an abstract category"
-   *       else if (Poly.(<>) oty (obj cvar)) then
-   *         Error "Initial object not in the correct category"
-   *       else Ok (Pd.Br (svar,Emp), lift 1 cvar , Emp, svar, l+2, l)
-   * 
-   *     | Ext(Ext(tl',(tnm,_,tty)),(fnm,_,fty)) ->
-   * 
-   *       let* (pd,ctm,ssph,stm,lvl,dim) = go (depth - 2) tl' in
-   * 
-   *       let* (tcat,tsph) = Result.of_option (match_cat_type tty)
-   *           ~error:"Target cell does not have category type." in
-   * 
-   *       let tdim = length tsph in 
-   *       let codim = dim - tdim in
-   *       let (ssph',stm') = Pd.nth_target (ssph,stm) codim in 
-   * 
-   *       (\* Fmt.pr "@[<v>Expected target cat: %a@,Received target cat: %a@,@]"
-   *        *   pp ctm pp tcat;
-   *        * Fmt.pr "@[<v>Expected target sphere: %a@,Received target sphere: %a@,@]"
-   *        *   (pp_sph pp) ssph' (pp_sph pp) tsph; *\)
-   * 
-   *       if (Poly.(<>) (ctm,ssph') (tcat,tsph)) then
-   *         Error "Invalid target type"
-   *       else
-   * 
-   *         let* (fcat,fsph) = Result.of_option (match_cat_type fty)
-   *             ~error:"Filling cell does not have category type." in
-   * 
-   *         let (lsph,ltm) = map_disc (ssph',stm') ~f:(lift 1) in 
-   *         let ttm = var (lvl+1) lvl tnm in
-   *         let fsph' = Ext (lsph,(ltm, ttm)) in
-   * 
-   *         if (Poly.(<>) (lift 1 ctm,fsph') (fcat,fsph)) then
-   * 
-   *           let _ = 5 in
-   *           
-   *           (\* Fmt.pr "@[<v>Expected filling cat: %a@,Received filling cat: %a@,@]"
-   *            *   pp ctm pp fcat;
-   *            * Fmt.pr "@[<v>Expected filling sphere: %a@,Received filling sphere: %a@,@]"
-   *            *   (pp_sph pp) fsph' (pp_sph pp) fsph; *\)
-   * 
-   *           Error "Invalid filling type"
-   * 
-   *         else
-   * 
-   *           let ftm = var (lvl+2) (lvl+1) fnm in
-   *           let lfsph = map_sph fsph' ~f:(lift 1) in 
-   *           let* pd' = Pd.insert_right pd tdim ttm (Pd.Br (ftm,Emp)) in
-   *           Ok (pd', lift 2 ctm, lfsph, ftm, lvl+2, tdim+1)
-   * 
-   *   in let* (pd,_,_,_,_,_) = go depth tl in Ok pd *)
-
   let fresh_pd pd =
     let nm_lvl l = Fmt.str "x%d" l in 
     Pd.map_pd_lf_nd_lvl pd
@@ -352,7 +281,17 @@ module PdConversion(P : PdSyntax) = struct
     let nm_lvl l = Fmt.str "x%d" l in
     Pd.map_pd_lvls pd 0
       ~f:(fun k l _ _ -> var (k+1) (l+1) (nm_lvl (l+1)))
-      
+
+  let pd_nm_ict_args (cn,ci) pd =
+    let k = Pd.pd_length pd + 1 in 
+    Pd.fold_pd_lvls pd ~off:1 (Ext (Emp,(ci,var k 0 cn)))
+      ~f:(fun _ l _ (nm,ict) args -> Ext (args,(ict,var k l nm)))
+
+  let pd_ict_canon pd =
+    map_pd_lf_nd pd
+      ~lf:(fun (nm,_) -> (nm,Expl))
+      ~nd:(fun (nm,_) -> (nm,Impl))
+  
 end
 
 let pd_args cat pd =
@@ -397,7 +336,7 @@ module type Syntax = sig
   val lam : name -> icit -> s -> s
   val pi : name -> icit -> s -> s -> s 
   val app : s -> s -> icit -> s
-  val coh : (name * icit) -> (name * icit) pd -> s -> s -> s -> s
+  val coh : nm_ict -> nm_ict pd -> s -> s -> s -> s
   val cyl : s -> s -> s -> s
 end
 
@@ -407,8 +346,8 @@ module SyntaxUtil(Syn : Syntax) = struct
 
   (* Utility Routines *)
   let app_args t args =
-    fold_left (fun t' (ict,arg) ->
-        app t' arg ict) t args 
+    fold_left args t
+      (fun t' (ict,arg) -> app t' arg ict) 
 
   let id_sub t =
     let k = length t in
@@ -416,16 +355,15 @@ module SyntaxUtil(Syn : Syntax) = struct
         (ict, var k l nm))
           
   let abstract_tele tele tm =
-    fold_right (fun (nm,ict,_) tm'  ->
-        lam nm ict tm') tele tm
+    fold_right tele tm (fun (nm,ict,_) tm'  ->
+        lam nm ict tm')
 
   let abstract_tele_with_type tl ty tm =
-    fold_right (fun (nm,ict,ty) (ty',tm') ->
+    fold_right tl (ty,tm)
+      (fun (nm,ict,ty) (ty',tm') ->
         (pi nm ict ty ty', lam nm ict tm'))
-      tl (ty,tm)
   
   (* Unbiased composition coherence *)
-  (* FIXME! Needs debug! *)
   let rec ucomp_coh : type a. a pd -> s = fun pd ->
     if (is_disc pd) then
       let tele = fresh_pd_tele pd in 
@@ -435,8 +373,7 @@ module SyntaxUtil(Syn : Syntax) = struct
     else
       let fpd = fresh_pd pd in
       let bdry = boundary (args_pd pd) in
-      (* INEFFICIENT: make a pd counting function ... *)
-      let ct' = var (length (labels fpd) + 1) 0 "C" in
+      let ct' = var (pd_length fpd + 1) 0 "C" in
       let sph = map_suite bdry
           ~f:(fun (s,t) -> (ucomp ct' s, ucomp ct' t)) in
       match sph with

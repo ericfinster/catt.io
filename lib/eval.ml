@@ -37,9 +37,10 @@ let rec eval top loc tm =
   | HomT (c,s,t) ->
     HomV (eval top loc c, eval top loc s, eval top loc t)
 
-  | CylCohT _ -> failwith "eval cylcoh"
-    (* let ctm = TermCylCoh.cylcoh g c s t in 
-     * eval top loc (TermUtil.abstract_tele g ctm) *)
+  | CylCohT (cn,pd,c,s,t) ->
+    let g = TermPdConv.nm_ict_pd_to_tele cn pd in
+    let ctm = TermCylCoh.cylcoh cn pd c s t in 
+    eval top loc (TermUtil.abstract_tele g ctm)
 
   | UCompT uc ->
     let v = eval top loc (term_ucomp_desc uc) in
@@ -80,7 +81,6 @@ and appV t u ict =
   | FlexV (m,sp) -> FlexV (m,AppSp(sp,u,ict))
   | RigidV (i,sp) -> RigidV (i,AppSp(sp,u,ict))
   | TopV (nm,sp,tv) -> TopV (nm,AppSp(sp,u,ict),appV tv u ict)
-  (* | CohV (v,sp) -> CohV (v,AppSp(sp,u,ict)) *)
   | LamV (_,_,cl) -> cl $$ u
   | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,AppSp(sp,u,ict))
   | CohV (cn,pd,sph,s,t,sp) ->
@@ -92,7 +92,6 @@ and baseV v =
   | FlexV (m,sp) -> FlexV (m,BaseSp sp)
   | RigidV (i,sp) -> RigidV (i,BaseSp sp)
   | TopV (nm,sp,tv) -> TopV (nm,BaseSp sp, baseV tv)
-  (* | CohV (ga,sp) -> CohV (ga,BaseSp sp) *)
   | CylV (b,_,_) -> b 
   | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,BaseSp sp)
   | CohV (cn,pd,sph,s,t,sp) ->
@@ -104,7 +103,6 @@ and lidV v =
   | FlexV (m,sp) -> FlexV (m,LidSp sp)
   | RigidV (i,sp) -> RigidV (i,LidSp sp)
   | TopV (nm,sp,tv) -> TopV (nm,LidSp sp, lidV tv)
-  (* | CohV (ga,sp) -> CohV (ga,LidSp sp) *)
   | CylV (_,l,_) -> l
   | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,LidSp sp)
   | CohV (cn,pd,sph,s,t,sp) ->
@@ -116,7 +114,6 @@ and coreV v =
   | FlexV (m,sp) -> FlexV (m,CoreSp sp)
   | RigidV (i,sp) -> RigidV (i,CoreSp sp)
   | TopV (nm,sp,tv) -> TopV (nm,CoreSp sp, coreV tv)
-  (* | CohV (ga,sp) -> CohV (ga,CoreSp sp) *)
   | CylV (_,_,c) -> c
   | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,CoreSp sp)
   | CohV (cn,pd,sph,s,t,sp) ->
@@ -228,8 +225,6 @@ let rec free_vars_val k v =
   | HomV (c,s,t) ->
     S.union_list (module Base.Int) [fvc c; fvc s; fvc t]
   | UCompV (_,_,sp) -> sp_vars sp 
-  (* | CohV (v,sp) ->
-   *   S.union (free_vars_val k v) (sp_vars sp) *)
   | CohV (_,_,_,_,_,sp) -> sp_vars sp 
   | CylV (b,l,c) ->
     S.union_list (module Base.Int) [fvc b; fvc l; fvc c]

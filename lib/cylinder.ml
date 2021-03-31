@@ -158,55 +158,55 @@ module CylinderCoh(S: Syntax) = struct
 
     module Su = SyntaxUtil(S)
     module Ops = CylinderOps(Su)
+
+    (* remainging problem is that we can't take just the boundary of
+       the pasting diagram and reuse the implicit argument setup since
+       cells which were previously marked implicit may become locally
+       maximal.  Hence recursive calls will need to use the standard
+       implicit argument setup....
+    *)
     
-    (* let rec cylcoh_susp (g : s tele) (c : s) (bsph : s sph)
-     *     ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
-     *   match (ssph,tsph) with 
-     *   | (Emp,Emp) ->
-     *     let coh_tm = Su.app_args (coh g c s t) (Su.id_sub g) in 
-     *     ((bsph, []), (s, t, coh_tm))
-     *   | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
-     * 
-     *     let ((bsph',ct),(sb,sl,sc)) = cylcoh_susp g c bsph (ssph',ss) (tsph',ts) in
-     *     let (_,(tb,tl,tc)) = cylcoh_susp g c bsph (ssph',st) (tsph',tt) in
-     * 
-     *     (\* Yuck.  Inefficient. *\)
-     *     let ct' = List.append ct [(sb,sl,sc),(tb,tl,tc)] in
-     *     let (_,b,l) = Ops.iter_advance c (bsph',ct') s t (List.length ct') in 
-     *     let coh_tm = Su.app_args (coh g c b l) (Su.id_sub g) in 
-     *     
-     *     ((bsph',ct'),(s,t,coh_tm))
-     * 
-     *   | _ -> failwith "cylcoh dimension error" *)
+    let rec cylcoh_susp (cn : nm_ict) (pd : nm_ict pd) (c : s) 
+        (bsph : s sph) ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
+      
+      match (ssph,tsph) with 
+      | (Emp,Emp) ->
+        let args = Su.pd_nm_ict_args cn pd in 
+        let coh_tm = Su.app_args (coh cn pd c s t) args in 
+        ((bsph, []), (s, t, coh_tm))
+    
+      | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
 
-    (* let rec cylcoh_susp_pd (pd : s pd) (c : s) (bsph : s sph)
-     *     ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
-     *   match (ssph,tsph) with 
-     *   | (Emp,Emp) ->
-     *     let coh_tm = Su.app_args (coh g c s t) (Su.id_sub g) in 
-     *     ((bsph, []), (s, t, coh_tm))
-     *   | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
-     * 
-     *     let ((bsph',ct),(sb,sl,sc)) = cylcoh_susp_pd g c bsph (ssph',ss) (tsph',ts) in
-     *     let (_,(tb,tl,tc)) = cylcoh_susp_pd g c bsph (ssph',st) (tsph',tt) in
-     * 
-     *     (\* Yuck.  Inefficient. *\)
-     *     let ct' = List.append ct [(sb,sl,sc),(tb,tl,tc)] in
-     *     let (_,b,l) = Ops.iter_advance c (bsph',ct') s t (List.length ct') in 
-     *     let coh_tm = Su.app_args (coh g c b l) (Su.id_sub g) in 
-     *     
-     *     ((bsph',ct'),(s,t,coh_tm))
-     * 
-     *   | _ -> failwith "cylcoh dimension error" *)
+        let d = dim_pd pd in
+        let cd = length bsph + length ssph in
 
-    (* let cylcoh g c s t =
-     *   (\* let pd = Result.ok_or_failwith (Su.tele_to_pd (length g) g) in  *\)
-     *   let (bc, sph) = Ops.match_homs c in
-     *   let (_,(b,l,cr)) = cylcoh_susp g bc sph s t in
-     *   let result = cyl b l cr  in
-     *   Fmt.pr "@[<v>generated cylcoh: @[%a@]@,@]" pp result;
-     *   result *)    
+        let src_pd = if (cd <= d) then
+            Su.pd_ict_canon (truncate true (d-1) pd)
+          else pd in
         
+        let tgt_pd = if (cd <= d) then
+            Su.pd_ict_canon (truncate false (d-1) pd)
+          else pd in 
+        
+        let ((_,ct),(sb,sl,sc)) = cylcoh_susp cn src_pd c bsph (ssph',ss) (tsph',ts) in
+        let ((_,_ ),(tb,tl,tc)) = cylcoh_susp cn tgt_pd c bsph (ssph',st) (tsph',tt) in
+
+        (* Super yucky inefficient. *)
+        let ct' = List.append ct [(sb,sl,sc),(tb,tl,tc)] in
+        let (_,b,l) = Ops.iter_advance c (bsph,ct') s t (List.length ct') in 
+        let coh_tm = Su.app_args (coh cn pd c b l) (Su.pd_nm_ict_args cn pd) in 
+
+        ((bsph,ct'),(s,t,coh_tm))
+
+      | _ -> failwith "cylcoh dimension error"
+
+    
+    let cylcoh cn pd c s t =
+      let (bc, sph) = Ops.match_homs c in
+      let (_,(b,l,cr)) = cylcoh_susp cn pd bc sph s t in
+      let result = cyl b l cr  in
+      Fmt.pr "@[<v>generated cylcoh: @[%a@]@,@]" pp result;
+      result    
     
 end
 
