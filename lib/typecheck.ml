@@ -586,7 +586,7 @@ let rec check_defs gma defs =
     let coh_ty_nf = term_to_expr Emp (quote false gma.lvl coh_ty) in
     let coh_tm_nf = term_to_expr Emp (quote false gma.lvl coh_tm) in
     pr "@[<v>Coh type: @[%a@]@,@]" pp_expr coh_ty_nf;
-    pr "@[<v>Coh term: @[%a@]@,@]" pp_term (CohT (cn,pd,ct,st,tt));
+    (* pr "@[<v>Coh term: @[%a@]@,@]" pp_term (CohT (cn,pd,ct,st,tt)); *)
     pr "@[<v>Coh expr: @[%a@]@,@]" pp_expr coh_tm_nf;
     check_defs (define gma id coh_tm coh_ty) ds
   | (CylCohDef _)::ds ->

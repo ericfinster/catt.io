@@ -170,14 +170,7 @@ let rec quote ufld k v =
   | UCompV (_,cohv,sp) when ufld ->
     qcs (quote ufld k cohv) sp 
   | UCompV (uc,_,sp) -> qcs (UCompT uc) sp
-  (* | CohV (v,sp) ->
-   * 
-   *   let pi_tm = quote ufld k v in
-   *   let (g,a) = pi_to_tele pi_tm in
-   *   (match a with
-   *    | HomT (c,s,t) -> qcs (CohT (g,c,s,t)) sp
-   *    | _ -> failwith "invalid coherence return type") *)
-                        
+                          
   | CohV (cn,pd,c,s,t,sp) ->
 
     let k' = length (Pd.labels pd) + 1 in 

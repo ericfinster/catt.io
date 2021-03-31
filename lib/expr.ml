@@ -138,8 +138,12 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
       else ppe in 
     pf ppf "%a@, %a" ppe u pp_v v
   | PiE (nm,Impl,dom,cod) ->
-    pf ppf "{%s : %a} -> %a" nm
-      ppe dom ppe cod
+    if (is_pi cod) then
+      pf ppf "{%s : %a}@, %a" nm
+        ppe dom ppe cod
+    else
+      pf ppf "{%s : %a}@, -> %a" nm
+        ppe dom ppe cod
   | PiE (nm,Expl,a,b) when Poly.(=) nm "" ->
     let pp_a = if (is_pi a) then
         parens ppe
@@ -147,8 +151,12 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
     pf ppf "%a -> %a" 
       pp_a a ppe b
   | PiE (nm,Expl,dom,cod) ->
-    pf ppf "(%s : %a) -> %a" nm
-      ppe dom ppe cod
+    if (is_pi cod) then 
+      pf ppf "(%s : %a)@, %a" nm
+        ppe dom ppe cod
+    else
+      pf ppf "(%s : %a)@, -> %a" nm
+        ppe dom ppe cod
   | TypE -> string ppf "U"
   | HoleE -> string ppf "_"
 
@@ -166,9 +174,11 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
     pf ppf "ucomp [ %a ]" pp_tr pd
   | UCompE (DimSeq ds) ->
     pf ppf "ucomp [ %a ]" (list int) ds
-  | CohE (g,c,s,t) ->
-    pf ppf "@[coh [ @[%a@] : @[%a@] |> %a => %a ]@]"
-      (pp_tele ppe) g ppe c ppe s ppe t
+  | CohE (g,_,s,t) ->
+    pf ppf "@[coh [ @[%a@] :@;@[<hov>%a =>@;%a@]]@]"
+      (pp_tele ppe) g ppe s ppe t
+    (* pf ppf "@[coh [ @[%a@] :@;@[%a@]@;|> %a =>@;%a ]@]"
+     *   (pp_tele ppe) g ppe c ppe s ppe t *)
   | CylCohE (g,c,s,t) ->
     pf ppf "cylcoh [ %a : %a |> %a => %a ]"
       (pp_tele ppe) g ppe c (pp_disc ppe) s (pp_disc ppe) t
