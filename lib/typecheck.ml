@@ -265,7 +265,7 @@ and infer gma expr =
     Ok (HomT (c',s',t'), CatV)
 
   | UCompE (UnitPd pd) -> 
-    let e = ucomp_coh_expr pd in
+    let e = expr_ucomp_coh pd in
     (* pr "@[<v>Generated ucomp: @[%a]@,@]" pp_expr e; *)
     let* (_,ty) = infer gma e in
     (* pr "@[<b>Result of inferrence: @[%a]@,@]" pp_term tm; *)
@@ -273,21 +273,20 @@ and infer gma expr =
 
   | UCompE (DimSeq ds) ->
     let pd = Pd.comp_seq ds in
-    let e = ucomp_coh_expr pd in
+    let e = expr_ucomp_coh pd in
     (* pr "@[<v>Generated ucomp: @[%a]@,@]" pp_expr e; *)
     let* (_,ty) = infer gma e in 
     Ok (UCompT (DimSeq ds),ty)
 
   | CylCohE _ -> Error (`NotImplemented "cylcoh")
                    
-  | CohE _ -> failwith "not done"
-  (* | CohE (g,c,s,t) -> 
-   *   (\* pr "Inferring a coherence: @[<hov>%a@]@," pp_expr (CohE (g,a)); *\)
-   *   let* (pd,ct,st,tt) = check_coh gma g c s t in
-   *   let coh_ty = eval gma.top gma.loc
-   *       (tele_to_pi gt (ObjT (HomT (ct,st,tt)))) in
-   *   (\* pr "Finished with coherence: @[<hov>%a@]@," pp_expr (CohE (g,a)); *\)
-   *   Ok (CohT (gt,ct,st,tt) , coh_ty) *)
+  | CohE (g,c,s,t) ->
+    (* pr "Inferring a coherence: @[<hov>%a@]@," pp_expr (CohE (g,a));  *)
+    let* (tl,cn,pd,ct,st,tt) = check_coh gma g c s t in
+    let coh_ty = eval gma.top gma.loc
+        (tele_to_pi tl (ObjT (HomT (ct,st,tt)))) in
+    (* pr "Finished with coherence: @[<hov>%a@]@," pp_expr (CohE (g,a)); *)
+    Ok (CohT (cn,pd,ct,st,tt) , coh_ty) 
 
   | CylE (b,l,c) ->
     (* This could be much smarter.  By deconstructing the 
@@ -415,7 +414,6 @@ and check_coh gma g c s t =
         (* We force the underlying category to be a variable ... *)
         begin try unify OneShot gma'.top gma'.lvl (varV 0) bc ;
 
-            
             
             let k = length gma'.loc in 
             let cat_vars = free_vars_val k cv in

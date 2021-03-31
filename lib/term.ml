@@ -251,10 +251,9 @@ let rec pp_term ppf tm =
       (pp_disc pp_term) s
       (pp_disc pp_term) t
 
-  | CohT (cn,pd,c,s,t) ->
-    pf ppf "@[coh [ %a %a : %a |> %a => %a ]@]"
-      pp_nm_ict cn
-      (pp_pd pp_nm_ict) pd
+  | CohT ((cn,_),pd,c,s,t) ->
+    pf ppf "@[coh [ %s %a : %a |> %a => %a ]@]" cn
+      (pp_pd string) (map_pd pd ~f:fst)
       pp_term c pp_term s pp_term t
 
   | BaseT c -> pf ppf "base %a" pp_term c

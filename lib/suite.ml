@@ -90,6 +90,13 @@ let rec fold_accum_cont : 'a suite -> 'c -> ('a -> 'c -> 'b * 'c) -> ('b suite -
         let (b,c'') = f a c' in
         cont (Ext (s'',b)) c'')
 
+let rec fold2 s t init f =
+  match (s,t) with
+  | (Emp,Emp) -> init
+  | (Ext (s',x), Ext (t',y)) ->
+    f (fold2 s' t' init f) x y
+  | _ -> failwith "unequal length suites"
+
 let rec append s t =
   match t with
   | Emp -> s

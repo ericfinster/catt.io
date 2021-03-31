@@ -199,9 +199,14 @@ let rec unify stgy top l t u =
   | (ArrV c, ArrV c') ->
     unify stgy top l c c'
 
-  (* | (CohV (ga,sp), CohV (ga',sp')) ->
-   *   unify stgy top l ga ga';
-   *   unifySp stgy top l sp sp' *)
+  | (CohV (_,pd,c,s,t,sp), CohV (_,pd',c',s',t',sp')) when Pd.shape_eq pd pd' ->
+    unify stgy top 0 c c';
+    unify stgy top 0 s s';
+    unify stgy top 0 t t';
+    unifySp stgy top l sp sp'
+
+  | (CohV _, CohV _) ->
+    raise (Unify_error "unequal pasting diagrams in coherence")
 
   | (UCompV (_,cohv,sp), UCompV (_,cohv',sp')) when isUnfoldAll stgy ->
     unify UnfoldAll top l (runSpV cohv sp) (runSpV cohv' sp')

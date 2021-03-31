@@ -32,8 +32,6 @@ type value =
 
   (* Coherences *)
   | UCompV of ucmp_desc * value * spine
-  (* | CohV of value * spine *)
-
   | CohV of (name * icit) * (name * icit) pd * value * value * value * spine
 
   (* Cylinders *)

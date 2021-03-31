@@ -37,12 +37,14 @@ let rec eval top loc tm =
   | HomT (c,s,t) ->
     HomV (eval top loc c, eval top loc s, eval top loc t)
 
-  | UCompT uc -> UCompV (uc,eval top loc (term_ucomp_desc uc), EmpSp)
-  (* | CohT (g,c,s,t) -> CohV (eval top loc (tele_to_pi g (HomT (c,s,t))),EmpSp) *)
   | CylCohT _ -> failwith "eval cylcoh"
     (* let ctm = TermCylCoh.cylcoh g c s t in 
      * eval top loc (TermUtil.abstract_tele g ctm) *)
 
+  | UCompT uc ->
+    let v = eval top loc (term_ucomp_desc uc) in
+    UCompV (uc, v, EmpSp)
+      
   | CohT (nm,pd,c,s,t) ->
     
     let (loc',_) = Pd.fold_pd pd (Emp |> varV 0 , 1)

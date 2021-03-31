@@ -29,6 +29,14 @@ let rec is_disc pd =
   | Br (_,Ext(Emp,(_,pd'))) -> is_disc pd'
   | _ -> false
 
+let rec shape_eq pd_a pd_b =
+  match (pd_a,pd_b) with
+  | (Br (_,brs_a),Br (_,brs_b)) ->
+    try fold2 brs_a brs_b true
+          (fun b (_,br_a) (_,br_b) ->
+             b && shape_eq br_a br_b)
+    with Failure _ -> false 
+
 (* Truncate to the provided dimension.  The boolean
    flag dir is true for the source direction, false
    for the target *)

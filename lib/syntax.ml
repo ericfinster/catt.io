@@ -436,7 +436,7 @@ module SyntaxUtil(Syn : Syntax) = struct
       let fpd = fresh_pd pd in
       let bdry = boundary (args_pd pd) in
       (* INEFFICIENT: make a pd counting function ... *)
-      let ct' = var (length (labels fpd)) 0 "C" in
+      let ct' = var (length (labels fpd) + 1) 0 "C" in
       let sph = map_suite bdry
           ~f:(fun (s,t) -> (ucomp ct' s, ucomp ct' t)) in
       match sph with

@@ -248,6 +248,6 @@ let str_expr_ucomp : string pd -> expr = fun pd ->
 
 let expr_app_args = ExprUtil.app_args
 
-let ucomp_coh_expr : 'a pd -> expr = fun pd ->
+let expr_ucomp_coh : 'a pd -> expr = fun pd ->
   ExprUtil.ucomp_coh pd 
 
