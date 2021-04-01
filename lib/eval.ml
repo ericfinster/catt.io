@@ -38,9 +38,14 @@ let rec eval top loc tm =
     HomV (eval top loc c, eval top loc s, eval top loc t)
 
   | CylCohT (cn,pd,c,s,t) ->
-    let g = TermPdConv.nm_ict_pd_to_tele cn pd in
+
+    (* the old idea of inserting an abstraction ... *)
+    (* let g = TermPdConv.nm_ict_pd_to_tele cn pd in
+     * let ctm = TermCylCoh.cylcoh cn pd c s t in 
+     * eval top loc (TermUtil.abstract_tele g ctm) *)
+    
     let ctm = TermCylCoh.cylcoh cn pd c s t in 
-    eval top loc (TermUtil.abstract_tele g ctm)
+    eval top loc ctm 
 
   | UCompT uc ->
     let v = eval top loc (term_ucomp_desc uc) in
@@ -118,7 +123,9 @@ and coreV v =
   | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,CoreSp sp)
   | CohV (cn,pd,sph,s,t,sp) ->
     CohV (cn,pd,sph,s,t,CoreSp sp)
-  | _ -> raise (Eval_error "malformed core projection")
+  | _ ->
+    let msg = Fmt.str "Cannot project core from: %a" pp_value v in 
+    raise (Eval_error msg)
 
 and appLocV loc v =
   match loc with

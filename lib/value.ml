@@ -17,8 +17,8 @@ open Syntax
 type value =
 
   (* Primitives *)
-  | FlexV of mvar * spine
-  | RigidV of lvl * spine
+  | FlexV of mvar * spine   (* A term stuck because head is meta *)
+  | RigidV of lvl * spine   (* A term stuck because head is bound variable *)
   | TopV of name * spine * value 
   | LamV of name * icit * closure
   | PiV of name * icit * value * closure

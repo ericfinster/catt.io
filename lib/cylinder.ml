@@ -158,21 +158,15 @@ module CylinderCoh(S: Syntax) = struct
 
     module Su = SyntaxUtil(S)
     module Ops = CylinderOps(Su)
-
-    (* remainging problem is that we can't take just the boundary of
-       the pasting diagram and reuse the implicit argument setup since
-       cells which were previously marked implicit may become locally
-       maximal.  Hence recursive calls will need to use the standard
-       implicit argument setup....
-    *)
-    
+        
     let rec cylcoh_susp (cn : nm_ict) (pd : nm_ict pd) (c : s) 
         (bsph : s sph) ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
       
       match (ssph,tsph) with 
       | (Emp,Emp) ->
         let args = Su.pd_nm_ict_args cn pd in 
-        let coh_tm = Su.app_args (coh cn pd c s t) args in 
+        let cc = Su.sph_to_cat c bsph in 
+        let coh_tm = Su.app_args (coh cn pd cc s t) args in 
         ((bsph, []), (s, t, coh_tm))
     
       | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
@@ -193,8 +187,9 @@ module CylinderCoh(S: Syntax) = struct
 
         (* Super yucky inefficient. *)
         let ct' = List.append ct [(sb,sl,sc),(tb,tl,tc)] in
-        let (_,b,l) = Ops.iter_advance c (bsph,ct') s t (List.length ct') in 
-        let coh_tm = Su.app_args (coh cn pd c b l) (Su.pd_nm_ict_args cn pd) in 
+        let ((coh_sph,_),b,l) = Ops.iter_advance c (bsph,ct') s t (List.length ct') in
+        let cc = Su.sph_to_cat c coh_sph in 
+        let coh_tm = Su.app_args (coh cn pd cc b l) (Su.pd_nm_ict_args cn pd) in 
 
         ((bsph,ct'),(s,t,coh_tm))
 
@@ -205,7 +200,7 @@ module CylinderCoh(S: Syntax) = struct
       let (bc, sph) = Ops.match_homs c in
       let (_,(b,l,cr)) = cylcoh_susp cn pd bc sph s t in
       let result = cyl b l cr  in
-      Fmt.pr "@[<v>generated cylcoh: @[%a@]@,@]" pp result;
+      (* Fmt.pr "@[<v>generated cylcoh: @[%a@]@,@]" pp result; *)
       result    
     
 end

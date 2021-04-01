@@ -139,22 +139,22 @@ type typing_error = [
 ]
 
 let rec check gma expr typ = 
-  (* let typ_tm = quote gma.lvl typ false in
+  (* let typ_tm = quote false gma.lvl typ in
    * let typ_expr = term_to_expr (names gma) typ_tm in 
    * pr "Checking @[%a@] has type @[%a@]@," pp_expr_with_impl expr pp_expr_with_impl typ_expr ; *)
-
+  
   let switch e expected = 
     (* pr "switching mode@,";
      * pr "e: %a@," pp_expr e;
      * pr "exp: %a@," pp_term (quote gma.lvl expected false); *)
     let* (e',inferred) = insert gma (infer gma e) in
     try unify OneShot gma.top gma.lvl expected inferred ; Ok e'
-    with Unify_error _ ->
-      (* pr "Unification error: %s\n" msg; *)
+    with Unify_error msg ->
+      pr "Unification error: %s\n" msg;
       (* I guess the unification error will have more information .... *)
       let nms = names gma in 
       let inferred_nf = term_to_expr nms (quote false gma.lvl inferred) in
-      let expected_nf = term_to_expr nms (quote false gma.lvl expected) in 
+      let expected_nf = term_to_expr nms (quote true gma.lvl expected) in 
       let msg = String.concat [ str "@[<v>The expression: @,@, @[%a@]@,@,@]" pp_expr e; 
                                 str "@[<v>has type: @,@,  @[%a@]@,@,@]" pp_expr inferred_nf; 
                                 str "@[<v>but was expected to have type: @,@, @[%a@]@,@]"
@@ -209,9 +209,8 @@ let rec check gma expr typ =
   | (e, expected) -> switch e expected
 
 and infer gma expr = 
-  (* pr "Inferring type of %a@," pp_expr expr ;
-   * dump_ctx true gma; *)
-  
+  (* pr "@[<v>Inferring type of: @[%a@]@,@]"
+   *   pp_expr_with_impl expr ; *)
   match expr with
   
   | VarE nm -> (
@@ -281,11 +280,12 @@ and infer gma expr =
   | CylCohE _ -> Error (`NotImplemented "cylcoh")
                    
   | CohE (g,c,s,t) ->
-    (* pr "Inferring a coherence: @[<hov>%a@]@," pp_expr (CohE (g,a));  *)
     let* (tl,cn,pd,ct,st,tt) = check_coh gma g c s t in
     let coh_ty = eval gma.top gma.loc
         (tele_to_pi tl (ObjT (HomT (ct,st,tt)))) in
-    (* pr "Finished with coherence: @[<hov>%a@]@," pp_expr (CohE (g,a)); *)
+    (* let ty_nf = term_to_expr Emp (quote false gma.lvl coh_ty) in 
+     * pr "@[<v>Coherence: @[%a@]@,inferred to have type: @[%a@]@,@]"
+     *   pp_expr_with_impl (CohE (g,c,s,t)) pp_expr_with_impl ty_nf; *)
     Ok (CohT (cn,pd,ct,st,tt) , coh_ty) 
 
   | CylE (b,l,c) ->
@@ -585,13 +585,19 @@ let rec check_defs gma defs =
     pr "----------------@,";
     pr "Checking cylinder coherence: %s@," id;
     let* (gt,cn,pd,ct,(ssph,s),(tsph,t)) = check_cyl_coh gma g c s t in
+    pr "@[<v>ct: @[%a@]@,sdsc: @[%a@]@,tdsc: @[%a@]@,@]"
+      pp_term ct (Pd.pp_disc pp_term) (ssph,s) (Pd.pp_disc pp_term) (tsph,t);
     let cctt = cyl_coh_typ cn pd ct ssph tsph in
-    pr "cylinder type: %a@," pp_term cctt; 
+    pr "cylinder type: %a@," pp_term cctt;
     let cyl_ctm = eval gma.top gma.loc
         (CylCohT (cn,pd,ct,(ssph,s),(tsph,t))) in 
     let cyl_cty = eval gma.top gma.loc
         (tele_to_pi gt (ObjT cctt)) in
+    let cyl_cty_nf = term_to_expr Emp (quote false gma.lvl cyl_cty) in 
     let cyl_nf = term_to_expr Emp (quote false gma.lvl cyl_ctm) in
+    pr "@[<v>Cylcoh type: @[%a@]@,@]" pp_expr cyl_cty_nf;
     pr "@[<v>Cylcoh expr: @[%a@]@,@]" pp_expr cyl_nf;
+    let* _ = check gma cyl_nf cyl_cty in
+    pr "@[<v>Rechecking succeeded!@,@]";
     check_defs (define gma id cyl_ctm cyl_cty) ds
      

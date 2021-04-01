@@ -123,15 +123,16 @@ let map_disc (sph,d) ~f =
 
 let pp_sph pp_el ppf sph =
   let open Fmt in
-  pf ppf "@[<hov>%a@]" (pp_suite ~sep:(sps 1 ++ any "| ")
-                 (hovbox (pair ~sep:(any " =>" ++ sps 1) pp_el pp_el))) sph
+  pf ppf "@[<hov>%a@]"
+    (pp_suite ~sep:(cut ++ any "| ")
+       (pair ~sep:(any " =>" ++ cut) (box pp_el) (box pp_el))) sph
 
 let pp_disc pp_el ppf (sph, flr) =
   let open Fmt in
   if (is_empty sph) then
     pf ppf "%a" pp_el flr
   else
-    pf ppf "@[%a | %a@]" (pp_sph pp_el)
+    pf ppf "@[<v> %a@, | @[%a@]@]" (pp_sph pp_el)
       sph pp_el flr
 
 let rec nth_target (sph,d) n =

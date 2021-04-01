@@ -253,4 +253,6 @@ and unifySp stgy top l sp sp' =
     unifySp stgy top l s s'
   | (CoreSp s , CoreSp s') ->
     unifySp stgy top l s s'
-  | _ -> raise (Unify_error "spine mismatch")
+  | _ -> let msg = Fmt.str "@[<v>spine mismatch: @[%a@]@, is not: @[%a@]@,"
+             pp_spine sp pp_spine sp' in 
+    raise (Unify_error msg)

@@ -121,6 +121,12 @@ let is_pi e =
   | PiE (_,_,_,_) -> true
   | _ -> false
 
+let arr_parens e =
+  match e with 
+  | ArrE _ -> true
+  | HomE _ -> true
+  | _ -> false
+  
 let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   let ppe = pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs in 
   match expr with
@@ -162,7 +168,10 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
 
   | CatE -> string ppf "Cat"
   | ArrE c ->
-    pf ppf "Arr %a" ppe c
+    if (arr_parens c) then 
+      pf ppf "Arr (%a)" ppe c
+    else
+      pf ppf "Arr %a" ppe c
   | ObjE e -> pf ppf "[@[<hov>%a@]]" ppe e
   | HomE (c,s,t) ->
     if full_homs then 
@@ -174,11 +183,13 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
     pf ppf "ucomp [ %a ]" pp_tr pd
   | UCompE (DimSeq ds) ->
     pf ppf "ucomp [ %a ]" (list int) ds
-  | CohE (g,_,s,t) ->
-    pf ppf "@[coh [ @[%a@] :@;@[<hov>@[%a@] =>@;@[%a@]@]]@]"
-      (pp_tele ppe) g ppe s ppe t
-    (* pf ppf "@[coh [ @[%a@] :@;@[%a@]@;|> %a =>@;%a ]@]"
-     *   (pp_tele ppe) g ppe c ppe s ppe t *)
+  | CohE (g,c,s,t) ->
+    if full_homs then 
+      pf ppf "@[coh [ @[%a@] :@;@[%a@]@;|> %a =>@;%a ]@]"
+        (pp_tele ppe) g ppe c ppe s ppe t
+    else
+      pf ppf "@[coh [ @[%a@] :@;@[<hov>@[%a@] =>@;@[%a@]@]]@]"
+        (pp_tele ppe) g ppe s ppe t
   | CylCohE (g,c,s,t) ->
     pf ppf "cylcoh [ %a : %a |> %a => %a ]"
       (pp_tele ppe) g ppe c (pp_disc ppe) s (pp_disc ppe) t
@@ -192,7 +203,7 @@ let rec pp_expr_gen ~si:show_imp ~fh:full_homs ~pc:pd_ctxs ppf expr =
   | CylE (b,l,c) ->
     pf ppf "@[<hov>[|@;%a@;|@;%a@;|@;%a@;|]@]" ppe b ppe l ppe c 
 
-let pp_expr = pp_expr_gen ~si:false ~fh:false ~pc:true
+let pp_expr = pp_expr_gen ~si:false ~fh:true ~pc:true
 let pp_expr_with_impl = pp_expr_gen ~si:true ~fh:true ~pc:true
 
 

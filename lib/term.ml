@@ -202,7 +202,7 @@ let rec pp_term ppf tm =
   | ObjT c ->
     pf ppf "[%a]" pp_term c
   | HomT (c,s,t) ->
-    pf ppf "%a | %a => %a" pp_term c pp_term s pp_term t
+    pf ppf "@[%a@] |@, @[%a => %a@]" pp_term c pp_term s pp_term t
   | ArrT c -> pf ppf "Arr %a" pp_term c
 
   | UCompT (UnitPd pd) ->
@@ -211,12 +211,12 @@ let rec pp_term ppf tm =
     pf ppf "ucomp [ %a ]" (list int) ds
 
   | CohT ((cn,_),pd,c,s,t) ->
-    pf ppf "@[coh [ %s %a : %a |> %a => %a ]@]" cn
+    pf ppf "@[coh [ %s @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] ]@]" cn
       (pp_pd string) (map_pd pd ~f:fst)
       pp_term c pp_term s pp_term t
       
   | CylCohT ((cn,_),pd,c,s,t) ->
-    pf ppf "@[cylcoh [ %s %a : %a |> %a => %a ]@]" cn
+    pf ppf "@[cylcoh [ %s @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] ]@]" cn
       (pp_pd string) (map_pd pd ~f:fst)
       pp_term c (pp_disc pp_term) s (pp_disc pp_term) t
       
@@ -323,6 +323,12 @@ let term_ucomp_desc ud =
 (*                          Cylinder Coherence Types                         *)
 (*****************************************************************************)
 
+(* Okay, ummm.  So I think you should make this generic so that you
+   can do it for expressions and debug the whole thing.  I guess the 
+   only reason you hadn't done this is that it means adding cylcoh
+   as a constructor to the signature.  But maybe that's okay?
+*)
+
 let rec cyl_coh_typ cn pd ct ssph tsph = 
   match (ssph,tsph) with
   | (Emp,Emp) -> ArrT ct
@@ -330,11 +336,32 @@ let rec cyl_coh_typ cn pd ct ssph tsph =
     let d = dim_pd pd in
     (* inefficient ... you extract this every time .... *)
     let (_,bsph) = TermUtil.match_homs ct in 
-    let cd = (length ssph) + (length bsph) in 
-    let cc = cyl_coh_typ cn pd ct ssph' tsph' in
-    let src_pd = if (cd <= d) then Pd.truncate true (d-1) pd else pd in
-    let tgt_pd = if (cd <= d) then Pd.truncate false (d-1) pd else pd in 
-    let src_cyl = CylCohT (cn,src_pd,ct,(ssph',ss),(tsph',ts)) in
-    let tgt_cyl = CylCohT (cn,tgt_pd,ct,(ssph',st),(tsph',tt)) in 
-    HomT (cc,src_cyl,tgt_cyl)
+    let cd = (length ssph) + (length bsph) in
+
+    let src_pd = if (cd <= d) then
+        TermUtil.pd_ict_canon (Pd.truncate true (d-1) pd)
+      else pd in
+
+    let tgt_pd = if (cd <= d) then
+        TermUtil.pd_ict_canon (Pd.truncate false (d-1) pd)
+      else pd in
+    
+    (* Wait! It should be the recursive call where we truncate, no? *)
+    let cc = cyl_coh_typ cn (TermUtil.fresh_pd src_pd) ct ssph' tsph' in
+
+    let src_cyl =
+      TermUtil.app_args
+        (CylCohT (cn,src_pd,ct,(ssph',ss),(tsph',ts)))
+        (TermUtil.pd_nm_ict_args cn src_pd) in
+    
+    let tgt_cyl =
+      TermUtil.app_args
+        (CylCohT (cn,tgt_pd,ct,(ssph',st),(tsph',tt)))
+        (TermUtil.pd_nm_ict_args cn tgt_pd) in
+    
+    let r = HomT (cc,src_cyl,tgt_cyl) in
+    (* pr "@[<v>homt: @[%a@]@,@]" pp_term r; *)
+    r
+
   | _ -> failwith "unequal dims in cyl_coh_typ"
+
