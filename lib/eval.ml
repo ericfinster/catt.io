@@ -88,8 +88,9 @@ and appV t u ict =
   | TopV (nm,sp,tv) -> TopV (nm,AppSp(sp,u,ict),appV tv u ict)
   | LamV (_,_,cl) -> cl $$ u
   | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,AppSp(sp,u,ict))
-  | CohV (cn,pd,sph,s,t,sp) ->
-    CohV (cn,pd,sph,s,t,AppSp(sp,u,ict))
+  | CohV (cn,pd,c,s,t,sp) ->
+    CohV (cn,pd,c,s,t,AppSp(sp,u,ict))
+        
   | _ -> raise (Eval_error (Fmt.str "malformed application: %a" pp_value t))
 
 and baseV v =
@@ -132,7 +133,7 @@ and appLocV loc v =
   | Emp -> v
   | Ext (loc',u) -> appV (appLocV loc' v) u Expl
 
-let rec runSpV v sp =
+and runSpV v sp =
   match sp with
   | EmpSp -> v
   | AppSp (sp',u,ict) -> appV (runSpV v sp') u ict
@@ -140,7 +141,7 @@ let rec runSpV v sp =
   | LidSp sp' -> lidV (runSpV v sp')
   | CoreSp sp' -> coreV (runSpV v sp')
 
-let rec force_meta v =
+and force_meta v =
   match v with
   | FlexV (m,sp) ->
     (match lookup_meta m with
@@ -148,17 +149,11 @@ let rec force_meta v =
      | Solved v -> force_meta (runSpV v sp))
   | _ -> v
 
-let rec appArgs v args =
-  match args with
-  | Emp -> v
-  | Ext (args',(ict,arg)) ->
-    appV (appArgs v args') arg ict
-
 (*****************************************************************************)
 (*                                  Quoting                                  *)
 (*****************************************************************************)
 
-let rec quote ufld k v =
+and quote ufld k v =
   let qc x = quote ufld k x in
   let qcs x s = quote_sp ufld k x s in 
   match force_meta v with
@@ -288,6 +283,12 @@ let string_pd_to_value_tele (c : string) (pd : string Pd.pd) : value tele =
 (*****************************************************************************)
 (*                              Value Cylinders                              *)
 (*****************************************************************************)
+
+let rec appArgs v args =
+  match args with
+  | Emp -> v
+  | Ext (args',(ict,arg)) ->
+    appV (appArgs v args') arg ict
 
 module ValueCylinderSyntax = struct
   include ValuePdSyntax
