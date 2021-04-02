@@ -94,7 +94,7 @@ module type PdSyntax = sig
   
 end
 
-module PdConversion(P : PdSyntax) = struct
+module PdUtil(P : PdSyntax) = struct
   include P
 
   let rec match_homs (c : s) : (s * s sph) =
@@ -113,39 +113,7 @@ module PdConversion(P : PdSyntax) = struct
     | Ext (sph',(s,t)) -> 
       hom (sph_to_cat c sph') s t
 
-  (* let pd_extend_tele (tl : s tele) ((cnm,cict,ctm) : s decl) (pd : (s decl) pd) : s tele =
-   * 
-   *   let l = length tl in 
-   *   (\* Note: ctm is valid in l + 1 *\)
-   *   
-   *   let rec do_br sph br tl lvl =
-   *     match br with
-   *     | Br ((snm,_,src),brs) ->
-   *       let ict = if (is_empty brs) then Expl else Impl in
-   *       let bc = lift (lvl - l - 1) ctm in 
-   *       let sty = obj (sph_to_cat bc sph) in
-   *       let tl' =  Ext (tl,(snm,ict,sty)) in
-   *       do_brs (map_sph sph ~f:(lift 1)) src brs tl' (lvl+1)
-   * 
-   *   and do_brs sph src brs tl lvl =
-   *     match brs with
-   *     | Emp -> (tl, lvl, src)
-   *     | Ext (brs',((tnm,_,tgt),br)) ->
-   *       let (tl',lvl',src') = do_brs sph src brs' tl lvl in
-   *       let bc = lift (lvl'-l-1) ctm in
-   *       let sph' = map_sph sph ~f:(lift (lvl' - lvl)) in 
-   *       let tty = obj (sph_to_cat bc sph') in
-   *       let (tl'',lvl'',_) = do_br
-   *           (Ext (map_sph sph' ~f:(lift 1),(lift 1 src',tgt)))
-   *           br (Ext (tl',(tnm,Impl,tty))) (lvl'+1) in
-   *       (tl'',lvl'',lift (lvl''-lvl'-1) tgt)
-   * 
-   *   in let (tl,_,_) = do_br Emp pd (Ext (tl,(cnm,cict,cat))) (l+1) in tl
-   * 
-   * let pd_to_tele (c : s) (pd : (s decl) pd) =
-   *   pd_extend_tele Emp ("C",Impl,c) pd *)
-
-  let new_pd_to_tele ((cnm,cict) : (name * icit)) (pd : 'a pd)
+  let pd_to_tele ((cnm,cict) : (name * icit)) (pd : 'a pd)
       (lf : lvl -> 'a -> (name * icit))
       (nd : lvl -> 'a -> (name * icit)) : s tele =
 
@@ -178,15 +146,15 @@ module PdConversion(P : PdSyntax) = struct
     in let (tl,_,_,_) = do_br (var 1 0 cnm) Emp pd (Ext (Emp,(cnm,cict,cat))) 1 in tl
     
   let nm_ict_pd_to_tele (c : (name * icit)) (pd : (name * icit) pd) : s tele =
-    new_pd_to_tele c pd (fun _ ni -> ni) (fun _ ni -> ni)
+    pd_to_tele c pd (fun _ ni -> ni) (fun _ ni -> ni)
 
   let string_pd_to_tele (cnm : name) (pd : name pd) : s tele =
-    new_pd_to_tele (cnm,Impl) pd (fun _ nm -> (nm,Expl))
+    pd_to_tele (cnm,Impl) pd (fun _ nm -> (nm,Expl))
       (fun _ nm -> (nm,Impl))
       
   let fresh_pd_tele (pd : 'a pd) : s tele =
     let vn l = Fmt.str "x%d" l in 
-    new_pd_to_tele ("C",Impl) pd
+    pd_to_tele ("C",Impl) pd
       (fun l _ -> (vn l,Expl))      
       (fun l _ -> (vn l,Impl))
       
@@ -265,7 +233,12 @@ module PdConversion(P : PdSyntax) = struct
   let tele_to_pd (tl : s tele) : ((name * icit) * (name * icit) pd , string) Result.t =
     let f nm ict _ _ _ = (nm,ict) in 
     tele_to_pd_fold tl f
-      
+
+  let tele_to_name_pd (tl : s tele) : (name * (name pd) , string) Result.t =
+    let f nm _ _ _ _ = nm in
+    Result.bind (tele_to_pd_fold tl f)
+      ~f:(fun ((cn,_),pd) -> Ok (cn,pd))
+                                           
   let tele_to_idx_pd (tl : s tele) : (idx pd,string) Result.t =
     let f _ _ k l _ = lvl_to_idx k l in
     Result.bind (tele_to_pd_fold tl f)
@@ -291,13 +264,80 @@ module PdConversion(P : PdSyntax) = struct
     map_pd_lf_nd pd
       ~lf:(fun (nm,_) -> (nm,Expl))
       ~nd:(fun (nm,_) -> (nm,Impl))
-  
+
+  let pd_with_impl pd =
+    map_pd_lf_nd pd
+      ~lf:(fun x -> (x,Expl))
+      ~nd:(fun x -> (x,Impl))
+
 end
 
+(* This is a kind of orphan now.... *)
 let pd_args cat pd =
   Pd.fold_pd_lf_nd pd (Ext (Emp,(Impl,cat)))
     ~lf:(fun args arg -> Ext (args,(Expl,arg)))
     ~nd:(fun args arg -> Ext (args,(Impl,arg)))
+
+(*****************************************************************************)
+(*                                 Coherences                                *)
+(*****************************************************************************)
+
+module type CohSyntax = sig
+  include PdSyntax
+  val app : s -> s -> icit -> s
+  val coh : nm_ict -> nm_ict pd -> s -> s -> s -> s
+  val disc_coh : nm_ict -> nm_ict pd -> s
+end
+
+module CohUtil(C : CohSyntax) = struct
+  include C
+  include PdUtil(C)
+
+  let app_args t args =
+    fold_left args t
+      (fun t' (ict,arg) -> app t' arg ict) 
+  
+  (* Unbiased composition coherence *)
+  let rec ucomp_coh (cn : nm_ict) (pd : nm_ict pd) : s =
+    if (is_disc pd) then
+      disc_coh cn pd
+    else
+      let bdry = boundary (args_pd pd) in
+      let ct' = var (pd_length pd + 1) 0 (fst cn) in
+      let sph = map_suite bdry
+          ~f:(fun (s,t) -> (ucomp_app ct' s, ucomp_app ct' t)) in
+      match sph with
+      | Emp -> failwith "empty sphere in ucomp"
+      | Ext (sph',(src,tgt)) ->
+        coh cn pd (sph_to_cat ct' sph') src tgt
+  
+  (* Applied unbiased composite *)
+  and ucomp_app : s -> s pd -> s = fun ct pd -> 
+    if (is_disc pd) then
+      head (labels pd)
+    else
+      let uc_coh = ucomp_coh ("C",Impl) (fresh_pd pd) in
+      app_args uc_coh (pd_args ct pd)
+
+  let ucomp_with_type : s -> s pd -> s disc = fun ct pd -> 
+    let bdry = boundary pd in
+    let suite_sph = map_suite bdry
+        ~f:(fun (s,t) -> (ucomp_app ct s, ucomp_app ct t)) in
+    (suite_sph , ucomp_app ct pd)
+
+  let whisker : s -> s disc -> int -> s disc -> s disc =
+    fun ct left i right ->
+    let wpd = Base.Result.ok_or_failwith
+        (whisk_right (disc_pd left) i right) in 
+    ucomp_with_type ct wpd
+
+  let str_ucomp (c : string) (pd : string pd) : s =
+    ucomp_coh (c,Impl) (pd_with_impl pd) 
+
+  let gen_ucomp (pd : 'a pd) : s =
+    ucomp_coh ("C",Impl) (fresh_pd pd)
+      
+end
 
 (*****************************************************************************)
 (*                              Cylinder Syntax                              *)
@@ -305,26 +345,14 @@ let pd_args cat pd =
 
 module type CylinderSyntax = sig
   include PdSyntax
-  val ucomp : s -> s pd -> s
-end
+  include CohSyntax
 
-module CylinderUtil(C: CylinderSyntax) = struct
+  val arr : s -> s
+  val cyl : s -> s -> s -> s
+  val base : s -> s
+  val lid : s -> s
+  val core : s -> s
 
-  include C
-  include PdConversion(C)
-  
-  let ucomp_with_type : s -> s pd -> s disc = fun ct pd -> 
-    let bdry = boundary pd in
-    let suite_sph = map_suite bdry
-        ~f:(fun (s,t) -> (ucomp ct s, ucomp ct t)) in
-    (suite_sph , ucomp ct pd)
-
-  let whisker : s -> s disc -> int -> s disc -> s disc =
-    fun ct left i right ->
-    let wpd = Base.Result.ok_or_failwith
-        (whisk_right (disc_pd left) i right) in 
-    ucomp_with_type ct wpd
-  
 end
 
 (*****************************************************************************)
@@ -333,16 +361,15 @@ end
     
 module type Syntax = sig
   include PdSyntax
+  include CohSyntax
+  include CylinderSyntax
   val lam : name -> icit -> s -> s
   val pi : name -> icit -> s -> s -> s 
-  val app : s -> s -> icit -> s
-  val coh : nm_ict -> nm_ict pd -> s -> s -> s -> s
-  val cyl : s -> s -> s -> s
 end
 
 module SyntaxUtil(Syn : Syntax) = struct
   include Syn
-  include PdConversion(Syn)
+  include PdUtil(Syn)
 
   (* Utility Routines *)
   let app_args t args =
@@ -362,44 +389,6 @@ module SyntaxUtil(Syn : Syntax) = struct
     fold_right tl (ty,tm)
       (fun (nm,ict,ty) (ty',tm') ->
         (pi nm ict ty ty', lam nm ict tm'))
-  
-  (* Unbiased composition coherence *)
-  let rec ucomp_coh : type a. a pd -> s = fun pd ->
-    if (is_disc pd) then
-      let tele = fresh_pd_tele pd in 
-      let lvl = length tele in 
-      abstract_tele tele
-        (var (lvl+1) lvl (Fmt.str "x%d" lvl))
-    else
-      let fpd = fresh_pd pd in
-      let bdry = boundary (args_pd pd) in
-      let ct' = var (pd_length fpd + 1) 0 "C" in
-      let sph = map_suite bdry
-          ~f:(fun (s,t) -> (ucomp ct' s, ucomp ct' t)) in
-      match sph with
-      | Emp -> failwith "empty sphere in ucomp"
-      | Ext (sph',(src,tgt)) ->
-        coh ("C",Impl) fpd (sph_to_cat ct' sph') src tgt
-  
-  (* Applied unbiased composite *)
-  and ucomp : s -> s pd -> s = fun ct pd -> 
-    if (is_disc pd) then
-      head (labels pd)
-    else
-      let coh = ucomp_coh pd in
-      app_args coh (pd_args ct pd)
-
-  let ucomp_with_type : s -> s pd -> s disc = fun ct pd -> 
-    let bdry = boundary pd in
-    let suite_sph = map_suite bdry
-        ~f:(fun (s,t) -> (ucomp ct s, ucomp ct t)) in
-    (suite_sph , ucomp ct pd)
-
-  let whisker : s -> s disc -> int -> s disc -> s disc =
-    fun ct left i right ->
-    let wpd = Base.Result.ok_or_failwith
-        (whisk_right (disc_pd left) i right) in 
-    ucomp_with_type ct wpd
 
 end
 

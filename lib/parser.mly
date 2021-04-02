@@ -18,6 +18,9 @@
 %start prog
 %type <Expr.defn list> prog
 
+%start id_pd
+%type <string Pd.pd> id_pd
+
 %%
 
 suite(X):

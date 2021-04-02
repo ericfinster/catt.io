@@ -5,7 +5,6 @@
 (*****************************************************************************)
 
 open Format
-open Expr
   
 (*****************************************************************************)
 (*                                  Parsing                                  *)
@@ -22,7 +21,7 @@ let get_parse_error env =
         try (Parser_messages.message (I.number state)) with
         | Not_found -> "Invalid syntax (no specific message for this error)"
 
-let rec parse lexbuf (checkpoint : (defn list) I.checkpoint) =
+let rec parse lexbuf (checkpoint : 'a I.checkpoint) =
   match checkpoint with
   | I.InputNeeded _env ->
     let token = Lexer.token lexbuf in

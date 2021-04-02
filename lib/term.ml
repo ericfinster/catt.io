@@ -108,7 +108,7 @@ let rec term_to_expr nms tm =
 
   | UCompT pd -> UCompE pd
   | CohT (cn,pd,c,s,t) ->
-    let g = ExprPdConv.nm_ict_pd_to_tele cn pd in
+    let g = ExprPdUtil.nm_ict_pd_to_tele cn pd in
     fold_accum_cont g nms
       (fun (nm,_,_) nms' -> ((),Ext (nms',nm)))
       (fun _ nms' ->
@@ -117,7 +117,7 @@ let rec term_to_expr nms tm =
          let t' = tte nms' t in
          CohE (g,c',s',t'))
   | CylCohT (cn,pd,c,s,t) ->
-    let g = ExprPdConv.nm_ict_pd_to_tele cn pd in
+    let g = ExprPdUtil.nm_ict_pd_to_tele cn pd in
     fold_accum_cont g nms
       (fun (nm,_,_) nms' -> ((),Ext (nms',nm)))
       (fun _ nms' ->
@@ -289,79 +289,55 @@ module TermPdSyntax = struct
     
 end
 
-module TermPdConv = PdConversion(TermPdSyntax)
+module TermPdUtil = PdUtil(TermPdSyntax)
 
 let string_pd_to_term_tele (c : string) (pd : string pd) : term tele =
-  TermPdConv.string_pd_to_tele c pd 
+  TermPdUtil.string_pd_to_tele c pd 
 
 (*****************************************************************************)
-(*                         Term Syntax Implementation                        *)
+(*                         Term Syntax Implmentations                        *)
 (*****************************************************************************)
 
-module TermSyntax = struct
+module TermCohSyntax = struct
   include TermPdSyntax
-  let lam nm ict bdy = LamT (nm,ict,bdy)
-  let pi nm ict dom cod = PiT (nm,ict,dom,cod)
+
+  module T = TermPdUtil
+    
   let app u v ict = AppT (u,v,ict)
-  let coh n g c s t = CohT (n,g,c,s,t)
-  let cyl b l c = CylT (b,l,c)
+  let coh cn pd c s t = CohT (cn,pd,c,s,t)
+  let disc_coh cn pd =
+    let lams = fold_right (labels pd) (VarT 0)
+        (fun (nm,ict) tm ->
+           LamT (nm,ict,tm))
+    in LamT (fst cn, snd cn, lams)
+      
 end
 
-module TermUtil = SyntaxUtil(TermSyntax)
+module TermCylSyntax = struct
+  include TermCohSyntax
 
-let term_app_args = TermUtil.app_args
+  let arr e = ArrT e
+  let cyl b l c = CylT (b,l,c)
+  let base e = BaseT e
+  let lid e = LidT e
+  let core e = CoreT e
 
-let term_ucomp_coh : 'a Pd.pd -> term = fun pd ->
-  TermUtil.ucomp_coh pd
+end
 
-let term_ucomp_desc ud =
-  match ud with
-  | UnitPd pd -> term_ucomp_coh pd
-  | DimSeq ds -> term_ucomp_coh (comp_seq ds)
+module TermSyntax = struct
+  include TermCylSyntax
+  let lam nm ict bdy = LamT (nm,ict,bdy)
+  let pi nm ict dom cod = PiT (nm,ict,dom,cod)
+end
 
-(*****************************************************************************)
-(*                          Cylinder Coherence Types                         *)
-(*****************************************************************************)
+module TermUtil = struct
+  include PdUtil(TermPdSyntax)
+  include CohUtil(TermCohSyntax)
+  include SyntaxUtil(TermSyntax)
+end
 
-(* Okay, ummm.  So I think you should make this generic so that you
-   can do it for expressions and debug the whole thing.  I guess the 
-   only reason you hadn't done this is that it means adding cylcoh
-   as a constructor to the signature.  But maybe that's okay?
-*)
-
-let rec cyl_coh_typ cn pd ct ssph tsph = 
-  match (ssph,tsph) with
-  | (Emp,Emp) -> ArrT ct
-  | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
-    let d = dim_pd pd in
-    (* inefficient ... you extract this every time .... *)
-    let (_,bsph) = TermUtil.match_homs ct in 
-    let cd = (length ssph) + (length bsph) in
-
-    let src_pd = if (cd <= d) then
-        TermUtil.pd_ict_canon (Pd.truncate true (d-1) pd)
-      else pd in
-
-    let tgt_pd = if (cd <= d) then
-        TermUtil.pd_ict_canon (Pd.truncate false (d-1) pd)
-      else pd in
+let term_str_ucomp (c : string) (pd : string pd) : term = 
+  TermUtil.str_ucomp c pd 
     
-    (* Wait! It should be the recursive call where we truncate, no? *)
-    let cc = cyl_coh_typ cn (TermUtil.fresh_pd src_pd) ct ssph' tsph' in
-
-    let src_cyl =
-      TermUtil.app_args
-        (CylCohT (cn,src_pd,ct,(ssph',ss),(tsph',ts)))
-        (TermUtil.pd_nm_ict_args cn src_pd) in
-    
-    let tgt_cyl =
-      TermUtil.app_args
-        (CylCohT (cn,tgt_pd,ct,(ssph',st),(tsph',tt)))
-        (TermUtil.pd_nm_ict_args cn tgt_pd) in
-    
-    let r = HomT (cc,src_cyl,tgt_cyl) in
-    (* pr "@[<v>homt: @[%a@]@,@]" pp_term r; *)
-    r
-
-  | _ -> failwith "unequal dims in cyl_coh_typ"
-
+let term_ucomp (pd : 'a pd) : term =
+  TermUtil.gen_ucomp pd 

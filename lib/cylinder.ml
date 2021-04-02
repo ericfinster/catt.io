@@ -54,11 +54,17 @@ let rec fold3 a b c init f =
     fold3 a' b' c' (f init x y z) f
   | _ -> failwith "unequal fold3"
 
-module CylinderOps(C : CylinderSyntax) = struct
-  
-  include CylinderUtil(C)
 
-  (* Anti lifting? *)
+module CylinderOps(C : CylinderSyntax) = struct
+
+  include C
+  include PdUtil(C)
+  open CohUtil(C)
+  
+  (***************************************************************************)
+  (*                           Underlying Cylinders                          *)
+  (***************************************************************************)
+  
   let advance (bc : s) ((sph,ct) : s susp_cyl_typ) (b : s) (l : s)
     : s susp_cyl_typ * s disc * s disc * s * s * s * s = 
     
@@ -115,7 +121,11 @@ module CylinderOps(C : CylinderSyntax) = struct
     if (n <= 0) then sc else
       nth_underlying bc (underlying_cyl bc sc) (n-1)
 
-  (* Lifting *)
+
+  (***************************************************************************)
+  (*                                 Lifting                                 *)
+  (***************************************************************************)
+ 
   let lift (((sph,ct),(_,_,c)) : s susp_cyl)
       ((bsph,b) : s disc) ((lsph,l) : s disc)
       (sc : s) (tc : s) : s susp_cyl = 
@@ -146,27 +156,28 @@ module CylinderOps(C : CylinderSyntax) = struct
 
   let lift_curried (scyl,bd,ld,sc,tc) =
     lift scyl bd ld sc tc
-  
+
 end
 
-(***************************************************************************)
-(*                           Cylinder Coherences                           *)
-(***************************************************************************)
+module CylinderCoh(Syn: Syntax) = struct
 
-module CylinderCoh(S: Syntax) = struct 
-    include S
+  include PdUtil(Syn)
+  open CohUtil(Syn)
+  open SyntaxUtil(Syn)
+  open CylinderOps(Syn)
+  
+  (***************************************************************************)
+  (*                           Cylinder Coherences                           *)
+  (***************************************************************************)
 
-    module Su = SyntaxUtil(S)
-    module Ops = CylinderOps(Su)
-        
     let rec cylcoh_susp (cn : nm_ict) (pd : nm_ict pd) (c : s) 
         (bsph : s sph) ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
       
       match (ssph,tsph) with 
       | (Emp,Emp) ->
-        let args = Su.pd_nm_ict_args cn pd in 
-        let cc = Su.sph_to_cat c bsph in 
-        let coh_tm = Su.app_args (coh cn pd cc s t) args in 
+        let args = pd_nm_ict_args cn pd in 
+        let cc = sph_to_cat c bsph in 
+        let coh_tm = app_args (coh cn pd cc s t) args in 
         ((bsph, []), (s, t, coh_tm))
     
       | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
@@ -175,11 +186,11 @@ module CylinderCoh(S: Syntax) = struct
         let cd = length bsph + length ssph in
 
         let src_pd = if (cd <= d) then
-            Su.pd_ict_canon (truncate true (d-1) pd)
+            pd_ict_canon (truncate true (d-1) pd)
           else pd in
         
         let tgt_pd = if (cd <= d) then
-            Su.pd_ict_canon (truncate false (d-1) pd)
+            pd_ict_canon (truncate false (d-1) pd)
           else pd in 
         
         let ((_,ct),(sb,sl,sc)) = cylcoh_susp cn src_pd c bsph (ssph',ss) (tsph',ts) in
@@ -187,22 +198,63 @@ module CylinderCoh(S: Syntax) = struct
 
         (* Super yucky inefficient. *)
         let ct' = List.append ct [(sb,sl,sc),(tb,tl,tc)] in
-        let ((coh_sph,_),b,l) = Ops.iter_advance c (bsph,ct') s t (List.length ct') in
-        let cc = Su.sph_to_cat c coh_sph in 
-        let coh_tm = Su.app_args (coh cn pd cc b l) (Su.pd_nm_ict_args cn pd) in 
+        let ((coh_sph,_),b,l) = iter_advance c (bsph,ct') s t (List.length ct') in
+        let cc = sph_to_cat c coh_sph in 
+        let coh_tm = app_args (coh cn pd cc b l) (pd_nm_ict_args cn pd) in 
 
         ((bsph,ct'),(s,t,coh_tm))
 
       | _ -> failwith "cylcoh dimension error"
-
     
-    let cylcoh cn pd c s t =
-      let (bc, sph) = Ops.match_homs c in
+    let cylcoh_impl cn pd c s t =
+      let (bc, sph) = match_homs c in
       let (_,(b,l,cr)) = cylcoh_susp cn pd bc sph s t in
-      let result = cyl b l cr  in
+      let g = nm_ict_pd_to_tele cn pd in
+      let result = abstract_tele g (cyl b l cr)  in
       (* Fmt.pr "@[<v>generated cylcoh: @[%a@]@,@]" pp result; *)
       result    
+
+
+    (*****************************************************************************)
+    (*                          Cylinder Coherence Types                         *)
+    (*****************************************************************************)
     
+    let rec cyl_coh_typ cn pd ct ssph tsph = 
+      match (ssph,tsph) with
+      | (Emp,Emp) -> ArrT ct
+      | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
+        let d = dim_pd pd in
+        (* inefficient ... you extract this every time .... *)
+        let (_,bsph) = TermUtil.match_homs ct in 
+        let cd = (length ssph) + (length bsph) in
+    
+        let src_pd = if (cd <= d) then
+            TermUtil.pd_ict_canon (Pd.truncate true (d-1) pd)
+          else pd in
+    
+        let tgt_pd = if (cd <= d) then
+            TermUtil.pd_ict_canon (Pd.truncate false (d-1) pd)
+          else pd in
+    
+        (* Wait! It should be the recursive call where we truncate, no? *)
+        let cc = cyl_coh_typ cn (TermUtil.fresh_pd src_pd) ct ssph' tsph' in
+    
+        let src_cyl =
+          TermUtil.app_args
+            (CylCohT (cn,src_pd,ct,(ssph',ss),(tsph',ts)))
+            (TermUtil.pd_nm_ict_args cn src_pd) in
+    
+        let tgt_cyl =
+          TermUtil.app_args
+            (CylCohT (cn,tgt_pd,ct,(ssph',st),(tsph',tt)))
+            (TermUtil.pd_nm_ict_args cn tgt_pd) in
+    
+        let r = HomT (cc,src_cyl,tgt_cyl) in
+        (* pr "@[<v>homt: @[%a@]@,@]" pp_term r; *)
+        r
+    
+      | _ -> failwith "unequal dims in cyl_coh_typ"
+  
 end
 
 (*****************************************************************************)

@@ -264,7 +264,7 @@ and infer gma expr =
     Ok (HomT (c',s',t'), CatV)
 
   | UCompE (UnitPd pd) -> 
-    let e = expr_ucomp_coh pd in
+    let e = expr_ucomp pd in
     (* pr "@[<v>Generated ucomp: @[%a]@,@]" pp_expr e; *)
     let* (_,ty) = infer gma e in
     (* pr "@[<b>Result of inferrence: @[%a]@,@]" pp_term tm; *)
@@ -272,7 +272,7 @@ and infer gma expr =
 
   | UCompE (DimSeq ds) ->
     let pd = Pd.comp_seq ds in
-    let e = expr_ucomp_coh pd in
+    let e = expr_ucomp pd in
     (* pr "@[<v>Generated ucomp: @[%a]@,@]" pp_expr e; *)
     let* (_,ty) = infer gma e in 
     Ok (UCompT (DimSeq ds),ty)
@@ -379,7 +379,7 @@ and check_coh gma g c s t =
 
       (* pr "@[<v>gv: @[%a@]@,@]" (pp_tele pp_value) gv; *)
       
-      match ValuePdConv.tele_to_pd gv with
+      match ValuePdUtil.tele_to_pd gv with
       | Error msg -> Error (`PastingError msg)
       | Ok (cn,pd) ->
 
@@ -407,7 +407,7 @@ and check_coh gma g c s t =
         
         (* pr "@[<v>cv: %a@,@]" pp_value (force_meta cv); *)
         
-        let (bc,sph) = ValuePdConv.match_homs cv in 
+        let (bc,sph) = ValuePdUtil.match_homs cv in 
 
         (* pr "@[<v>bc: %a@,@]" pp_value bc; *)
         
@@ -472,7 +472,7 @@ and check_cyl_coh gma g c (ssph,s) (tsph,t) =
    *   (pp_tele pp_expr) g pp_expr c pp_expr s pp_expr t; *)
   with_tele (empty_loc gma) g (fun gma' gv gt ->
       
-      match ValuePdConv.tele_to_pd gv with
+      match ValuePdUtil.tele_to_pd gv with
       | Error msg -> Error (`PastingError msg)
       | Ok (cn,pd) ->
           
@@ -494,7 +494,7 @@ and check_cyl_coh gma g c (ssph,s) (tsph,t) =
         let sv = eval tp lc s' in 
         let tv = eval tp lc t' in 
         
-        let (bc,bsphv) = ValuePdConv.match_homs cv in 
+        let (bc,bsphv) = ValuePdUtil.match_homs cv in 
 
         let bdim = length bsphv in 
         let sdim = length ssph' + bdim in
@@ -587,7 +587,7 @@ let rec check_defs gma defs =
     let* (gt,cn,pd,ct,(ssph,s),(tsph,t)) = check_cyl_coh gma g c s t in
     pr "@[<v>ct: @[%a@]@,sdsc: @[%a@]@,tdsc: @[%a@]@,@]"
       pp_term ct (Pd.pp_disc pp_term) (ssph,s) (Pd.pp_disc pp_term) (tsph,t);
-    let cctt = cyl_coh_typ cn pd ct ssph tsph in
+    let cctt = TermCylCoh.cyl_coh_typ cn pd ct ssph tsph in
     pr "cylinder type: %a@," pp_term cctt;
     let cyl_ctm = eval gma.top gma.loc
         (CylCohT (cn,pd,ct,(ssph,s),(tsph,t))) in 

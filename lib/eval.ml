@@ -38,17 +38,11 @@ let rec eval top loc tm =
     HomV (eval top loc c, eval top loc s, eval top loc t)
 
   | CylCohT (cn,pd,c,s,t) ->
-
-    (* the old idea of inserting an abstraction ... *)
-    (* let g = TermPdConv.nm_ict_pd_to_tele cn pd in
-     * let ctm = TermCylCoh.cylcoh cn pd c s t in 
-     * eval top loc (TermUtil.abstract_tele g ctm) *)
-    
-    let ctm = TermCylCoh.cylcoh cn pd c s t in 
-    eval top loc ctm 
+    eval top loc
+      (TermCylCoh.cylcoh_impl cn pd c s t)
 
   | UCompT uc ->
-    let v = eval top loc (term_ucomp_desc uc) in
+    let v = eval top loc (term_ucomp (ucmp_pd uc)) in
     UCompV (uc, v, EmpSp)
       
   | CohT (nm,pd,c,s,t) ->
@@ -275,31 +269,49 @@ module ValuePdSyntax = struct
     
 end
 
-module ValuePdConv = PdConversion(ValuePdSyntax)
+module ValuePdUtil = PdUtil(ValuePdSyntax)
 
 let string_pd_to_value_tele (c : string) (pd : string Pd.pd) : value tele = 
-  ValuePdConv.string_pd_to_tele c pd 
+  ValuePdUtil.string_pd_to_tele c pd 
+
 
 (*****************************************************************************)
 (*                              Value Cylinders                              *)
 (*****************************************************************************)
 
+(* Do we not have something like this already? *)
 let rec appArgs v args =
   match args with
   | Emp -> v
   | Ext (args',(ict,arg)) ->
     appV (appArgs v args') arg ict
 
-module ValueCylinderSyntax = struct
+module ValueCohSyntax = struct
   include ValuePdSyntax
-  
-  let ucomp c pd =
-    if (Pd.is_disc pd) then
-      head (Pd.labels pd)
-    else
-      let v = eval Emp Emp (UCompT (UnitPd (Pd.blank pd))) in 
-      appArgs v (pd_args c pd)
+      
+  (* Separate coh implementation? *)
+  let app u v ict = appV u v ict
+  let coh cn pd c s t = CohV (cn,pd,c,s,t,EmpSp)
+  let disc_coh cn pd =
+    let t = TermUtil.disc_coh cn pd in
+    eval Emp Emp t
 
+end
+
+module ValueCohUtil = CohUtil(ValueCohSyntax)
+    
+let value_ucomp (pd : 'a Pd.pd) : value =
+  ValueCohUtil.gen_ucomp pd 
+
+module ValueCylinderSyntax = struct
+  include ValueCohSyntax
+  
+  let arr v = ArrV v
+  let cyl b l c = CylV (b,l,c)
+  let base v = baseV v
+  let lid v = lidV v
+  let core v = coreV v
+  
 end
 
 module ValueCyl = CylinderOps(ValueCylinderSyntax)
