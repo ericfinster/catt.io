@@ -11,6 +11,7 @@ open Value
 open Suite
 open Syntax
 open Cylinder
+open Pd
 
 (*****************************************************************************)
 (*                                 Evaluation                                *)
@@ -83,9 +84,103 @@ and appV t u ict =
   | LamV (_,_,cl) -> cl $$ u
   | UCompV (ucd,cohv,sp) -> UCompV (ucd,appV cohv u ict,AppSp(sp,u,ict))
   | CohV (cn,pd,c,s,t,sp) ->
-    CohV (cn,pd,c,s,t,AppSp(sp,u,ict))
-
+     let sp' = AppSp(sp,u,ict) in
+     let x = CohV (cn,pd,c,s,t,sp') in
+     if sp_length sp' = pd_length pd + 1 then
+       (match redCoh cn pd c s t sp' with
+       | Error _ -> x
+       | Ok y -> y) else x
   | _ -> raise (Eval_error (Fmt.str "malformed application: %a" pp_value t))
+
+and redCoh cn pd c s t sp =
+
+  let rec dim_ty ty =
+    match ty with
+    | HomV (c,_,_) -> dim_ty c + 1
+    | _ -> 0 in
+
+  let rec type_linearity v =
+    match force_meta v with
+    | HomV(c, RigidV _, RigidV _) -> dim_ty c
+    | HomV(c, _, _) -> type_linearity c
+    | _ -> -1 in
+
+  let rec get_redex xs =
+    match xs with
+    | Emp -> Error "No redex found"
+    | Ext (xs, ((_,_,_,_,CohV (cn', pd', c', s', t', sp')), redex_path)) ->
+       let args = sp_to_suite sp' in
+       let pda = map_pd_lvls pd' 0 ~f:(fun _ n _ (nm, ict) -> let (v,_) = nth n args in (false, n , nm , ict, v)) in
+       if type_linearity (HomV (c', s', t')) >= length redex_path - 1 then Ok (cn', pd' ,c',s',t',pda ,redex_path) else get_redex xs
+    | _ -> get_redex xs in
+
+  let get_internal_substitution pd =
+    let l = Pd.labels pd in
+    let fl = filter (zip_with_idx l) (fun (_,(b,_,_,_,_)) -> not b) in
+    map_suite_m (range_r 0 (length fl)) ~f:(fun n ->
+        let* (x,(_,_,_,icit,_)) = find fl ~p:(fun (_,(_,i,_,_,_)) -> i = n) in
+        Ok ((RigidV (x,EmpSp),icit))) in
+
+  let path_from_term_type tm ty path =
+    let pl = length path in
+    let ty_dim = dim_ty ty in
+    let b = (last path = 1) in
+    let d = ty_dim - pl in
+    let rec go d ty =
+      match ty with
+      | HomV (c,s,t) -> if d > 0 then go (d-1) c else if b then Ok t else Ok s
+      | _ -> Error "Internal error: path_from_term_type" in
+    if pl > ty_dim then Ok tm else go d ty in
+
+  let rec subtract_path path1 path2 =
+    match (path1, path2) with
+    | (Emp, _) -> Emp
+    | (Ext (xs, x), Emp) -> Ext (xs, x)
+    | (Ext (xs, x), Ext (ys, y)) -> Ext (subtract_path xs ys, x - y) in
+
+  let get_external_substitution pd redex_path all_paths internal_tm internal_ty =
+    let l = Pd.labels pd in
+    let fl = filter (zip_with_idx l) (fun (_,(b,_,_,_,_)) -> b) in
+    map_suite_m (range 0 (length all_paths)) ~f:(fun n ->
+        match find fl ~p:(fun (_,(_,i,_,_,_)) -> i = n) with
+        | Error _ ->
+           let path = subtract_path (db_get n all_paths) redex_path in
+           let* t = path_from_term_type internal_tm internal_ty path in
+           Ok (t)
+        | Ok (x,_) -> Ok (RigidV (x,EmpSp))) in
+
+  let ctx_length = pd_length pd + 1 in
+  let (cat_arg, args) = split_suite 1 (sp_to_suite sp) in
+  let pd_with_args = map_pd_lvls pd 0 ~f:(fun _ n _ (nm, ict) -> let (v,_) = nth n args in (true, n, nm, ict, v)) in
+
+  match loc_max_bh pd_with_args with
+  | Error _ -> Error "Pd is linear"
+  | Ok xs ->
+     let* (cni,pdi,ci,si,ti,redex_pd,redex_path) = get_redex xs in
+     let internal_ctx_length = pd_length pdi + 1 in
+     let internal_term = CohV(cni,pdi,ci,si,ti,EmpSp) in
+     let* pd_insert = insertion pd_with_args redex_path redex_pd in
+     let pd_final = map_pd pd_insert ~f:(fun (_,_,nm,icit,_) -> (nm,icit)) in
+     let final_args = labels (map_pd pd_insert ~f:(fun (_,_,_,icit,v) -> (v,icit))) in
+     let final_spine = suite_to_sp (append cat_arg final_args) in
+     let inserted_ctx_length = pd_length pd_insert + 1 in
+     let* internal_sub_no_append = get_internal_substitution pd_insert in
+     let internal_sub = append (singleton (RigidV (inserted_ctx_length, EmpSp), (snd cni))) internal_sub_no_append in
+     let internal_term_subbed = runSpV internal_term (suite_to_sp internal_sub) in
+     let internal_sub_no_icit = map_suite internal_sub ~f:fst in
+     let civ = applySubstitution internal_ctx_length ci internal_sub_no_icit in
+     let siv = applySubstitution internal_ctx_length si internal_sub_no_icit in
+     let tiv = applySubstitution internal_ctx_length ti internal_sub_no_icit in
+     let* external_sub_no_append = get_external_substitution pd_insert redex_path (get_all_paths pd) internal_term_subbed (HomV (civ,siv,tiv)) in
+     let external_sub = append (singleton (RigidV (inserted_ctx_length,EmpSp))) external_sub_no_append in
+     let cv = applySubstitution ctx_length c external_sub in
+     let sv = applySubstitution ctx_length s external_sub in
+     let tv = applySubstitution ctx_length t external_sub in
+     Ok (runSpV (CohV(cn,pd_final,cv,sv,tv,EmpSp)) final_spine)
+
+and applySubstitution k v sub =
+  let t = quote true k v in
+  eval Emp sub t
 
 and baseV v =
   match v with

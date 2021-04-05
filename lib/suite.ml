@@ -53,6 +53,15 @@ let rec map_suite s ~f =
   | Emp -> Emp
   | Ext (s',x) -> map_suite s' ~f |> f x
 
+let rec map_suite_m s ~f =
+  let open Base.Result.Monad_infix in
+  match s with
+  | Emp -> Ok Emp
+  | Ext (s', x) ->
+     map_suite_m s' ~f >>= fun sm' ->
+     f x >>= fun xm ->
+     Ok (Ext (sm', xm))
+
 let map_with_lvl s ~f =
   let rec go s =
     match s with
@@ -150,6 +159,14 @@ let rec range i j =
   if (i > j) then Emp
   else Ext (range i (j-1), j)
 
+let rec range_r a b =
+  if a >= b then Emp else Ext (range_r (a+1) b, a)
+
+let rec find xs ~p =
+  match xs with
+  | Emp -> Error "Find did not find"
+  | Ext(ys, y) -> if p y then Ok y else find ys ~p
+
 let rec repeat n x =
   if (n = 0) then
     Emp
@@ -207,6 +224,20 @@ let rec db_get i s =
 let nth n s =
   let l = length s in
   db_get (l-n-1) s
+
+let drop s =
+  match s with
+  | Emp -> Error "Nothing to drop"
+  | Ext (xs, x) -> Ok (x, xs)
+
+let split_suite n s =
+  let rec go n s =
+    match s with
+    | Emp -> (Emp,Emp,n)
+    | Ext(xs,x) ->
+       let (a, b, m) = go n xs in
+       if m = 0 then (a, Ext(b,x),m) else (Ext(a,x),b,m - 1) in
+  let (a, b, _) = go n s in (a, b)
 
 let rec grab k s =
   if (k<=0) then (s,[]) else
