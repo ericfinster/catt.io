@@ -10,7 +10,7 @@ open Base
 open Expr
 open Suite
 open Syntax
-    
+
 (*****************************************************************************)
 (*                              Type Definitions                             *)
 (*****************************************************************************)
@@ -19,12 +19,12 @@ type term =
 
   (* Primitives *)
   | VarT of idx
-  | TopT of name 
+  | TopT of name
   | LamT of name * icit * term
   | AppT of term * term * icit
   | PiT of name * icit * term * term
   | MetaT of mvar
-  | InsMetaT of mvar 
+  | InsMetaT of mvar
   | TypT
 
   (* Categories *)
@@ -34,15 +34,15 @@ type term =
   | HomT of term * term * term
 
   (* Coherences *)
-  | UCompT of ucmp_desc 
-  | CohT of nm_ict * nm_ict pd * term * term * term 
+  | UCompT of ucmp_desc
+  | CohT of nm_ict * nm_ict pd * term * term * term
   | CylCohT of nm_ict * nm_ict pd * term * term disc * term disc
 
   (* Cylinders *)
   | CylT of term * term * term
   | BaseT of term
   | LidT of term
-  | CoreT of term 
+  | CoreT of term
 
 (*****************************************************************************)
 (*                              DeBrujin Lifting                             *)
@@ -60,7 +60,7 @@ let rec db_lift_by l k tm =
   | PiT (nm,ict,a,b) ->
     PiT (nm,ict,lft a, db_lift_by (l+1) k b)
   | MetaT m -> MetaT m
-  | InsMetaT m -> InsMetaT m 
+  | InsMetaT m -> InsMetaT m
   | TypT -> TypT
 
   | ObjT tm -> ObjT (lft tm)
@@ -84,7 +84,7 @@ let db_lift l t = db_lift_by l 1 t
 (*****************************************************************************)
 
 let rec term_to_expr nms tm =
-  let tte = term_to_expr in 
+  let tte = term_to_expr in
   match tm with
   | VarT i ->
     let nm = db_get i nms in VarE nm
@@ -100,7 +100,7 @@ let rec term_to_expr nms tm =
   | InsMetaT _ -> HoleE
   | TypT -> TypE
 
-  | CatT -> CatE 
+  | CatT -> CatE
   | ArrT c -> ArrE (tte nms c)
   | ObjT c -> ObjE (tte nms c)
   | HomT (c,s,t) ->
@@ -135,7 +135,7 @@ let rec term_to_expr nms tm =
 (*****************************************************************************)
 (*                                 Telescopes                                *)
 (*****************************************************************************)
-    
+
 let rec tele_to_pi tl ty =
   match tl with
   | Emp -> ty
@@ -143,7 +143,7 @@ let rec tele_to_pi tl ty =
     tele_to_pi tl' (PiT (nm,ict,ty_tm,ty))
 
 let pi_to_tele ty =
-  let rec go tl ty = 
+  let rec go tl ty =
     match ty with
     | PiT (nm,ict,a,b) ->
       go (Ext (tl,(nm,ict,a))) b
@@ -153,7 +153,7 @@ let pi_to_tele ty =
 (*****************************************************************************)
 (*                              Pretty Printing                              *)
 (*****************************************************************************)
-    
+
 let is_app_tm tm =
   match tm with
   | AppT (_,_,_) -> true
@@ -163,11 +163,11 @@ let is_pi_tm tm =
   match tm with
   | PiT (_,_,_,_) -> true
   | _ -> false
-    
+
 let rec pp_term ppf tm =
   match tm with
   | VarT i -> int ppf i
-  | TopT nm -> string ppf nm 
+  | TopT nm -> string ppf nm
   | LamT (nm,Impl,t) ->
     pf ppf "\\{%s}. %a" nm pp_term t
   | LamT (nm,Expl,t) ->
@@ -179,7 +179,7 @@ let rec pp_term ppf tm =
     (* Need's a generic lookahead for parens routine ... *)
     let pp_v = if (is_app_tm v) then
         parens pp_term
-      else pp_term in 
+      else pp_term in
     pf ppf "%a %a" pp_term u pp_v v
   | PiT (nm,Impl,a,p) ->
     pf ppf "{%s : %a} -> %a" nm
@@ -187,8 +187,8 @@ let rec pp_term ppf tm =
   | PiT (nm,Expl,a,p) when Poly.(=) nm "" ->
     let pp_a = if (is_pi_tm a) then
         parens pp_term
-      else pp_term in 
-    pf ppf "%a -> %a" 
+      else pp_term in
+    pf ppf "%a -> %a"
       pp_a a pp_term p
   | PiT (nm,Expl,a,p) ->
     pf ppf "(%s : %a) -> %a" nm
@@ -214,12 +214,12 @@ let rec pp_term ppf tm =
     pf ppf "@[coh [ %s @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] ]@]" cn
       (pp_pd string) (map_pd pd ~f:fst)
       pp_term c pp_term s pp_term t
-      
+
   | CylCohT ((cn,_),pd,c,s,t) ->
     pf ppf "@[cylcoh [ %s @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] ]@]" cn
       (pp_pd string) (map_pd pd ~f:fst)
       pp_term c (pp_disc pp_term) s (pp_disc pp_term) t
-      
+
   | BaseT c -> pf ppf "base %a" pp_term c
   | LidT c -> pf ppf "lid %a" pp_term c
   | CoreT c -> pf ppf "core %a" pp_term c
@@ -232,10 +232,10 @@ let rec pp_term ppf tm =
 
 let fvs_empty = Set.empty (module Int)
 let fvs_singleton k = Set.singleton (module Int) k
-    
+
 let rec free_vars k tm =
   match tm with
-  | VarT i when i >= k -> fvs_singleton i 
+  | VarT i when i >= k -> fvs_singleton i
   | VarT _ -> fvs_empty
   | TopT _ -> fvs_empty
   | LamT (_,_,bdy) -> free_vars (k+1) bdy
@@ -247,7 +247,7 @@ let rec free_vars k tm =
   | HomT (c,s,t) ->
     Set.union (free_vars k c) (Set.union (free_vars k s) (free_vars k t))
   | UCompT _ -> fvs_empty
-  | CohT _ -> fvs_empty 
+  | CohT _ -> fvs_empty
   | CylCohT _ -> fvs_empty
   | CylT (b,l,c) ->
     Set.union (free_vars k b) (Set.union (free_vars k l) (free_vars k c))
@@ -267,11 +267,11 @@ let rec free_vars k tm =
 module TermPdSyntax = struct
 
   type s = term
-    
+
   let cat = CatT
   let obj c = ObjT c
   let hom c s t = HomT (c,s,t)
-  
+
   let match_hom e =
     match e with
     | HomT (c,s,t) -> Some (c,s,t)
@@ -280,19 +280,19 @@ module TermPdSyntax = struct
   let match_obj e =
     match e with
     | ObjT c -> Some c
-    | _ -> None 
+    | _ -> None
 
   let lift i t = db_lift_by 0 i t
   let var k l _ = VarT (lvl_to_idx k l)
 
   let pp_dbg = pp_term
-    
+
 end
 
 module TermPdUtil = PdUtil(TermPdSyntax)
 
 let string_pd_to_term_tele (c : string) (pd : string pd) : term tele =
-  TermPdUtil.string_pd_to_tele c pd 
+  TermPdUtil.string_pd_to_tele c pd
 
 (*****************************************************************************)
 (*                         Term Syntax Implmentations                        *)
@@ -302,7 +302,7 @@ module TermCohSyntax = struct
   include TermPdSyntax
 
   module T = TermPdUtil
-    
+
   let app u v ict = AppT (u,v,ict)
   let coh cn pd c s t = CohT (cn,pd,c,s,t)
   let disc_coh cn pd =
@@ -310,7 +310,7 @@ module TermCohSyntax = struct
         (fun (nm,ict) tm ->
            LamT (nm,ict,tm))
     in LamT (fst cn, snd cn, lams)
-      
+
 end
 
 module TermCylSyntax = struct
@@ -328,7 +328,7 @@ module TermSyntax = struct
   include TermCylSyntax
   let lam nm ict bdy = LamT (nm,ict,bdy)
   let pi nm ict dom cod = PiT (nm,ict,dom,cod)
-  let pp_s = pp_term 
+  let pp_s = pp_term
 end
 
 module TermUtil = struct
@@ -337,8 +337,8 @@ module TermUtil = struct
   include SyntaxUtil(TermSyntax)
 end
 
-let term_str_ucomp (c : string) (pd : string pd) : term = 
-  TermUtil.str_ucomp c pd 
-    
+let term_str_ucomp (c : string) (pd : string pd) : term =
+  TermUtil.str_ucomp c pd
+
 let term_ucomp (pd : 'a pd) : term =
-  TermUtil.gen_ucomp pd 
+  TermUtil.gen_ucomp pd

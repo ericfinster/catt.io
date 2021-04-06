@@ -5,7 +5,7 @@
 (*****************************************************************************)
 
 open Format
-  
+
 (*****************************************************************************)
 (*                                  Parsing                                  *)
 (*****************************************************************************)
@@ -13,7 +13,7 @@ open Format
 module I = Parser.MenhirInterpreter
 
 exception Parse_error of ((int * int) option * string)
-                          
+
 let get_parse_error env =
     match I.stack env with
     | lazy Nil -> "Invalid syntax"
@@ -25,7 +25,7 @@ let rec parse lexbuf (checkpoint : 'a I.checkpoint) =
   match checkpoint with
   | I.InputNeeded _env ->
     let token = Lexer.token lexbuf in
-    let (startp,endp) = Sedlexing.lexing_positions lexbuf in 
+    let (startp,endp) = Sedlexing.lexing_positions lexbuf in
     let checkpoint = I.offer checkpoint (token, startp, endp) in
     parse lexbuf checkpoint
   | I.Shifting _
@@ -42,18 +42,18 @@ let rec parse lexbuf (checkpoint : 'a I.checkpoint) =
 
 let parse_file f =
   let fi = open_in f in
-  let lexbuf = Sedlexing.Utf8.from_channel fi in 
+  let lexbuf = Sedlexing.Utf8.from_channel fi in
   try
     let chkpt = Parser.Incremental.prog (fst (Sedlexing.lexing_positions lexbuf)) in
     let defs = parse lexbuf chkpt in
     close_in fi;
     defs
-  with 
+  with
   | Parse_error (Some (line,pos), err) ->
     printf "Parse error: %sLine: %d, Pos: %d@," err line pos;
     close_in fi;
     exit (-1)
-  | Parse_error (None, err) -> 
+  | Parse_error (None, err) ->
     printf "Parse error: %s" err;
     close_in fi;
     exit (-1)
@@ -61,7 +61,7 @@ let parse_file f =
     close_in fi;
     printf "Lexing error: %s@,Line: %d, Pos: %d@," err line pos;
     exit (-1)
-  | Lexer.Lexing_error (None, err) -> 
+  | Lexer.Lexing_error (None, err) ->
     close_in fi;
     printf "Lexing error: %s@," err;
     exit (-1)
@@ -69,16 +69,10 @@ let parse_file f =
 let rec parse_all files =
   match files with
   | [] -> []
-  | f::fs -> 
-    let dds = parse_all fs in 
+  | f::fs ->
+    let dds = parse_all fs in
     print_string "-----------------";
     print_cut ();
     printf "Processing input file: %s\n" f;
     let ds = parse_file f in
     List.append ds dds
-
-    
-           
-
-
-

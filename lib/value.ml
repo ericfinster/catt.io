@@ -13,16 +13,16 @@ open Syntax
 (*****************************************************************************)
 (*                              Type Definitions                             *)
 (*****************************************************************************)
-    
+
 type value =
 
   (* Primitives *)
   | FlexV of mvar * spine   (* A term stuck because head is meta *)
   | RigidV of lvl * spine   (* A term stuck because head is bound variable *)
-  | TopV of name * spine * value 
+  | TopV of name * spine * value
   | LamV of name * icit * closure
   | PiV of name * icit * value * closure
-  | TypV 
+  | TypV
 
   (* Categories *)
   | CatV
@@ -59,7 +59,7 @@ let rec pp_value ppf v =
   match v with
   | FlexV (m,sp) ->
     pf ppf "?%d %a" m pp_spine sp
-  | RigidV (i,EmpSp) -> pf ppf "%d" i 
+  | RigidV (i,EmpSp) -> pf ppf "%d" i
   | RigidV (i,sp) -> pf ppf "%d %a" i pp_spine sp
   | TopV (nm,sp,_) ->
     pf ppf "%s %a" nm pp_spine sp
@@ -70,11 +70,11 @@ let rec pp_value ppf v =
   | PiV (nm,Expl,a,Closure (_,_,bdy)) ->
     pf ppf "(%s : %a) -> <%a>" nm
       pp_value a pp_term bdy
-  | PiV (nm,Impl,a,Closure (_,_,bdy)) -> 
+  | PiV (nm,Impl,a,Closure (_,_,bdy)) ->
     pf ppf "{%s : %a} -> <%a>" nm
       pp_value a pp_term bdy
   | TypV -> pf ppf "U"
-              
+
   | CatV -> pf ppf "Cat"
   | ObjV c ->
     pf ppf "[%a]" pp_value c
@@ -85,14 +85,14 @@ let rec pp_value ppf v =
 
   | UCompV (uc,_,sp) ->
     pf ppf "ucomp [ %a ] %a"
-      pp_ucmp_desc uc pp_spine sp 
-  (* | CohV (v,sp) -> 
-   *   pf ppf "coh @[%a@] %a" 
+      pp_ucmp_desc uc pp_spine sp
+  (* | CohV (v,sp) ->
+   *   pf ppf "coh @[%a@] %a"
    *     pp_value v pp_spine sp *)
 
   | CohV _ ->
     pf ppf "newcoh value not done"
-      
+
   | CylV (b,l,c) ->
     pf ppf "[| %a | %a | %a |]"
       pp_value b pp_value l pp_value c
@@ -104,7 +104,7 @@ and pp_spine ppf sp =
     pf ppf "%a %a" pp_spine sp' pp_value v
   | AppSp (sp',v,Impl) ->
     pf ppf "%a {%a}" pp_spine sp' pp_value v
-  | BaseSp sp' -> 
+  | BaseSp sp' ->
     pf ppf "base %a" pp_spine sp'
   | LidSp sp' ->
     pf ppf "lid %a" pp_spine sp'
@@ -113,5 +113,3 @@ and pp_spine ppf sp =
 
 let pp_top_env = hovbox (pp_suite (parens (pair ~sep:(any " : ") string pp_value)))
 let pp_loc_env = hovbox (pp_suite ~sep:comma pp_value)
-
-
