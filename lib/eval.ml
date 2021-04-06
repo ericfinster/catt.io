@@ -128,7 +128,7 @@ and redCoh cn pd c s t sp =
   let path_from_term_type tm ty path =
     let pl = length path in
     let ty_dim = dim_ty ty in
-    let b = (last path = 1) in
+    let b = (first path = 1) in
     let d = ty_dim - pl in
     let rec go d ty =
       match ty with
