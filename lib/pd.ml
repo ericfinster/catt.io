@@ -126,12 +126,12 @@ let rec insertion pd path pd2 =
     | Ext (ys, (_,y)) -> (l, Ext (ys, (l2,y))) in
   match (pd, pd2, path) with
   | (Br (l, brs), Br (l2,brs2), Ext (Emp, n)) ->
-     let (xs, ys) = split_suite n brs in
+     let (xs, ys) = split_suite (n + 1) brs in
      let* (_, xsd) = drop xs in
      let (l', xsr) = replace l xsd l2 in
      Ok (Br (l', append (append xsr brs2) ys))
   | (Br (l, brs), Br (l2, Ext (Emp, (_, p2))), Ext(ns, n)) ->
-     let (xs, ys) = split_suite n brs in
+     let (xs, ys) = split_suite (n + 1) brs in
      let* ((t,br), xsd) = drop xs in
      let (l', xsr) = replace l xsd l2 in
      let* pdr = insertion br ns p2 in
@@ -141,7 +141,7 @@ let rec insertion pd path pd2 =
 let rec get_all_paths pd =
   match pd with
   | Br (_, brs) ->
-     fold_left (map_suite (zip_with_idx brs) ~f:(fun (i,(_,p)) -> append (singleton (singleton i)) (map_suite (get_all_paths p) ~f:(fun xs -> Ext (xs, i))))) (singleton (singleton (length brs))) append
+     fold_left (map_with_lvl brs ~f:(fun i (_,p) -> append (singleton (singleton (i + 1))) (map_suite (get_all_paths p) ~f:(fun xs -> Ext (xs, i))))) (singleton (singleton 0)) append
 
 (*****************************************************************************)
 (*                             Discs and Spheres                             *)

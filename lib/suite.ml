@@ -160,7 +160,7 @@ let rec range i j =
   else Ext (range i (j-1), j)
 
 let rec range_r a b =
-  if a >= b then Emp else Ext (range_r (a+1) b, a)
+  if a > b then Emp else Ext (range_r (a+1) b, a)
 
 let rec find xs ~p =
   match xs with

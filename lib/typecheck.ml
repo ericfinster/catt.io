@@ -585,10 +585,14 @@ let rec check_defs gma defs =
     let* tm_tm = check gma abs_tm ty_val in
     let tm_val = eval gma.top gma.loc tm_tm in
     pr "Checking complete for %s@," id;
-    (* let tm_nf = term_to_expr Emp (quote (gma.lvl) tm_val false) in
-     * let ty_nf = term_to_expr Emp (quote (gma.lvl) ty_val false) in *)
-    (* pr "Type: @[%a@]@," pp_expr ty_nf; *)
-    (* pr "Term: @[%a@]@," pp_expr tm_nf; *)
+    let tm_nf = term_to_expr Emp (quote false (gma.lvl) tm_val) in
+    let ty_nf = term_to_expr Emp (quote false (gma.lvl) ty_val) in
+    pr "Type: @[%a@]@," pp_expr ty_nf;
+    pr "Term: @[%a@]@," pp_expr tm_nf;
+    let tm_unfolded_nf = term_to_expr Emp (quote false (gma.lvl) (eval gma.top gma.loc (quote true (gma.lvl) tm_val))) in
+    let ty_unfolded_nf = term_to_expr Emp (quote false (gma.lvl) (eval gma.top gma.loc (quote true (gma.lvl) ty_val))) in
+    pr "Type unfolded: @[%a@]@," pp_expr ty_unfolded_nf;
+    pr "Term unfolded: @[%a@]@," pp_expr tm_unfolded_nf;
     check_defs (define gma id tm_val ty_val) ds
   | (CohDef (id,g,c,s,t))::ds ->
     pr "----------------@,";

@@ -1,0 +1,39 @@
+coh id {C : Cat} (x :: C)
+  : x => x
+
+coh comp {C : Cat}
+    {x :: C}
+    {y :: C} (f :: x => y)
+    {z :: C} (g :: y => z)
+  : x => z
+
+coh comp2 {C2 : Cat}
+    {x2 :: C2}
+    {y2 :: C2} (f2 :: x2 => y2)
+    {z2 :: C2} (g2 :: y2 => z2)
+  : x2 => z2
+
+coh comp3 {C3 : Cat}
+    {x3 :: C3}
+    {y3 :: C3} (f3 :: x3 => y3)
+    {z3 :: C3} (g3 :: y3 => z3)
+  : x3 => z3
+
+let reduce-assoc {C : Cat}
+    {x :: C}
+    {y :: C} (f :: x => y)
+    {z :: C} (g :: y => z)
+    {w :: C} (h :: z => w) : [ x => w ] = comp f (comp2 g h)
+
+let reduce-assoc-2 {C : Cat}
+    {x :: C}
+    {y :: C} (f :: x => y)
+    {z :: C} (g :: y => z)
+    {w :: C} (h :: z => w) : [ x => w ] = comp (comp2 f g) h
+
+let reduce-assoc-3 {C : Cat}
+    {x :: C}
+    {y :: C} (f :: x => y)
+    {z :: C} (g :: y => z)
+    {w :: C} (h :: z => w)
+    {v :: C} (i :: w => v) : [ x => v ] = comp (comp2 f g) (comp3 h i)

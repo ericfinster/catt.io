@@ -91,7 +91,7 @@ let rec pp_value ppf v =
     pf ppf "@[coh [ %s @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] @[%a] ]@]" cn
       (pp_pd string) (map_pd pd ~f:fst)
       pp_value c pp_value s pp_value t pp_spine sp
-      
+
   | CylV (b,l,c) ->
     pf ppf "[| %a | %a | %a |]"
       pp_value b pp_value l pp_value c
