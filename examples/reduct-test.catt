@@ -58,8 +58,15 @@ let test {C : Cat}
 coh unitor C (x(f)y) : comp f (id y) => f
 coh comp-v C (x(f(a)g(b)h)y) : f => h
 
-let test2 {C : Cat}
-  {x :: C}
-  {y :: C} { f :: x => y }
-     	   { g :: x => y } (a :: f => g) : [ f => g ]
-	   = comp-v a (unitor g)
+# let test2 {C : Cat}
+#   {x :: C}
+#   {y :: C} { f :: x => y }
+#      	   { g :: x => y } (a :: f => g) : [ f => g ]
+# 	   = comp-v a (unitor g)
+
+coh fake-id C (x(f)y(g)z) : comp f g => comp f g
+
+let endo-coherence {C : Cat}
+    {x :: C}
+    {y :: C} (f :: x => y)
+    {z :: C} (g :: y => z) : [ comp f g => comp f g ] = fake-id f g

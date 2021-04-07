@@ -94,20 +94,22 @@ and appV t u ict =
      let x = CohV (cn,pd,c,s,t,sp') in
      (match sp_to_suite sp' with
      | Error _ -> x
-     | Ok (sp_list) -> if length sp_list = pd_length pd + 1 then
-       (match alt (insertionCoh cn pd c s t sp_list) (disc_removal pd c s t u) with
+     | Ok (sp_list) ->
+        let k = length sp_list in
+        if k = pd_length pd + 1 then
+       (match alt (alt (insertionCoh cn pd c s t sp_list) (disc_removal pd c s t u)) (endo_coherence_removal cn pd k c s t sp_list) with
         | Error _ ->
            (* pr "Attempted reduction: %s\n" y; *)
            x
        | Ok y -> y) else x)
   | _ -> raise (Eval_error (Fmt.str "malformed application: %a" pp_value t))
 
-and insertionCoh cn pd c s t args =
-
-  let rec dim_ty ty =
+and dim_ty ty =
     match ty with
     | HomV (c,_,_) -> dim_ty c + 1
-    | _ -> 0 in
+    | _ -> 0
+
+and insertionCoh cn pd c s t args =
 
   let rec type_linearity v =
     match force_meta v with
@@ -205,14 +207,44 @@ and applySubstitution k v sub =
   let t = quote true k v in
   eval Emp sub t
 
+and construct_disc_type n =
+  if n = 0 then RigidV (0, EmpSp) else HomV(construct_disc_type (n-1), RigidV (2*n - 1, EmpSp), RigidV (2*n,EmpSp) )
+
 and disc_removal pd c s t u =
-  let rec construct_disc_type n =
-    if n = 0 then RigidV (0, EmpSp) else HomV(construct_disc_type (n-1), RigidV (2*n - 1, EmpSp), RigidV (2*n,EmpSp) ) in
+
 
   if not (is_disc pd) then Error "Not disc"
   else
     if HomV(c,s,t) = construct_disc_type (dim_pd pd) then Ok u
     else Error "Disc is not unbiased"
+
+and endo_coherence_removal cn pd k c s t sp_list =
+  (* Can't open syntax here: Must be a way to fix this *)
+  let fresh_pd pd =
+    let nm_lvl l = Fmt.str "x%d" l in
+    Pd.map_pd_lf_nd_lvl pd
+      ~lf:(fun lvl _ -> (nm_lvl lvl,Expl))
+      ~nd:(fun lvl _ -> (nm_lvl lvl,Impl)) in
+  let rec type_to_suite ty =
+    match ty with
+    | HomV(a,b,c) -> Ext(Ext(type_to_suite a, (b,Impl)), (c,Impl))
+    | _ -> Emp in
+  if not (s = t) then Error "Not an endo coherence"
+  else
+    let dim = dim_ty c in
+    let new_pd = fresh_pd (unit_disc_pd dim) in
+    let coh_ty = construct_disc_type dim in
+    let coh_ty_tm = RigidV(2*dim + 1,EmpSp) in
+    if is_disc pd && c = coh_ty && s = coh_ty_tm then Error "Already identity"
+    else
+    let args_not_subbed = Ext(type_to_suite c, (s, Expl)) in
+    let sp_list_no_icit = map_suite sp_list ~f:fst in
+    let args_subbed = map_suite args_not_subbed ~f:(fun (v,i) -> (applySubstitution k v (sp_list_no_icit), i)) in
+    let args_final = suite_to_sp (append (singleton (first sp_list)) args_subbed) in
+    Ok (runSpV (CohV (cn,new_pd,coh_ty,coh_ty_tm,coh_ty_tm,EmpSp)) args_final)
+
+
+
 
 and baseV v =
   match v with
