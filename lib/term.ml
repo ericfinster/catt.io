@@ -285,7 +285,7 @@ module TermPdSyntax = struct
   let lift i t = db_lift_by 0 i t
   let var k l _ = VarT (lvl_to_idx k l)
 
-  let pp = pp_term
+  let pp_dbg = pp_term
     
 end
 
@@ -328,6 +328,7 @@ module TermSyntax = struct
   include TermCylSyntax
   let lam nm ict bdy = LamT (nm,ict,bdy)
   let pi nm ict dom cod = PiT (nm,ict,dom,cod)
+  let pp_s = pp_term 
 end
 
 module TermUtil = struct

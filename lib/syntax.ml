@@ -90,7 +90,7 @@ module type PdSyntax = sig
   val lift : int -> s -> s
   val var : lvl -> lvl -> name -> s
 
-  val pp : s Fmt.t
+  val pp_dbg : s Fmt.t
   
 end
 
@@ -228,7 +228,7 @@ module PdUtil(P : PdSyntax) = struct
       | Impl -> "Impl"
       | Expl -> "Expl"
     in Fmt.pr "@[<v>----@,nm : %s@,ict: %s@,k: %d@,l: %d@,sph: @[%a@]@,@]"
-      nm (pp_ict ict) k l (pp_sph pp) sph
+      nm (pp_ict ict) k l (pp_sph pp_dbg) sph
 
   let tele_to_pd (tl : s tele) : ((name * icit) * (name * icit) pd , string) Result.t =
     let f nm ict _ _ _ = (nm,ict) in 
@@ -364,7 +364,8 @@ module type Syntax = sig
   include CohSyntax
   include CylinderSyntax
   val lam : name -> icit -> s -> s
-  val pi : name -> icit -> s -> s -> s 
+  val pi : name -> icit -> s -> s -> s
+  val pp_s : s Fmt.t
 end
 
 module SyntaxUtil(Syn : Syntax) = struct

@@ -584,15 +584,14 @@ let rec check_defs gma defs =
   | (CylCohDef (id,g,c,s,t))::ds ->
     pr "----------------@,";
     pr "Checking cylinder coherence: %s@," id;
-    let* (gt,cn,pd,ct,(ssph,s),(tsph,t)) = check_cyl_coh gma g c s t in
-    pr "@[<v>ct: @[%a@]@,sdsc: @[%a@]@,tdsc: @[%a@]@,@]"
-      pp_term ct (Pd.pp_disc pp_term) (ssph,s) (Pd.pp_disc pp_term) (tsph,t);
-    let cctt = TermCylCoh.cyl_coh_typ cn pd ct ssph tsph in
-    pr "cylinder type: %a@," pp_term cctt;
+    let* (_,cn,pd,ct,(ssph,s),(tsph,t)) = check_cyl_coh gma g c s t in
+    (* pr "@[<v>ct: @[%a@]@,sdsc: @[%a@]@,tdsc: @[%a@]@,@]"
+     *   pp_term ct (Pd.pp_disc pp_term) (ssph,s) (Pd.pp_disc pp_term) (tsph,t); *)
+    let cctt = TermCylCoh.cyl_coh_typ cn pd ct (ssph,s) (tsph,t) in
+    (* pr "cylinder type: %a@," pp_expr (term_to_expr Emp cctt); *)
     let cyl_ctm = eval gma.top gma.loc
         (CylCohT (cn,pd,ct,(ssph,s),(tsph,t))) in 
-    let cyl_cty = eval gma.top gma.loc
-        (tele_to_pi gt (ObjT cctt)) in
+    let cyl_cty = eval gma.top gma.loc cctt in 
     let cyl_cty_nf = term_to_expr Emp (quote false gma.lvl cyl_cty) in 
     let cyl_nf = term_to_expr Emp (quote false gma.lvl cyl_ctm) in
     pr "@[<v>Cylcoh type: @[%a@]@,@]" pp_expr cyl_cty_nf;

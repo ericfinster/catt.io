@@ -60,6 +60,13 @@ module CylinderOps(C : CylinderSyntax) = struct
   include C
   include PdUtil(C)
   open CohUtil(C)
+
+  (* convert a cylinder type to a semantic type *)
+  let cyl_to_cat (bc : s) ((sph,ct) : s susp_cyl_typ) : s =
+    let arr_cat = arr (sph_to_cat bc sph) in
+    List.fold ct ~init:arr_cat
+      ~f:(fun c ((sb,sl,sc),(tb,tl,tc)) ->
+          hom c (cyl sb sl sc) (cyl tb tl tc))
   
   (***************************************************************************)
   (*                           Underlying Cylinders                          *)
@@ -170,91 +177,93 @@ module CylinderCoh(Syn: Syntax) = struct
   (*                           Cylinder Coherences                           *)
   (***************************************************************************)
 
-    let rec cylcoh_susp (cn : nm_ict) (pd : nm_ict pd) (c : s) 
-        (bsph : s sph) ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
-      
-      match (ssph,tsph) with 
-      | (Emp,Emp) ->
-        let args = pd_nm_ict_args cn pd in 
-        let cc = sph_to_cat c bsph in 
-        let coh_tm = app_args (coh cn pd cc s t) args in 
-        ((bsph, []), (s, t, coh_tm))
-    
-      | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
+  (* Okay.  I think I'm starting to see the problem. And it's a bit
+     nasty.  We start of with a description of the various boundaries
+     of the main terms we would like to create the cylinder for.  And
+     hence these expressions all take place in the outermost context.
+     In particular, they refer to lower dimensional variables by their
+     position in the higher dimensional context.
 
-        let d = dim_pd pd in
-        let cd = length bsph + length ssph in
+     Hence when we recurse, possibly truncating the pasting diagram,
+     these expressions need to now refer to the variables in the new
+     locations.
 
-        let src_pd = if (cd <= d) then
-            pd_ict_canon (truncate true (d-1) pd)
-          else pd in
-        
-        let tgt_pd = if (cd <= d) then
-            pd_ict_canon (truncate false (d-1) pd)
-          else pd in 
-        
-        let ((_,ct),(sb,sl,sc)) = cylcoh_susp cn src_pd c bsph (ssph',ss) (tsph',ts) in
-        let ((_,_ ),(tb,tl,tc)) = cylcoh_susp cn tgt_pd c bsph (ssph',st) (tsph',tt) in
+     And the point of the fullness check was to make sure that these
+     terms really are valid in those contexts.  But when we write the 
+     coherence term, we really definitely need to fix this first.
 
-        (* Super yucky inefficient. *)
-        let ct' = List.append ct [(sb,sl,sc),(tb,tl,tc)] in
-        let ((coh_sph,_),b,l) = iter_advance c (bsph,ct') s t (List.length ct') in
-        let cc = sph_to_cat c coh_sph in 
-        let coh_tm = app_args (coh cn pd cc b l) (pd_nm_ict_args cn pd) in 
+     Ok.  Well, at least you understand the problem, although I don't
+     see immediately how you are going to fix this .... yikes.
 
-        ((bsph,ct'),(s,t,coh_tm))
-
-      | _ -> failwith "cylcoh dimension error"
-    
-    let cylcoh_impl cn pd c s t =
-      let (bc, sph) = match_homs c in
-      let (_,(b,l,cr)) = cylcoh_susp cn pd bc sph s t in
-      let g = nm_ict_pd_to_tele cn pd in
-      let result = abstract_tele g (cyl b l cr)  in
-      (* Fmt.pr "@[<v>generated cylcoh: @[%a@]@,@]" pp result; *)
-      result    
-
-
-    (*****************************************************************************)
-    (*                          Cylinder Coherence Types                         *)
-    (*****************************************************************************)
-    
-    let rec cyl_coh_typ cn pd ct ssph tsph = 
-      match (ssph,tsph) with
-      | (Emp,Emp) -> ArrT ct
-      | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
-        let d = dim_pd pd in
-        (* inefficient ... you extract this every time .... *)
-        let (_,bsph) = TermUtil.match_homs ct in 
-        let cd = (length ssph) + (length bsph) in
-    
-        let src_pd = if (cd <= d) then
-            TermUtil.pd_ict_canon (Pd.truncate true (d-1) pd)
-          else pd in
-    
-        let tgt_pd = if (cd <= d) then
-            TermUtil.pd_ict_canon (Pd.truncate false (d-1) pd)
-          else pd in
-    
-        (* Wait! It should be the recursive call where we truncate, no? *)
-        let cc = cyl_coh_typ cn (TermUtil.fresh_pd src_pd) ct ssph' tsph' in
-    
-        let src_cyl =
-          TermUtil.app_args
-            (CylCohT (cn,src_pd,ct,(ssph',ss),(tsph',ts)))
-            (TermUtil.pd_nm_ict_args cn src_pd) in
-    
-        let tgt_cyl =
-          TermUtil.app_args
-            (CylCohT (cn,tgt_pd,ct,(ssph',st),(tsph',tt)))
-            (TermUtil.pd_nm_ict_args cn tgt_pd) in
-    
-        let r = HomT (cc,src_cyl,tgt_cyl) in
-        (* pr "@[<v>homt: @[%a@]@,@]" pp_term r; *)
-        r
-    
-      | _ -> failwith "unequal dims in cyl_coh_typ"
+  *)
   
+  let rec cylcoh_susp (cn : nm_ict) (pd : nm_ict pd) (c : s) 
+      (bsph : s sph) ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
+
+    match (ssph,tsph) with 
+    | (Emp,Emp) ->
+
+      let tl = nm_ict_pd_to_tele cn pd in 
+
+      Fmt.pr "@[<v>pd: @[%a@]@,@]" (pp_tele pp_s) tl;
+      Fmt.pr "@[<v>s: @[%a@]@,t: @[%a@]@,@]" pp_s s pp_s t;
+
+      let args = pd_nm_ict_args cn pd in 
+      let cc = sph_to_cat c bsph in 
+      let coh_tm = app_args (coh cn pd cc s t) args in 
+      ((bsph, []), (s, t, coh_tm))
+
+    | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
+
+      let tl = nm_ict_pd_to_tele cn pd in 
+
+      Fmt.pr "@[<v>pd: @[%a@]@,@]" (pp_tele pp_s) tl;
+      Fmt.pr "@[<v>ss: @[%a@]@,st: @[%a@]@,ts: @[%a@]@,tt: @[%a@]@,@]"
+        pp_s ss pp_s st pp_s ts pp_s tt ;
+
+      let d = dim_pd pd in
+      let cd = length bsph + length ssph in
+
+      Fmt.pr "@[<v>d: %d@,cd: %d@,@]" d cd;
+
+      let src_pd = if (cd < d) then
+          pd_ict_canon (truncate true cd pd)
+        else pd in
+
+      let tgt_pd = if (cd < d) then
+          pd_ict_canon (truncate false cd pd)
+        else pd in 
+
+      Fmt.pr "@[<v>src_pd: @[%a@]@,@]" (pp_pd pp_nm_ict) src_pd;
+      Fmt.pr "@[<v>tgt_pd: @[%a@]@,@]" (pp_pd pp_nm_ict) tgt_pd;
+
+      let ((_,ct),(sb,sl,sc)) = cylcoh_susp cn src_pd c bsph (ssph',ss) (tsph',ts) in
+      let ((_,_ ),(tb,tl,tc)) = cylcoh_susp cn tgt_pd c bsph (ssph',st) (tsph',tt) in
+
+      (* Super yucky inefficient. *)
+      let ct' = List.append ct [(sb,sl,sc),(tb,tl,tc)] in
+      let ((coh_sph,_),b,l) = iter_advance c (bsph,ct') s t (List.length ct') in
+      let cc = sph_to_cat c coh_sph in
+      let coh_tm = coh cn pd cc b l in
+      let coh_tm_with_args = app_args coh_tm (pd_nm_ict_args cn pd) in 
+
+      Fmt.pr "@[<v>coh_tm_wargs: @[%a@]@,@]" pp_s coh_tm_with_args;
+
+      ((bsph,ct'),(s,t,coh_tm_with_args))
+
+    | _ -> failwith "cylcoh dimension error"
+
+  let cylcoh_impl cn pd c s t =
+    let (bc, sph) = match_homs c in
+    let (ct,(b,l,cr)) = cylcoh_susp cn pd bc sph s t in
+    let cyl_typ = cyl_to_cat bc ct in 
+    let g = nm_ict_pd_to_tele cn pd in
+    abstract_tele_with_type g (obj cyl_typ) (cyl b l cr) 
+
+  (* A naive, unfolded calculation of the type *)
+  let cyl_coh_typ cn pd ct ssph tsph = 
+    fst (cylcoh_impl cn pd ct ssph tsph)
+
 end
 
 (*****************************************************************************)

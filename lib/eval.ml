@@ -39,7 +39,7 @@ let rec eval top loc tm =
 
   | CylCohT (cn,pd,c,s,t) ->
     eval top loc
-      (TermCylCoh.cylcoh_impl cn pd c s t)
+      (snd (TermCylCoh.cylcoh_impl cn pd c s t))
 
   | UCompT uc ->
     let v = eval top loc (term_ucomp (ucmp_pd uc)) in
@@ -265,7 +265,7 @@ module ValuePdSyntax = struct
   let lift _ v = v
   let var _ l _ = RigidV (l,EmpSp)
 
-  let pp = pp_value
+  let pp_dbg = pp_value
     
 end
 

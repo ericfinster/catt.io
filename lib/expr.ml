@@ -186,7 +186,7 @@ module ExprPdSyntax = struct
 
   let lift _ t = t
   let var _ _ nm = VarE nm
-  let pp = pp_expr_dummy
+  let pp_dbg = pp_expr_dummy
     
 end
 
@@ -246,6 +246,7 @@ module ExprSyntax = struct
   include ExprCylSyntax
   let lam nm ict bdy = LamE (nm,ict,bdy)
   let pi nm ict dom cod = PiE (nm,ict,dom,cod)
+  let pp_s = pp_expr 
 end
 
 module ExprUtil = struct
