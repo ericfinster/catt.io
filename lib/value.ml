@@ -114,15 +114,11 @@ let pp_top_env = hovbox (pp_suite (parens (pair ~sep:(any " : ") string pp_value
 let pp_loc_env = hovbox (pp_suite ~sep:comma pp_value)
 
 let rec sp_to_suite sp =
+  let open Base.Result.Monad_infix in
   match sp with
-  | EmpSp -> Emp
-  | AppSp (s,v,i) -> Ext(sp_to_suite s, (v,i))
-  | BaseSp s -> sp_to_suite s
-  | LidSp s -> sp_to_suite s
-  | CoreSp s -> sp_to_suite s
-
-let sp_length sp =
-  length (sp_to_suite sp)
+  | EmpSp -> Ok (Emp)
+  | AppSp (s,v,i) -> sp_to_suite s >>= fun s' -> Ok (Ext(s', (v,i)))
+  | _ -> Error "Tried to normalise cylinder"
 
 let rec suite_to_sp s =
   match s with

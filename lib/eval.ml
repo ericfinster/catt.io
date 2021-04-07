@@ -92,17 +92,17 @@ and appV t u ict =
   | CohV (cn,pd,c,s,t,sp) ->
      let sp' = AppSp(sp,u,ict) in
      let x = CohV (cn,pd,c,s,t,sp') in
-     (* pr "Current: %a" pp_value x ;
-      * print_newline (); *)
-     if sp_length sp' = pd_length pd + 1 then
-       (match alt (insertionCoh cn pd c s t sp') (disc_removal pd c s t u) with
+     (match sp_to_suite sp' with
+     | Error _ -> x
+     | Ok (sp_list) -> if length sp_list = pd_length pd + 1 then
+       (match alt (insertionCoh cn pd c s t sp_list) (disc_removal pd c s t u) with
         | Error _ ->
            (* pr "Attempted reduction: %s\n" y; *)
            x
-       | Ok y -> y) else x
+       | Ok y -> y) else x)
   | _ -> raise (Eval_error (Fmt.str "malformed application: %a" pp_value t))
 
-and insertionCoh cn pd c s t sp =
+and insertionCoh cn pd c s t args =
 
   let rec dim_ty ty =
     match ty with
@@ -119,8 +119,8 @@ and insertionCoh cn pd c s t sp =
     match xs with
     | Emp -> Error "No redex found"
     | Ext (xs, ((_,_,_,_,CohV (cn', pd', c', s', t', sp')), redex_path)) ->
-       let args = sp_to_suite sp' in
-       let pda = map_pd_lvls pd' 1 ~f:(fun _ n _ (nm, ict) -> let (v,_) = nth n args in (false, n , nm , ict, v)) in
+       let* args_inner = sp_to_suite sp' in
+       let pda = map_pd_lvls pd' 1 ~f:(fun _ n _ (nm, ict) -> let (v,_) = nth n args_inner in (false, n , nm , ict, v)) in
        if type_linearity (HomV (c', s', t')) >= length redex_path - 1 then Ok (cn', pd' ,c',s',t',pda ,redex_path) else get_redex xs
     | Ext (xs, _) -> get_redex xs in
 
@@ -164,7 +164,6 @@ and insertionCoh cn pd c s t sp =
         | Ok (x,_) -> Ok (RigidV (x + 1,EmpSp))) in
 
   let ctx_length = pd_length pd + 1 in
-  let args = sp_to_suite sp in
   let pd_with_args = map_pd_lvls pd 1 ~f:(fun _ n _ (nm, ict) -> let (v,_) = nth n args in (true, n, nm, ict, v)) in
 
   match loc_max_bh pd_with_args with
