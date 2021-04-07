@@ -5,7 +5,7 @@
 (*****************************************************************************)
 
 open Base
-    
+
 (*****************************************************************************)
 (*                                    TODO                                   *)
 (*                                                                           *)
@@ -13,10 +13,10 @@ open Base
 (* 2. Get rid of the exceptions for error types                              *)
 (*                                                                           *)
 (*****************************************************************************)
-  
+
 type 'a suite =
   | Emp
-  | Ext of 'a suite * 'a 
+  | Ext of 'a suite * 'a
 
 let (|>) a b = Ext (a, b)
 
@@ -51,7 +51,7 @@ let rec length s =
 let rec map_suite s ~f =
   match s with
   | Emp -> Emp
-  | Ext (s',x) -> map_suite s' ~f |> f x 
+  | Ext (s',x) -> map_suite s' ~f |> f x
 
 let map_with_lvl s ~f =
   let rec go s =
@@ -66,11 +66,11 @@ let rec filter s f =
   match s with
   | Emp -> Emp
   | Ext (s',x) ->
-    let s'' = filter s' f in 
+    let s'' = filter s' f in
     if (f x) then
       Ext (s'',x)
     else s''
-      
+
 let rec fold_left s a f =
   match s with
   | Emp -> a
@@ -79,7 +79,7 @@ let rec fold_left s a f =
 let rec fold_right s a f =
   match s with
   | Emp -> a
-  | Ext (s',x) -> fold_right s' (f x a) f 
+  | Ext (s',x) -> fold_right s' (f x a) f
 
 let rec fold_accum_cont : 'a suite -> 'c -> ('a -> 'c -> 'b * 'c) -> ('b suite -> 'c -> 'd) -> 'd =
   fun s c f cont ->
@@ -103,7 +103,7 @@ let rec append s t =
   | Ext (t',x) -> Ext (append s t',x)
 
 let (|*>) = append
-  
+
 let rec join ss =
   match ss with
   | Emp -> Emp
@@ -129,9 +129,9 @@ let rec unzip3 s =
   | Ext (s',(a,b,c)) ->
     let (l,m,r) = unzip3 s' in
     (Ext (l,a), Ext (m,b), Ext (r,c))
-  
+
 let to_list s =
-  let rec go s l = 
+  let rec go s l =
     match s with
     | Emp -> l
     | Ext (s',x) -> go s' (x::l)
@@ -156,7 +156,7 @@ let rec repeat n x =
   else Ext (repeat (n-1) x , x)
 
 exception Lookup_error
-  
+
 let rec first s =
   match s with
   | Emp -> raise Lookup_error
@@ -182,7 +182,7 @@ let assoc_with_idx k s =
     | Ext (s',(k',v)) ->
       if (Poly.(=) k k') then (i,v)
       else go (i+1) k s'
-  in go 0 k s 
+  in go 0 k s
 
 let singleton a = Ext (Emp, a)
 
@@ -192,7 +192,7 @@ let rec append_list s l =
   | x::xs -> append_list (Ext (s,x)) xs
 
 let from_list l =
-  append_list Emp l 
+  append_list Emp l
 
 (* Extract de Brujin index from a suite *)
 let rec db_get i s =
@@ -206,7 +206,7 @@ let rec db_get i s =
    twice? *)
 let nth n s =
   let l = length s in
-  db_get (l-n-1) s 
+  db_get (l-n-1) s
 
 let rec grab k s =
   if (k<=0) then (s,[]) else
@@ -214,10 +214,10 @@ let rec grab k s =
   match s' with
   | Emp -> raise Lookup_error
   | Ext (s'',x) -> (s'',x::r)
-  
+
 let split_at k s =
   let d = length s in
-  grab (d-k) s 
+  grab (d-k) s
 
 let rev s =
   let rec go s acc =
@@ -225,7 +225,7 @@ let rev s =
     | Emp -> acc
     | Ext (s',x) -> go s' (Ext (acc,x))
   in go s Emp
-    
+
 (*****************************************************************************)
 (*                                   Zipper                                  *)
 (*****************************************************************************)
@@ -251,17 +251,17 @@ let move_right (l,a,r) =
   | a'::r' -> Ok (Ext (l,a),a',r')
 
 let rec move_left_n n z =
-  let open Base.Result.Monad_infix in 
+  let open Base.Result.Monad_infix in
   if (n<=0) then Ok z else
     move_left z >>= move_left_n (n-1)
 
 let open_leftmost s =
-  let open Base.Result.Monad_infix in 
+  let open Base.Result.Monad_infix in
   let n = length s in
   open_rightmost s >>= move_left_n (n-1)
 
 let open_at k s =
-  let open Base.Result.Monad_infix in 
+  let open Base.Result.Monad_infix in
   let l = length s in
   if (k+1>l) then
     Error "Out of range"
@@ -277,29 +277,29 @@ module SuiteMnd = Monad.Make (struct
     let return = singleton
 
     let map = `Custom map_suite
-      
+
     let rec bind s ~f =
       match s with
       | Emp -> Emp
       | Ext (s',x) -> append (bind s' ~f) (f x)
 
   end)
-    
+
 (* include struct
  *   (\* We are explicit about what we import from the general Monad functor so that we don't
  *      accidentally rebind more efficient list-specific functions. *\)
  *   module Monad = Monad.Make (struct
  *       type 'a t = 'a list
- * 
+ *
  *       let bind x ~f = concat_map x ~f
  *       let map = `Custom map
  *       let return x = [ x ]
  *     end)
- * 
+ *
  *   open Monad
  *   module Monad_infix = Monad_infix
  *   module Let_syntax = Let_syntax
- * 
+ *
  *   let ignore_m = ignore_m
  *   let join = join
  *   let bind = bind
@@ -311,25 +311,25 @@ module SuiteMnd = Monad.Make (struct
 
 
 (* module SuiteMnd = struct
- * 
+ *
  *   type 'a m = 'a suite
- * 
+ *
  *   let pure = singleton
- * 
+ *
  *   let rec bind s f =
  *     match s with
  *     | Emp -> Emp
  *     | Ext (s',x) -> append (bind s' f) (f x)
- *   
+ *
  * end
- * 
+ *
  * module SuiteTraverse(A: Applicative) = struct
- * 
+ *
  *   type 'a t = 'a suite
  *   type 'a m = 'a A.t
- * 
+ *
  *   open ApplicativeSyntax(A)
- * 
+ *
  *   let rec traverse f s =
  *     match s with
  *     | Emp -> A.pure Emp
@@ -337,7 +337,7 @@ module SuiteMnd = Monad.Make (struct
  *       let+ y = f x
  *       and+ t = traverse f s' in
  *       Ext (t,y)
- *     
+ *
  * end *)
 
 (*****************************************************************************)
@@ -350,9 +350,7 @@ let rec pp_suite ?emp:(pp_emp=nop) ?sep:(pp_sep=sp) pp_el ppf s =
   match s with
   | Emp -> pp_emp ppf ()
   | Ext (Emp,el) ->
-    pf ppf "%a" pp_el el 
+    pf ppf "%a" pp_el el
   | Ext (s',el) ->
     pf ppf "%a%a%a" (pp_suite ~emp:pp_emp ~sep:pp_sep pp_el) s'
-      pp_sep () pp_el el 
-
-
+      pp_sep () pp_el el

@@ -7,20 +7,20 @@
 open Suite
 
 (* Monadic bind for errors in scope *)
-let (let*) m f = Base.Result.bind m ~f 
+let (let*) m f = Base.Result.bind m ~f
 
 type 'a pd =
   | Br of 'a * ('a * 'a pd) suite
 
-let is_leaf pd = 
+let is_leaf pd =
   match pd with
   | Br (_,Emp) -> true
   | _ -> false
-    
+
 let rec dim_pd pd =
   match pd with
   | Br (_,brs) ->
-    let f d (_,b) = max d (dim_pd b) in 
+    let f d (_,b) = max d (dim_pd b) in
     1 + fold_left brs (-1) f
 
 let rec is_disc pd =
@@ -42,7 +42,7 @@ let rec shape_eq pd_a pd_b =
     try fold2 brs_a brs_b true
           (fun b (_,br_a) (_,br_b) ->
              b && shape_eq br_a br_b)
-    with Failure _ -> false 
+    with Failure _ -> false
 
 (* Truncate to the provided dimension.  The boolean
    flag dir is true for the source direction, false
@@ -53,7 +53,7 @@ let rec truncate dir d pd =
     if (d <= 0) then
       (
         if dir then Br (a, Emp)
-        else let a' = fold_left brs a (fun _ (y,_) -> y) in 
+        else let a' = fold_left brs a (fun _ (y,_) -> y) in
           Br (a', Emp)
       )
     else Br (a, map_suite brs ~f:(fun (l,b) -> (l,truncate dir (d-1) b)))
@@ -64,11 +64,11 @@ let boundary pd =
   map_suite r
     ~f:(fun i -> (truncate true i pd,
                   truncate false i pd))
-      
+
 let rec append_leaves pd lvs =
   match pd with
   | Br (l,Emp) -> Ext (lvs,l)
-  | Br (_,bs) -> 
+  | Br (_,bs) ->
     let open SuiteMnd in
     bs >>= (fun (_,b) -> leaves b)
 
@@ -84,7 +84,7 @@ let rec labels pd =
 let label_of pd =
   match pd with
   | Br (a,_) -> a
-    
+
 let with_label a pd =
   match pd with
   | Br(_, brs) -> Br (a,brs)
@@ -92,32 +92,32 @@ let with_label a pd =
 (* The addresses of a source and target are
    the same in this implementation. A more subtle
    version would distinguish the two .... *)
-      
+
 let rec zip_with_addr_lcl addr pd =
   match pd with
   | Br (l,brs) ->
     let brs' = map_suite (zip_with_idx brs)
         ~f:(fun (i,(x,b)) ->
-            let addr' = Ext (addr,i) in 
+            let addr' = Ext (addr,i) in
             ((addr',x),zip_with_addr_lcl addr' b))
     in Br ((addr,l),brs')
 
 let zip_with_addr pd =
   zip_with_addr_lcl Emp pd
-  
+
 (*****************************************************************************)
 (*                             Discs and Spheres                             *)
 (*****************************************************************************)
 
 type 'a sph = ('a * 'a) suite
-type 'a disc = 'a sph * 'a 
+type 'a disc = 'a sph * 'a
 
 type 'a lsph = ('a * 'a) list
-type 'a ldisc = 'a lsph * 'a 
+type 'a ldisc = 'a lsph * 'a
 
 let map_sph sph ~f =
   map_suite sph ~f:(fun (s,t) -> (f s, f t))
-    
+
 let map_disc (sph,d) ~f =
   (map_sph sph ~f , f d)
 
@@ -153,7 +153,7 @@ let rec nth_source (sph,d) n =
 (*                                   Zipper                                  *)
 (*****************************************************************************)
 
-type 'a pd_ctx = 'a * 'a * ('a * 'a pd) suite * ('a * 'a pd) list 
+type 'a pd_ctx = 'a * 'a * ('a * 'a pd) suite * ('a * 'a pd) list
 type 'a pd_zip = 'a pd_ctx suite * 'a pd
 
 let visit d (ctx, fcs) =
@@ -220,27 +220,27 @@ let rec to_leftmost_leaf (ctx,fcs) =
     to_leftmost_leaf
       (Ext(ctx,(s,t,Emp,r)),b)
 
-let (<||>) m n = if (Base.Result.is_ok m) then m else n 
-    
+let (<||>) m n = if (Base.Result.is_ok m) then m else n
+
 let rec parent_sibling_left z =
-  let open Base.Result.Monad_infix in 
+  let open Base.Result.Monad_infix in
   sibling_left z <||>
   (parent z >>= parent_sibling_left) <||>
   Error "No more left siblings"
 
 let rec parent_sibling_right z =
-  let open Base.Result.Monad_infix in 
+  let open Base.Result.Monad_infix in
   sibling_right z <||>
   (parent z >>= parent_sibling_right) <||>
   Error "No more right siblings"
 
 let leaf_right z =
-  let open Base.Result.Monad_infix in 
+  let open Base.Result.Monad_infix in
   parent_sibling_right z >>=
   to_leftmost_leaf
 
 let leaf_left z =
-  let open Base.Result.Monad_infix in 
+  let open Base.Result.Monad_infix in
   parent_sibling_left z >>=
   to_rightmost_leaf
 
@@ -248,15 +248,15 @@ let insert_at ?before:(bf=true) addr b pd =
   match addr with
   | Emp -> Error "Empty address for insertion"
   | Ext(base,dir) ->
-    let* (ctx, fcs) = seek base (Emp, pd) in 
+    let* (ctx, fcs) = seek base (Emp, pd) in
     let* newfcs =
       (match fcs with
        | Br (a,brs) ->
          let* (l,br,r) = open_at dir brs in
-         if bf then 
+         if bf then
            Ok (Br (a, close (l,b,br::r)))
          else
-           Ok (Br (a, close (Ext (l,br),b,r)))) in 
+           Ok (Br (a, close (Ext (l,br),b,r)))) in
     Ok (pd_close (ctx, newfcs))
 
 (*****************************************************************************)
@@ -271,13 +271,13 @@ let rec insert_right pd d lbl nbr =
     else match brs with
       | Emp -> Error "Depth overflow"
       | Ext(bs,(b,br)) ->
-        let* rbr = insert_right br (d-1) lbl nbr in 
+        let* rbr = insert_right br (d-1) lbl nbr in
         Ok (Br (a,Ext(bs,(b,rbr))))
 
 let insert_left pd d lbl nbr =
   let addr = repeat (d+1) 0 in
-  insert_at addr (lbl,nbr) pd 
-  
+  insert_at addr (lbl,nbr) pd
+
 (*****************************************************************************)
 (*                                Custom Maps                                *)
 (*****************************************************************************)
@@ -291,14 +291,14 @@ let rec map_pd pd ~f =
 let fold_pd_lvls (pd : 'a pd) ?off:(off=0) (init : 'b)
     ~f:(f : int -> int -> bool -> 'a -> 'b -> 'b) : 'b =
 
-  let k = pd_length pd + off in 
-  
+  let k = pd_length pd + off in
+
   let rec fold_pd_lvls_br l acc br =
     match br with
     | Br (x,brs) ->
       let acc' = f k l (is_empty brs) x acc in
       fold_pd_lvls_brs (l+1) acc' brs
-        
+
   and fold_pd_lvls_brs l acc brs =
     match brs with
     | Emp -> (acc,l)
@@ -307,21 +307,21 @@ let fold_pd_lvls (pd : 'a pd) ?off:(off=0) (init : 'b)
       let acc'' = f k l' false x acc' in
       fold_pd_lvls_br (l'+1) acc'' br
 
-  in fst (fold_pd_lvls_br off init pd) 
+  in fst (fold_pd_lvls_br off init pd)
 
 let fold_pd_lf_nd pd init ~lf ~nd =
   let f _ _ is_lf x b =
-    if is_lf then (lf b x) else (nd b x) in 
+    if is_lf then (lf b x) else (nd b x) in
   fold_pd_lvls pd init ~f:f
 
 let fold_pd pd init ~f =
   fold_pd_lf_nd pd init ~lf:f ~nd:f
-    
+
 let map_pd_lvls (pd : 'a pd) (init : int)
     ~f:(f : int -> int -> bool -> 'a -> 'b) : 'b pd =
 
-  let k = pd_length pd in 
-  
+  let k = pd_length pd in
+
   let rec pd_info_br l br =
     match br with
     | Br (x,brs) ->
@@ -350,10 +350,10 @@ let map_pd_lf_nd pd ~lf ~nd =
     if is_lf then lf x else nd x
   in  map_pd_lvls pd 1 ~f:f
 
-(* Map over the pasting diagram with 
+(* Map over the pasting diagram with
    the boundary sphere of labels in context *)
 let map_with_sph pd f =
-  
+
   let rec map_with_disc_br sph br =
     match br with
     | Br (src,brs) ->
@@ -366,27 +366,27 @@ let map_with_sph pd f =
     | Emp -> (Emp, src)
     | Ext (brs',(tgt,br)) ->
       let (brs'',src') = map_with_disc_brs sph src brs' in
-      let r = f sph tgt in 
-      let (br',_) = map_with_disc_br (Ext (sph,(src',tgt))) br in 
+      let r = f sph tgt in
+      let (br',_) = map_with_disc_br (Ext (sph,(src',tgt))) br in
       (Ext (brs'',(r,br')),tgt)
 
   in fst (map_with_disc_br Emp pd)
 
 (* Fold with the sphere in context, as well as leaf information *)
 let fold_left_with_sph pd f b =
-  
+
   let rec fold_left_with_disc_br sph br b =
     match br with
     | Br (src,brs) ->
       let b' = f sph src b (is_empty brs) in
-      fold_left_with_disc_brs sph src brs b' 
+      fold_left_with_disc_brs sph src brs b'
 
   and fold_left_with_disc_brs sph src brs b =
     match brs with
     | Emp -> (b, src)
     | Ext (brs',(tgt,br)) ->
       let (b',src') = fold_left_with_disc_brs sph src brs' b in
-      let b'' = f sph tgt b' false in 
+      let b'' = f sph tgt b' false in
       let (b''',_) = fold_left_with_disc_br (Ext (sph,(src',tgt))) br b'' in
       (b''',tgt)
 
@@ -400,7 +400,7 @@ let rec pp_pd f ppf pd =
   match pd with
   | Br (s,brs) ->
     let pp_pair ppf (x,br) =
-      Fmt.pf ppf "%a%a" (pp_pd f) br f x in 
+      Fmt.pf ppf "%a%a" (pp_pd f) br f x in
     Fmt.pf ppf "(%a%a)" f s
       (pp_suite ~sep:Fmt.nop pp_pair) brs
 
@@ -423,10 +423,10 @@ let rec disc_pd_inverted (b,f) =
 
 let disc_pd (bdry,flr) =
   disc_pd_inverted (to_list bdry, flr)
-    
+
 let unit_disc n =
   (repeat n ((),()), ())
-  
+
 let unit_disc_pd n =
   disc_pd (unit_disc n)
 
@@ -446,7 +446,7 @@ let whisk_right pd i (bdry,flr) =
 
 let three_disc = ([("a","b");("c","d");("e","f")],"g")
 let two_disc = ([("0","1");("2","3")],"4")
-      
+
 let rec comp_seq s =
   match s with
   | [] -> failwith "Invalid Comp Seq"
@@ -467,24 +467,24 @@ let rec merge d p q =
     if (d <= 0) then
       Br (l, append bas bbs)
     else
-      let mm ((l,p'),(_,q')) = (l,merge (d-1) p' q') in 
+      let mm ((l,p'),(_,q')) = (l,merge (d-1) p' q') in
       Br (l, map_suite (zip bas bbs) ~f:mm)
 
 let rec join_pd d pd =
   match pd with
   | Br (p,brs) ->
     let jr (_,b) = join_pd (d+1) b in
-    fold_left (map_suite brs ~f:jr) p (merge d) 
+    fold_left (map_suite brs ~f:jr) p (merge d)
 
-let blank pd = map_pd pd ~f:(fun _ -> ()) 
-let subst pd sub = map_pd pd ~f:(fun id -> Suite.assoc id sub) 
-         
+let blank pd = map_pd pd ~f:(fun _ -> ())
+let subst pd sub = map_pd pd ~f:(fun id -> Suite.assoc id sub)
+
 (*****************************************************************************)
 (*                                  Examples                                 *)
 (*****************************************************************************)
 
 let obj = Br ("x", Emp)
-    
+
 let arr = Br ("x", Emp
                    |> ("y", Br ("f", Emp)))
 
@@ -504,7 +504,7 @@ let threedisc = Br ("x", Emp
 let comp2 = Br ("x", Emp
                      |> ("y", Br ("f", Emp))
                      |> ("z", Br ("g", Emp)))
-    
+
 let comp3 = Br ("x", Emp
                      |> ("y", Br ("f", Emp))
                      |> ("z", Br ("g", Emp))
@@ -551,7 +551,7 @@ let ichgmidwhisk =  Br ("x", Emp
 (*****************************************************************************)
 (*                           Substitution Examples                           *)
 (*****************************************************************************)
-    
+
 let example =
   subst comp2
     (Emp
@@ -606,5 +606,3 @@ let example5 =
      |> ("f", mk_arr "x" "y" "f")
      |> ("z", mk_obj "z")
      |> ("g", mk_arr "y" "z" "g"))
-
-

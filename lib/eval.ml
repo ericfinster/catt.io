@@ -11,7 +11,7 @@ open Value
 open Suite
 open Syntax
 open Cylinder
-    
+
 (*****************************************************************************)
 (*                                 Evaluation                                *)
 (*****************************************************************************)
@@ -28,7 +28,7 @@ let rec eval top loc tm =
   | TopT nm -> TopV (nm,EmpSp,(
       try assoc nm top
       with Lookup_error ->
-        raise (Eval_error (str "Unknown id during eval: %s" nm))        
+        raise (Eval_error (str "Unknown id during eval: %s" nm))
     ))
   | LamT (nm,ict,u) -> LamV (nm, ict, Closure (top,loc,u))
   | AppT (u,v,ict) -> appV (eval top loc u) (eval top loc v) ict
@@ -44,16 +44,16 @@ let rec eval top loc tm =
   | UCompT uc ->
     let v = eval top loc (term_ucomp (ucmp_pd uc)) in
     UCompV (uc, v, EmpSp)
-      
+
   | CohT (nm,pd,c,s,t) ->
-    
+
     let (loc',_) = Pd.fold_pd pd (Emp |> varV 0 , 1)
-        ~f:(fun (args,l) _ -> (Ext (args, varV l) , l+1)) in 
+        ~f:(fun (args,l) _ -> (Ext (args, varV l) , l+1)) in
 
     let c' = eval top loc' c in
     let s' = eval top loc' s in
     let t' = eval top loc' t in
-    
+
     CohV (nm,pd,c',s',t',EmpSp)
 
   | CylT (b,l,c) -> CylV (eval top loc b, eval top loc l, eval top loc c)
@@ -69,11 +69,11 @@ let rec eval top loc tm =
 and metaV m =
   match lookup_meta m with
   | Unsolved -> FlexV (m, EmpSp)
-  | Solved v -> v 
+  | Solved v -> v
 
 and ($$) c v =
   match c with
-  | Closure (top,loc,tm) -> eval top (Ext (loc,v)) tm 
+  | Closure (top,loc,tm) -> eval top (Ext (loc,v)) tm
 
 and appV t u ict =
   match t with
@@ -84,7 +84,7 @@ and appV t u ict =
   | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,AppSp(sp,u,ict))
   | CohV (cn,pd,c,s,t,sp) ->
     CohV (cn,pd,c,s,t,AppSp(sp,u,ict))
-        
+
   | _ -> raise (Eval_error (Fmt.str "malformed application: %a" pp_value t))
 
 and baseV v =
@@ -92,7 +92,7 @@ and baseV v =
   | FlexV (m,sp) -> FlexV (m,BaseSp sp)
   | RigidV (i,sp) -> RigidV (i,BaseSp sp)
   | TopV (nm,sp,tv) -> TopV (nm,BaseSp sp, baseV tv)
-  | CylV (b,_,_) -> b 
+  | CylV (b,_,_) -> b
   | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,BaseSp sp)
   | CohV (cn,pd,sph,s,t,sp) ->
     CohV (cn,pd,sph,s,t,BaseSp sp)
@@ -119,7 +119,7 @@ and coreV v =
   | CohV (cn,pd,sph,s,t,sp) ->
     CohV (cn,pd,sph,s,t,CoreSp sp)
   | _ ->
-    let msg = Fmt.str "Cannot project core from: %a" pp_value v in 
+    let msg = Fmt.str "Cannot project core from: %a" pp_value v in
     raise (Eval_error msg)
 
 and appLocV loc v =
@@ -149,29 +149,29 @@ and force_meta v =
 
 and quote ufld k v =
   let qc x = quote ufld k x in
-  let qcs x s = quote_sp ufld k x s in 
+  let qcs x s = quote_sp ufld k x s in
   match force_meta v with
-  | FlexV (m,sp) -> qcs (MetaT m) sp 
-  | RigidV (l,sp) -> qcs (VarT (lvl_to_idx k l)) sp 
-  | TopV (_,_,tv) when ufld -> qc tv 
-  | TopV (nm,sp,_) -> qcs (TopT nm) sp 
+  | FlexV (m,sp) -> qcs (MetaT m) sp
+  | RigidV (l,sp) -> qcs (VarT (lvl_to_idx k l)) sp
+  | TopV (_,_,tv) when ufld -> qc tv
+  | TopV (nm,sp,_) -> qcs (TopT nm) sp
   | LamV (nm,ict,cl) -> LamT (nm, ict, quote ufld (k+1) (cl $$ varV k))
   | PiV (nm,ict,u,cl) -> PiT (nm, ict, qc u, quote ufld (k+1) (cl $$ varV k))
   | ObjV c -> ObjT (qc c)
   | HomV (c,s,t) -> HomT (qc c, qc s, qc t)
 
   | UCompV (_,cohv,sp) when ufld ->
-    qcs (quote ufld k cohv) sp 
+    qcs (quote ufld k cohv) sp
   | UCompV (uc,_,sp) -> qcs (UCompT uc) sp
-                          
+
   | CohV (cn,pd,c,s,t,sp) ->
 
-    let k' = length (Pd.labels pd) + 1 in 
-    let c' = quote ufld k' c in 
+    let k' = length (Pd.labels pd) + 1 in
+    let c' = quote ufld k' c in
     let s' = quote ufld k' s in
-    let t' = quote ufld k' t in 
+    let t' = quote ufld k' t in
 
-    qcs (CohT (cn,pd,c',s',t')) sp 
+    qcs (CohT (cn,pd,c',s',t')) sp
 
   | CylV (b,l,c) -> CylT (qc b, qc l, qc c)
   | ArrV c -> ArrT (qc c)
@@ -180,7 +180,7 @@ and quote ufld k v =
 
 and quote_sp ufld k t sp =
   let qc x = quote ufld k x in
-  let qcs x s = quote_sp ufld k x s in 
+  let qcs x s = quote_sp ufld k x s in
   match sp with
   | EmpSp -> t
   | AppSp (sp',u,ict) ->
@@ -189,8 +189,8 @@ and quote_sp ufld k t sp =
   | LidSp sp' -> LidT (qcs t sp')
   | CoreSp sp' -> CoreT (qcs t sp')
 
-let quote_tele tl = 
-  let rec go tl = 
+let quote_tele tl =
+  let rec go tl =
     match tl with
     | Emp -> (Emp,0)
     | Ext (typs',(nm,ict,typ)) ->
@@ -205,14 +205,14 @@ let nf top loc tm =
 (*****************************************************************************)
 (*                               Free Variables                              *)
 (*****************************************************************************)
-             
+
 let rec free_vars_val k v =
-  let module S = Base.Set in 
-  let fvc x = free_vars_val k x in 
-  let sp_vars sp = free_vars_sp k sp in 
+  let module S = Base.Set in
+  let fvc x = free_vars_val k x in
+  let sp_vars sp = free_vars_sp k sp in
   match force_meta v with
   | FlexV (_,sp) -> sp_vars sp
-  | RigidV (l,sp) -> S.add (sp_vars sp) (lvl_to_idx k l) 
+  | RigidV (l,sp) -> S.add (sp_vars sp) (lvl_to_idx k l)
   | TopV (_,sp,_) -> sp_vars sp
   | LamV (_,_,Closure (_,loc,tm)) -> free_vars (length loc) tm
   | PiV (_,_,a,Closure (_,loc,b)) ->
@@ -220,18 +220,18 @@ let rec free_vars_val k v =
   | ObjV c -> free_vars_val k c
   | HomV (c,s,t) ->
     S.union_list (module Base.Int) [fvc c; fvc s; fvc t]
-  | UCompV (_,_,sp) -> sp_vars sp 
-  | CohV (_,_,_,_,_,sp) -> sp_vars sp 
+  | UCompV (_,_,sp) -> sp_vars sp
+  | CohV (_,_,_,_,_,sp) -> sp_vars sp
   | CylV (b,l,c) ->
     S.union_list (module Base.Int) [fvc b; fvc l; fvc c]
   | ArrV c -> fvc c
   | CatV -> fvs_empty
-  | TypV -> fvs_empty 
+  | TypV -> fvs_empty
 
 and free_vars_sp k sp =
-  let module S = Base.Set in 
-  let fvc x = free_vars_val k x in 
-  let fvcs x = free_vars_sp k x in 
+  let module S = Base.Set in
+  let fvc x = free_vars_val k x in
+  let fvcs x = free_vars_sp k x in
   match sp with
   | EmpSp -> fvs_empty
   | AppSp (sp',u,_) ->
@@ -247,11 +247,11 @@ and free_vars_sp k sp =
 module ValuePdSyntax = struct
 
   type s = value
-    
+
   let cat = CatV
   let obj c = ObjV c
   let hom c s t = HomV (c,s,t)
-  
+
   let match_hom v =
     match force_meta v with
     | HomV (c,s,t) -> Some (c,s,t)
@@ -260,19 +260,20 @@ module ValuePdSyntax = struct
   let match_obj v =
     match force_meta v with
     | ObjV c -> Some c
-    | _ -> None 
+    | _ -> None
 
   let lift _ v = v
   let var _ l _ = RigidV (l,EmpSp)
 
+
   let pp_dbg = pp_value
-    
+
 end
 
 module ValuePdUtil = PdUtil(ValuePdSyntax)
 
-let string_pd_to_value_tele (c : string) (pd : string Pd.pd) : value tele = 
-  ValuePdUtil.string_pd_to_tele c pd 
+let string_pd_to_value_tele (c : string) (pd : string Pd.pd) : value tele =
+  ValuePdUtil.string_pd_to_tele c pd
 
 
 (*****************************************************************************)
@@ -288,7 +289,7 @@ let rec appArgs v args =
 
 module ValueCohSyntax = struct
   include ValuePdSyntax
-      
+
   (* Separate coh implementation? *)
   let app u v ict = appV u v ict
   let coh cn pd c s t = CohV (cn,pd,c,s,t,EmpSp)
@@ -299,19 +300,19 @@ module ValueCohSyntax = struct
 end
 
 module ValueCohUtil = CohUtil(ValueCohSyntax)
-    
+
 let value_ucomp (pd : 'a Pd.pd) : value =
-  ValueCohUtil.gen_ucomp pd 
+  ValueCohUtil.gen_ucomp pd
 
 module ValueCylinderSyntax = struct
   include ValueCohSyntax
-  
+
   let arr v = ArrV v
   let cyl b l c = CylV (b,l,c)
   let base v = baseV v
   let lid v = lidV v
   let core v = coreV v
-  
+
 end
 
 module ValueCyl = CylinderOps(ValueCylinderSyntax)

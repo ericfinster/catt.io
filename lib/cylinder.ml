@@ -5,7 +5,7 @@
 (*****************************************************************************)
 
 open Base
-    
+
 open Pd
 open Suite
 open Term
@@ -13,7 +13,7 @@ open Expr
 open Syntax
 
 (* Monadic bind for errors in scope *)
-let (let*) m f = Base.Result.bind m ~f 
+let (let*) m f = Base.Result.bind m ~f
 
 (* Some generic routines *)
 
@@ -21,16 +21,16 @@ type 'a blc = 'a * 'a * 'a
 type 'a cyl_typ = ('a blc * 'a blc) suite
 type 'a cyl = 'a cyl_typ * 'a blc
 
-type 'a susp_cyl_typ = 'a sph * ('a blc * 'a blc) list 
+type 'a susp_cyl_typ = 'a sph * ('a blc * 'a blc) list
 type 'a susp_cyl = 'a susp_cyl_typ * 'a blc
 
-let base_sph (ct : 'a cyl_typ) : 'a sph = 
+let base_sph (ct : 'a cyl_typ) : 'a sph =
   map_suite ct ~f:(fun ((src,_,_),(tgt,_,_)) -> (src,tgt))
 
 let base_disc ((ct,(b,_,_)) : 'a cyl) : 'a disc =
   (base_sph ct,b)
-                      
-let lid_sph (ct : 'a cyl_typ) : 'a sph =     
+
+let lid_sph (ct : 'a cyl_typ) : 'a sph =
   map_suite ct ~f:(fun ((_,src,_),(_,tgt,_)) -> (src,tgt))
 
 let lid_disc ((ct,(_,l,_)) : 'a cyl) : 'a disc =
@@ -67,26 +67,26 @@ module CylinderOps(C : CylinderSyntax) = struct
     List.fold ct ~init:arr_cat
       ~f:(fun c ((sb,sl,sc),(tb,tl,tc)) ->
           hom c (cyl sb sl sc) (cyl tb tl tc))
-  
+
   (***************************************************************************)
   (*                           Underlying Cylinders                          *)
   (***************************************************************************)
-  
+
   let advance (bc : s) ((sph,ct) : s susp_cyl_typ) (b : s) (l : s)
-    : s susp_cyl_typ * s disc * s disc * s * s * s * s = 
-    
+    : s susp_cyl_typ * s disc * s disc * s * s * s * s =
+
     match ct with
     | [] -> failwith "advance on empty cylinder context"
-    | ((sb,sl,sc),(tb,tl,tc))::crem -> 
-      
+    | ((sb,sl,sc),(tb,tl,tc))::crem ->
+
       let sph' = sph |> (sb,tl) in
-      let sdisc = (sph |> (sb,sl) , sc) in 
+      let sdisc = (sph |> (sb,sl) , sc) in
       let tdisc = (sph |> (tb,tl) , tc) in
       let i = length sph in
 
       let go_fold (ct,bsph,lsph) ((sb,sl,sc),(tb,tl,tc)) =
 
-        let sb' = snd (whisker bc (bsph,sb) i tdisc) in 
+        let sb' = snd (whisker bc (bsph,sb) i tdisc) in
         let sl' = snd (whisker bc sdisc i (lsph,sl)) in
         let tb' = snd (whisker bc (bsph,tb) i tdisc) in
         let tl' = snd (whisker bc sdisc i (lsph,tl)) in
@@ -94,34 +94,34 @@ module CylinderOps(C : CylinderSyntax) = struct
         (ct   |> ((sb',sl',sc),(tb',tl',tc)),
          bsph |> (sb,tb),
          lsph |> (sl,tl))
-        
+
       in
 
       let (cts,bsph,lsph) = List.fold crem
-          ~init:(Emp, sph |> (sb,tb), sph |> (sl,tl)) ~f:go_fold in 
+          ~init:(Emp, sph |> (sb,tb), sph |> (sl,tl)) ~f:go_fold in
 
       let b' = snd (whisker bc (bsph , b) i tdisc) in
-      let l' = snd (whisker bc sdisc i (lsph , l)) in 
+      let l' = snd (whisker bc sdisc i (lsph , l)) in
 
       ((sph' , to_list cts) , (bsph,b) , (lsph,l) , sc , tc , b' , l')
 
-  let rec iter_advance (bc : s) (sct : s susp_cyl_typ) (b : s) (l : s) (n : int) 
+  let rec iter_advance (bc : s) (sct : s susp_cyl_typ) (b : s) (l : s) (n : int)
     : s susp_cyl_typ * s * s =
     if (n <= 0) then (sct,b,l) else
       let (sct',_,_,_,_,b',l') = advance bc sct b l in
       iter_advance bc sct' b' l' (n-1)
 
   let core_sph (bc : s) (sct : s susp_cyl_typ) (b : s) (l : s) : s sph =
-    let n = List.length (snd sct) in 
+    let n = List.length (snd sct) in
     let ((sph,_),b',l') = iter_advance bc sct b l n in
     sph |> (b',l')
-  
+
   let underlying_data (bc : s) ((sct,(b,l,c)) : s susp_cyl)
     : s susp_cyl * s disc * s disc * s * s =
     let (ct,bdisc,ldisc,sc,tc,b',l') = advance bc sct b l in
     ((ct,(b',l',c)),bdisc,ldisc,sc,tc)
-  
-  let underlying_cyl (bc : s) (sc : s susp_cyl) : s susp_cyl = 
+
+  let underlying_cyl (bc : s) (sc : s susp_cyl) : s susp_cyl =
     let (cyl,_,_,_,_) = underlying_data bc sc in cyl
 
   let rec nth_underlying (bc : s) (sc : s susp_cyl) (n : int) : s susp_cyl =
@@ -132,33 +132,33 @@ module CylinderOps(C : CylinderSyntax) = struct
   (***************************************************************************)
   (*                                 Lifting                                 *)
   (***************************************************************************)
- 
+
   let lift (((sph,ct),(_,_,c)) : s susp_cyl)
       ((bsph,b) : s disc) ((lsph,l) : s disc)
-      (sc : s) (tc : s) : s susp_cyl = 
+      (sc : s) (tc : s) : s susp_cyl =
 
     match sph with
     | Emp -> failwith "lift on unsuspended cylinder"
-    | Ext (sph',(sb,tl)) -> 
-    
+    | Ext (sph',(sb,tl)) ->
+
       let i = length sph in
 
       let (tb,brem) =
         (match snd (split_at (i-1) bsph) with
          | ((_,tb)::brem) -> (tb,brem)
-         | _ -> failwith "dimension error in base") in 
+         | _ -> failwith "dimension error in base") in
 
       let (sl,lrem) =
         (match snd (split_at (i-1) lsph) with
          | ((sl,_)::lrem) -> (sl,lrem)
-         | _ -> failwith "dimension error in lid") in 
-      
-      let go_fold ct (sb,tb) (sl,tl) ((_,_,sc),(_,_,tc))  =
-        ct |> ((sb,sl,sc),(tb,tl,tc)) in 
+         | _ -> failwith "dimension error in lid") in
 
-      let cts = fold3 brem lrem ct Emp go_fold in 
-      let ct' = to_list cts in 
-      
+      let go_fold ct (sb,tb) (sl,tl) ((_,_,sc),(_,_,tc))  =
+        ct |> ((sb,sl,sc),(tb,tl,tc)) in
+
+      let cts = fold3 brem lrem ct Emp go_fold in
+      let ct' = to_list cts in
+
       ((sph',((sb,sl,sc),(tb,tl,tc))::ct'),(b,l,c))
 
   let lift_curried (scyl,bd,ld,sc,tc) =
@@ -172,7 +172,7 @@ module CylinderCoh(Syn: Syntax) = struct
   open CohUtil(Syn)
   open SyntaxUtil(Syn)
   open CylinderOps(Syn)
-  
+
   (***************************************************************************)
   (*                           Cylinder Coherences                           *)
   (***************************************************************************)
@@ -189,33 +189,33 @@ module CylinderCoh(Syn: Syntax) = struct
      locations.
 
      And the point of the fullness check was to make sure that these
-     terms really are valid in those contexts.  But when we write the 
+     terms really are valid in those contexts.  But when we write the
      coherence term, we really definitely need to fix this first.
 
      Ok.  Well, at least you understand the problem, although I don't
      see immediately how you are going to fix this .... yikes.
 
   *)
-  
-  let rec cylcoh_susp (cn : nm_ict) (pd : nm_ict pd) (c : s) 
+
+  let rec cylcoh_susp (cn : nm_ict) (pd : nm_ict pd) (c : s)
       (bsph : s sph) ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
 
-    match (ssph,tsph) with 
+    match (ssph,tsph) with
     | (Emp,Emp) ->
 
-      let tl = nm_ict_pd_to_tele cn pd in 
+      let tl = nm_ict_pd_to_tele cn pd in
 
       Fmt.pr "@[<v>pd: @[%a@]@,@]" (pp_tele pp_s) tl;
       Fmt.pr "@[<v>s: @[%a@]@,t: @[%a@]@,@]" pp_s s pp_s t;
 
-      let args = pd_nm_ict_args cn pd in 
-      let cc = sph_to_cat c bsph in 
-      let coh_tm = app_args (coh cn pd cc s t) args in 
+      let args = pd_nm_ict_args cn pd in
+      let cc = sph_to_cat c bsph in
+      let coh_tm = app_args (coh cn pd cc s t) args in
       ((bsph, []), (s, t, coh_tm))
 
     | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
 
-      let tl = nm_ict_pd_to_tele cn pd in 
+      let tl = nm_ict_pd_to_tele cn pd in
 
       Fmt.pr "@[<v>pd: @[%a@]@,@]" (pp_tele pp_s) tl;
       Fmt.pr "@[<v>ss: @[%a@]@,st: @[%a@]@,ts: @[%a@]@,tt: @[%a@]@,@]"
@@ -232,7 +232,7 @@ module CylinderCoh(Syn: Syntax) = struct
 
       let tgt_pd = if (cd < d) then
           pd_ict_canon (truncate false cd pd)
-        else pd in 
+        else pd in
 
       Fmt.pr "@[<v>src_pd: @[%a@]@,@]" (pp_pd pp_nm_ict) src_pd;
       Fmt.pr "@[<v>tgt_pd: @[%a@]@,@]" (pp_pd pp_nm_ict) tgt_pd;
@@ -245,7 +245,7 @@ module CylinderCoh(Syn: Syntax) = struct
       let ((coh_sph,_),b,l) = iter_advance c (bsph,ct') s t (List.length ct') in
       let cc = sph_to_cat c coh_sph in
       let coh_tm = coh cn pd cc b l in
-      let coh_tm_with_args = app_args coh_tm (pd_nm_ict_args cn pd) in 
+      let coh_tm_with_args = app_args coh_tm (pd_nm_ict_args cn pd) in
 
       Fmt.pr "@[<v>coh_tm_wargs: @[%a@]@,@]" pp_s coh_tm_with_args;
 
@@ -256,12 +256,12 @@ module CylinderCoh(Syn: Syntax) = struct
   let cylcoh_impl cn pd c s t =
     let (bc, sph) = match_homs c in
     let (ct,(b,l,cr)) = cylcoh_susp cn pd bc sph s t in
-    let cyl_typ = cyl_to_cat bc ct in 
+    let cyl_typ = cyl_to_cat bc ct in
     let g = nm_ict_pd_to_tele cn pd in
-    abstract_tele_with_type g (obj cyl_typ) (cyl b l cr) 
+    abstract_tele_with_type g (obj cyl_typ) (cyl b l cr)
 
   (* A naive, unfolded calculation of the type *)
-  let cyl_coh_typ cn pd ct ssph tsph = 
+  let cyl_coh_typ cn pd ct ssph tsph =
     fst (cylcoh_impl cn pd ct ssph tsph)
 
 end
@@ -274,7 +274,7 @@ module ExprCyl = CylinderOps(ExprUtil)
 module ExprCylCoh = CylinderCoh(ExprSyntax)
 module TermCyl = CylinderOps(TermUtil)
 module TermCylCoh = CylinderCoh(TermSyntax)
-    
+
 (*****************************************************************************)
 (*                                  Testing                                  *)
 (*****************************************************************************)
@@ -290,11 +290,11 @@ let mk_susp_cyl_typ sph ct =
 
 let mk_susp_cyl sph (ct,(b,l,c)) =
   (mk_susp_cyl_typ sph ct,(VarE b, VarE l, VarE c))
-       
-let cylt1 = Emp   |> (("xb", "xl", "xc"),("yb", "yl", "yc")) 
-let cylt2 = cylt1 |> (("fb", "fl", "fc"),("gb", "gl", "gc")) 
-let cylt3 = cylt2 |> (("ab", "al", "ac"),("bb", "bl", "bc")) 
-let cylt4 = cylt3 |> (("mb", "ml", "mc"),("nb", "nl", "nc")) 
+
+let cylt1 = Emp   |> (("xb", "xl", "xc"),("yb", "yl", "yc"))
+let cylt2 = cylt1 |> (("fb", "fl", "fc"),("gb", "gl", "gc"))
+let cylt3 = cylt2 |> (("ab", "al", "ac"),("bb", "bl", "bc"))
+let cylt4 = cylt3 |> (("mb", "ml", "mc"),("nb", "nl", "nc"))
 
 let cyl1 = (cylt1 , ("fb", "fl", "fc"))
 let cyl2 = (cylt2 , ("ab", "al", "ac"))
@@ -302,15 +302,15 @@ let cyl3 = (cylt3 , ("mb", "ml", "mc"))
 let cyl4 = (cylt4 , ("pb", "pl", "pc"))
 
 let pp_blc pp_el ppf (b,l,c) =
-  let open Fmt in 
+  let open Fmt in
   pf ppf "@[<v>base: %a@,lid:  %a@,core: %a@,@]" pp_el b pp_el l pp_el c
-    
+
 let pp_cyl_typ pp_el ppf ct =
   let open Fmt in
   pf ppf "@[<v>%a@]"
     (pp_suite ~sep:cut (pair ~sep:cut (pp_blc pp_el) (pp_blc pp_el)))
     ct
-  
+
 (* Whisker 3 1 2 *)
 
 let left312 = (Emp
@@ -333,9 +333,3 @@ let twocell312 =  ([(VarT 8, VarT 7);(VarT 6, VarT 1)], VarT 0)
 let cat202 = VarT 9
 let left202 = ([(VarT 8, VarT 7);(VarT 6, VarT 5)], VarT 4)
 let right202 = ([(VarT 7, VarT 3);(VarT 2, VarT 1)], VarT 0)
-
-
-              
-
-
-
