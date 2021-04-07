@@ -76,6 +76,12 @@ and ($$) c v =
   match c with
   | Closure (top,loc,tm) -> eval top (Ext (loc,v)) tm
 
+(* This must be somewhere already *)
+and alt a b =
+  match a with
+  | Error _ -> b
+  | Ok x -> Ok x
+
 and appV t u ict =
   match t with
   | FlexV (m,sp) -> FlexV (m,AppSp(sp,u,ict))
@@ -89,14 +95,14 @@ and appV t u ict =
      (* pr "Current: %a" pp_value x ;
       * print_newline (); *)
      if sp_length sp' = pd_length pd + 1 then
-       (match redCoh cn pd c s t sp' with
+       (match alt (insertionCoh cn pd c s t sp') (disc_removal pd c s t u) with
         | Error _ ->
            (* pr "Attempted reduction: %s\n" y; *)
            x
        | Ok y -> y) else x
   | _ -> raise (Eval_error (Fmt.str "malformed application: %a" pp_value t))
 
-and redCoh cn pd c s t sp =
+and insertionCoh cn pd c s t sp =
 
   let rec dim_ty ty =
     match ty with
@@ -199,6 +205,15 @@ and redCoh cn pd c s t sp =
 and applySubstitution k v sub =
   let t = quote true k v in
   eval Emp sub t
+
+and disc_removal pd c s t u =
+  let rec construct_disc_type n =
+    if n = 0 then RigidV (0, EmpSp) else HomV(construct_disc_type (n-1), RigidV (2*n - 1, EmpSp), RigidV (2*n,EmpSp) ) in
+
+  if not (is_disc pd) then Error "Not disc"
+  else
+    if HomV(c,s,t) = construct_disc_type (dim_pd pd) then Ok u
+    else Error "Disc is not unbiased"
 
 and baseV v =
   match v with

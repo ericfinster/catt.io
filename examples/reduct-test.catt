@@ -50,3 +50,16 @@ let reduce-test {C : Cat}
   {w :: C} {h :: z => w}
      	   {h2 :: z => w} (c :: h => h2) : [ comp f (comp2 g h) => comp f2 (comp2 g2 h2) ]
    = horiz a (horiz2 b c)
+
+let test {C : Cat}
+    {x :: C}
+    {y :: C} (f :: x => y) : [ x => y ] = comp f (id y)
+
+coh unitor C (x(f)y) : comp f (id y) => f
+coh comp-v C (x(f(a)g(b)h)y) : f => h
+
+let test2 {C : Cat}
+  {x :: C}
+  {y :: C} { f :: x => y }
+     	   { g :: x => y } (a :: f => g) : [ f => g ]
+	   = comp-v a (unitor g)
