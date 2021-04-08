@@ -149,9 +149,15 @@ let isOneShot s =
   | OneShot -> true
   | _ -> false
 
+let resolve_coh tm =
+  match tm with
+  | CohV (cn,pd,c,s,t,sp) -> runSpV (CohV(cn,pd,c,s,t,EmpSp)) (map_sp sp ~f:force_meta)
+  | TopV (nm,sp,CohV(cn,pd,c,s,t,sp')) -> TopV(nm,sp,runSpV (CohV(cn,pd,c,s,t,EmpSp)) (map_sp sp' ~f:force_meta))
+  | _ -> tm
+
 let rec unify stgy top l t u =
   (* pr "Unifying (strategy %a) %a with %a@," pp_strat stgy pp_value t pp_value u; *)
-  match (force_meta t , force_meta u) with
+  match (resolve_coh (force_meta t) , resolve_coh (force_meta u)) with
   | (TypV , TypV) -> ()
   | (CatV , CatV) -> ()
 

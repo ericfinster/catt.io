@@ -100,7 +100,7 @@ and pp_spine ppf sp =
   match sp with
   | EmpSp -> ()
   | AppSp (sp',v,Expl) ->
-    pf ppf "%a %a" pp_spine sp' pp_value v
+    pf ppf "%a %a" pp_spine sp' (parens pp_value) v
   | AppSp (sp',v,Impl) ->
     pf ppf "%a {%a}" pp_spine sp' pp_value v
   | BaseSp sp' ->
@@ -124,3 +124,11 @@ let rec suite_to_sp s =
   match s with
   | Emp -> EmpSp
   | Ext(s, (v,i)) -> AppSp (suite_to_sp s,v,i)
+
+let rec map_sp sp ~f =
+  match sp with
+  | EmpSp -> EmpSp
+  | AppSp (s,v,i) -> AppSp (map_sp s ~f, f v, i)
+  | BaseSp s -> BaseSp (map_sp s ~f)
+  | LidSp s -> LidSp (map_sp s ~f)
+  | CoreSp s -> CoreSp (map_sp s ~f)
