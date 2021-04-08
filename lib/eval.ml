@@ -124,6 +124,10 @@ and insertionCoh cn pd c s t args =
        let* args_inner = sp_to_suite sp' in
        let pda = map_pd_lvls pd' 1 ~f:(fun _ n _ (nm, ict) -> let (v,_) = nth n args_inner in (false, n , nm , ict, v)) in
        if type_linearity (HomV (c', s', t')) >= length redex_path - 1 then Ok (cn', pd' ,c',s',t',pda ,redex_path) else get_redex xs
+    | Ext (xs, ((_,_,_,_,TopV (_, _, CohV (cn', pd', c', s', t', sp'))), redex_path)) ->
+       let* args_inner = sp_to_suite sp' in
+       let pda = map_pd_lvls pd' 1 ~f:(fun _ n _ (nm, ict) -> let (v,_) = nth n args_inner in (false, n , nm , ict, v)) in
+       if type_linearity (HomV (c', s', t')) >= length redex_path - 1 then Ok (cn', pd' ,c',s',t',pda ,redex_path) else get_redex xs
     | Ext (xs, _) -> get_redex xs in
 
   let get_internal_substitution pd =

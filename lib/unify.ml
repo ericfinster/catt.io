@@ -128,6 +128,12 @@ type strategy =
   | UnfoldNone
   | OneShot
 
+let pp_strat ppf stgy =
+  match stgy with
+  | UnfoldAll -> pf ppf "unfold all"
+  | UnfoldNone -> pf ppf "unfold none"
+  | OneShot -> pf ppf "one shot"
+
 let isUnfoldAll s =
   match s with
   | UnfoldAll -> true
@@ -144,6 +150,7 @@ let isOneShot s =
   | _ -> false
 
 let rec unify stgy top l t u =
+  (* pr "Unifying (strategy %a) %a with %a@," pp_strat stgy pp_value t pp_value u; *)
   match (force_meta t , force_meta u) with
   | (TypV , TypV) -> ()
   | (CatV , CatV) -> ()

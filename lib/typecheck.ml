@@ -589,8 +589,8 @@ let rec check_defs gma defs =
     let ty_nf = term_to_expr Emp (quote false (gma.lvl) ty_val) in
     pr "Type: @[%a@]@," pp_expr ty_nf;
     pr "Term: @[%a@]@," pp_expr tm_nf;
-    let tm_unfolded_nf = term_to_expr Emp (quote false (gma.lvl) (eval gma.top gma.loc (quote true (gma.lvl) tm_val))) in
-    let ty_unfolded_nf = term_to_expr Emp (quote false (gma.lvl) (eval gma.top gma.loc (quote true (gma.lvl) ty_val))) in
+    let tm_unfolded_nf = term_to_expr Emp (quote true (gma.lvl) tm_val) in
+    let ty_unfolded_nf = term_to_expr Emp (quote true (gma.lvl) ty_val) in
     pr "Type unfolded: @[%a@]@," pp_expr ty_unfolded_nf;
     pr "Term unfolded: @[%a@]@," pp_expr tm_unfolded_nf;
     check_defs (define gma id tm_val ty_val) ds
