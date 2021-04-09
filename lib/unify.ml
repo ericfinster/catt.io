@@ -151,8 +151,8 @@ let isOneShot s =
 
 let resolve_coh tm =
   match tm with
-  | CohV (cn,pd,c,s,t,sp) -> runSpV (CohV(cn,pd,c,s,t,EmpSp)) (map_sp sp ~f:force_meta)
-  | TopV (nm,sp,CohV(cn,pd,c,s,t,sp')) -> TopV(nm,sp,runSpV (CohV(cn,pd,c,s,t,EmpSp)) (map_sp sp' ~f:force_meta))
+  | CohV (cn,pd,c,s,t,sp) -> runSpV (CohV(cn,pd,c,s,t,EmpSp)) sp
+  | TopV (nm,sp,CohV(cn,pd,c,s,t,sp')) -> TopV(nm,sp,runSpV (CohV(cn,pd,c,s,t,EmpSp)) sp')
   | _ -> tm
 
 let rec unify stgy top l t u =
