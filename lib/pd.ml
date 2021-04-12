@@ -130,12 +130,12 @@ let rec insertion pd path pd2 =
      let* (_, xsd) = drop xs in
      let (l', xsr) = replace l xsd l2 in
      Ok (Br (l', append (append xsr brs2) ys))
-  | (Br (l, brs), Br (l2, Ext (Emp, (_, p2))), Ext(ns, n)) ->
+  | (Br (l, brs), Br (l2, Ext (Emp, (l3, p2))), Ext(ns, n)) ->
      let (xs, ys) = split_suite (n + 1) brs in
-     let* ((t,br), xsd) = drop xs in
+     let* ((_,br), xsd) = drop xs in
      let (l', xsr) = replace l xsd l2 in
      let* pdr = insertion br ns p2 in
-     Ok (Br (l', append (Ext (xsr, (t, pdr))) ys))
+     Ok (Br (l', append (Ext (xsr, (l3, pdr))) ys))
   | (_,_,_) -> Error "Insertion failed"
 
 let rec get_all_paths pd =

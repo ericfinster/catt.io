@@ -79,7 +79,9 @@ and ($$) c v =
 (* This must be somewhere already *)
 and alt a b =
   match a with
-  | Error _ -> b
+  | Error x -> (match b with
+                | Ok y -> Ok y
+                | Error y -> Error (Printf.sprintf "%s | %s" x y))
   | Ok x -> Ok x
 
 and appV t u ict =
@@ -99,7 +101,7 @@ and appV t u ict =
         if k = pd_length pd + 1 then
        (match alt (alt (insertionCoh cn pd c s t sp_list) (disc_removal pd c s t u)) (endo_coherence_removal cn pd k c s t sp_list) with
         | Error _ ->
-           (* pr "Attempted reduction: %s\n" y; *)
+           (* pr "Attempted reduction on %a: %s\n" pp_value x y; *)
            x
        | Ok y -> y) else x)
   | _ -> raise (Eval_error (Fmt.str "malformed application: %a" pp_value t))
@@ -111,25 +113,27 @@ and dim_ty ty =
 
 and insertionCoh cn pd c s t args =
 
-  let rec type_linearity v =
+  let unfold v =
     match force_meta v with
-    | HomV(c, RigidV _, RigidV _) -> dim_ty c
-    | HomV(c, _, _) -> type_linearity c
-    | _ -> -1 in
+    | TopV (_,_,x) -> x
+    | y -> y in
+
+  let rec type_linearity c s t =
+    match (unfold s, unfold t) with
+    | (RigidV _, RigidV _) -> dim_ty c
+    | _ -> match c with
+           | HomV(c',s',t') -> type_linearity c' s' t'
+           | _ -> -1 in
 
   let rec get_redex xs =
     match xs with
     | Emp -> Error "No redex found"
     | Ext (xs, ((_,_,_,_,t), redex_path)) ->
-       match (force_meta t) with
+       match (unfold t) with
        | CohV (cn', pd', c', s', t', sp') ->
           let* args_inner = sp_to_suite sp' in
           let pda = map_pd_lvls pd' 1 ~f:(fun _ n _ (nm, ict) -> let (v,_) = nth n args_inner in (false, n , nm , ict, v)) in
-          if type_linearity (HomV (c', s', t')) >= length redex_path - 1 then Ok (cn', pd' ,c',s',t',pda ,redex_path) else get_redex xs
-       | TopV (_,_, CohV (cn', pd', c', s', t', sp')) ->
-          let* args_inner = sp_to_suite sp' in
-          let pda = map_pd_lvls pd' 1 ~f:(fun _ n _ (nm, ict) -> let (v,_) = nth n args_inner in (false, n , nm , ict, v)) in
-          if type_linearity (HomV (c', s', t')) >= length redex_path - 1 then Ok (cn', pd' ,c',s',t',pda ,redex_path) else get_redex xs
+          if type_linearity c' s' t' >= length redex_path - 1 then Ok (cn', pd' ,c',s',t',pda ,redex_path) else get_redex xs
        | _ -> get_redex xs in
 
   let get_internal_substitution pd =
@@ -159,14 +163,10 @@ and insertionCoh cn pd c s t args =
   let get_external_substitution pd redex_path all_paths internal_tm internal_ty =
     let l = Pd.labels pd in
     let fl = filter (zip_with_idx l) (fun (_,(b,_,_,_,_)) -> b) in
-    (* pr "filtered labels: %a\n" (pp_suite int) (map_suite fl ~f:fst); *)
     map_suite_m (range 1 (length all_paths)) ~f:(fun n ->
         match find fl ~p:(fun (_,(_,i,_,_,_)) -> i = n) with
         | Error _ ->
-           (* pr "Number: %d\n" n; *)
-           (* pr "Pre substract: %a\n" (pp_suite int) (nth (n - 1) all_paths); *)
            let path = subtract_path (nth (n - 1) all_paths) redex_path in
-           (* pr "Substracted path: %a\n" (pp_suite int) path; *)
            let* t = path_from_term_type internal_tm internal_ty path in
            Ok t
         | Ok (x,_) -> Ok (RigidV (x + 1,EmpSp))) in
@@ -177,33 +177,22 @@ and insertionCoh cn pd c s t args =
   match loc_max_bh pd_with_args with
   | Error _ -> Error "Pd is linear"
   | Ok xs ->
-     (* pr "Loc Max: %a\n" (pp_suite (fun ppf ((a,b,c,d,e),_) -> pf ppf "(%a,%d,%s,%a,%a)" bool a b c pp_ict d pp_value e)) xs; *)
      let* (cni,pdi,ci,si,ti,redex_pd,redex_path) = get_redex xs in
-     (* pr "Pd with args: %a\n" (pp_pd (fun ppf (_,_,_,_,v) -> pf ppf "%a" pp_value v)) pd_with_args; *)
-     (* pr "redex pd: %a\n" (pp_pd (fun ppf (b,n,_,_,v) -> pf ppf "(%a,%d,%a)" bool b n pp_value v)) redex_pd; *)
-     (* pr "Path: %a\n" (pp_suite int) redex_path; *)
      let internal_ctx_length = pd_length pdi + 1 in
      let internal_term = CohV(cni,pdi,ci,si,ti,EmpSp) in
-     (* pr "Internal term: %a\n" pp_value internal_term; *)
      let* pd_insert = insertion pd_with_args redex_path redex_pd in
-     (* pr "Inserted pd: %a\n" (pp_pd (fun ppf (b,n,_,_,v) -> pf ppf "(%a,%d,%a)" bool b n pp_value v)) pd_insert; *)
      let pd_final = map_pd pd_insert ~f:(fun (_,_,nm,icit,_) -> (nm,icit)) in
      let final_args = labels (map_pd pd_insert ~f:(fun (_,_,_,icit,v) -> (v,icit))) in
      let final_spine = suite_to_sp (append (singleton (first args)) final_args) in
      let* internal_sub_no_append = get_internal_substitution pd_insert in
-     (* pr "Internal sub: %a\n" (pp_suite pp_value) (map_suite internal_sub_no_append ~f:fst); *)
      let internal_sub = append (singleton (RigidV (0, EmpSp), (snd cni))) internal_sub_no_append in
      let internal_term_subbed = runSpV internal_term (suite_to_sp internal_sub) in
-     (* pr "Internal term subbed %a\n" pp_value internal_term_subbed; *)
      let internal_sub_no_icit = map_suite internal_sub ~f:fst in
      let civ = applySubstitution internal_ctx_length ci internal_sub_no_icit in
      let siv = applySubstitution internal_ctx_length si internal_sub_no_icit in
      let tiv = applySubstitution internal_ctx_length ti internal_sub_no_icit in
-     (* pr "Internal type subbed %a\n" pp_value (HomV(civ,siv,tiv)); *)
-     (* pr "All paths %a\n" (pp_suite ~sep:comma (pp_suite int)) (get_all_paths pd); *)
      let* external_sub_no_append = get_external_substitution pd_insert redex_path (get_all_paths pd) internal_term_subbed (HomV (civ,siv,tiv)) in
      let external_sub = append (singleton (RigidV (0,EmpSp))) external_sub_no_append in
-     (* pr "External sub %a\n" (pp_suite pp_value) external_sub; *)
      let cv = applySubstitution ctx_length c external_sub in
      let sv = applySubstitution ctx_length s external_sub in
      let tv = applySubstitution ctx_length t external_sub in
