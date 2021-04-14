@@ -12,8 +12,6 @@ open Term
 open Eval
 open Meta
 
-type perm = (lvl,lvl,Int.comparator_witness) Map.t
-
 type partial_ren = {
   dom : lvl;
   cod : lvl;
@@ -35,12 +33,14 @@ let invert cod sp =
     | EmpSp -> (0, Map.empty (module Int))
     | AppSp (sp',u,_) ->
       let (dom, ren) = go sp' in
-      (match force_meta u with
-       | RigidV (l,EmpSp) ->
-         (match Map.add ren ~key:l ~data:dom  with
-          | `Ok ren' -> (dom + 1,ren')
-          | `Duplicate -> raise (Unify_error "non-linear pattern"))
-       | _ -> raise (Unify_error "meta-var applied to non-bound-variable"))
+      begin match force_meta u with
+        | RigidV (l,EmpSp) ->
+          begin match Map.add ren ~key:l ~data:dom  with
+            | `Ok ren' -> (dom + 1,ren')
+            | `Duplicate -> raise (Unify_error "non-linear pattern")
+          end
+        | _ -> raise (Unify_error "meta-var applied to non-bound-variable")
+      end
 
     (* TODO: More sophisticated unification here? *)
     | BaseSp _ -> raise (Unify_error "base projected spine")
@@ -52,15 +52,17 @@ let invert cod sp =
 
 let rename m pren v =
 
-  let rec go pr v = match force_meta v with
+  let rec go pr v =
+    match force_meta v with
     | FlexV (m',sp) ->
       if (m <> m') then
         goSp pr (MetaT m') sp
       else raise (Unify_error "failed occurs check")
     | RigidV (i,sp) ->
-      (match Map.find pr.ren i with
+      begin match Map.find pr.ren i with
        | Some l -> goSp pr (VarT (lvl_to_idx pr.dom l)) sp
-       | None -> raise (Unify_error "escaped variable"))
+       | None -> raise (Unify_error "escaped variable")
+      end
     (* We maximally unfold meta-solutions.  I think this is the only
        reasonable choice for top-level metas like we have here. *)
     | TopV (_,_,tv) -> go pr tv
@@ -177,7 +179,7 @@ let rec unify stgy top l t u =
   | (TopV (nm,sp,tv) , TopV (nm',sp',tv')) when isOneShot stgy  ->
     if (Poly.(=) nm nm') then
       (try unifySp UnfoldNone top l sp sp'
-       with Unify_error _ -> unify UnfoldAll top l tv tv')
+       with Unify_error _ -> log_msg "caught"; unify UnfoldAll top l tv tv')
     else unify UnfoldAll top l tv tv'
 
   | (TopV (_,_,_) , _) when isUnfoldNone stgy  ->
@@ -205,8 +207,10 @@ let rec unify stgy top l t u =
     unify stgy top 0 t t';
     unifySp stgy top l sp sp'
 
-  | (CohV _, CohV _) ->
-    raise (Unify_error "unequal pasting diagrams in coherence")
+  | (CohV (_,pd,_,_,_,_) , CohV (_,pd',_,_,_,_)) ->
+    let msg = Fmt.str "@[%a@]@;=/= @[%a@]"
+        (Pd.pp_pd pp_nm_ict) pd (Pd.pp_pd pp_nm_ict) pd' in 
+    raise (Unify_error msg)
 
   | (UCompV (_,cohv,sp), UCompV (_,cohv',sp')) when isUnfoldAll stgy ->
     unify UnfoldAll top l (runSpV cohv sp) (runSpV cohv' sp')
@@ -217,7 +221,7 @@ let rec unify stgy top l t u =
   | (UCompV (uc,cohv,sp), UCompV (uc',cohv',sp')) when isOneShot stgy ->
     if (Poly.(=) (ucmp_pd uc) (ucmp_pd uc')) then
       (try unifySp UnfoldNone top l sp sp'
-       with Unify_error _ -> unify UnfoldAll top l
+       with Unify_error _ -> log_msg "caught" ; unify UnfoldAll top l
                                (runSpV cohv sp) (runSpV cohv' sp'))
     else unify UnfoldAll top l (runSpV cohv sp) (runSpV cohv' sp')
 
@@ -238,7 +242,6 @@ let rec unify stgy top l t u =
   | (tm,um) ->
     let msg = str "Failed to unify: %a =/= %a"
         pp_value tm pp_value um in
-    pr "unfiy failed: %s\n" msg;
     raise (Unify_error msg)
 
 and unifySp stgy top l sp sp' =

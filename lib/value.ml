@@ -86,13 +86,12 @@ let rec pp_value ppf v =
   | UCompV (uc,_,sp) ->
     pf ppf "ucomp [ %a ] %a"
       pp_ucmp_desc uc pp_spine sp
-  (* | CohV (v,sp) ->
-   *   pf ppf "coh @[%a@] %a"
-   *     pp_value v pp_spine sp *)
 
-  | CohV _ ->
-    pf ppf "newcoh value not done"
-
+  | CohV ((cn,_),pd,c,s,t,sp) ->
+    pf ppf "@[coh [ %s @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] @[%a] ]@]" cn
+      (pp_pd string) (map_pd pd ~f:fst)
+      pp_value c pp_value s pp_value t pp_spine sp
+      
   | CylV (b,l,c) ->
     pf ppf "[| %a | %a | %a |]"
       pp_value b pp_value l pp_value c

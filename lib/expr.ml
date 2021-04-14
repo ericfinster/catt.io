@@ -79,20 +79,20 @@ let rec pp_expr_gen ?tpd:(tpd = tele_to_pd_dummy)
   | LamE (nm,Expl,bdy) -> pf ppf "\\%s. %a" nm ppe bdy
   | AppE (u, v, Impl) ->
     if show_imp then
-      pf ppf "%a {%a}" ppe u ppe v
+      pf ppf "%a@;{%a}" ppe u ppe v
     else
       pf ppf "%a" ppe u
   | AppE (u, v, Expl) ->
     let pp_v = if (is_app v) then
         parens ppe
       else ppe in
-    pf ppf "%a@, %a" ppe u pp_v v
+    pf ppf "%a@;%a" ppe u pp_v v
   | PiE (nm,Impl,dom,cod) ->
     if (is_pi cod) then
-      pf ppf "{%s : %a}@, %a" nm
+      pf ppf "{%s : %a}@;%a" nm
         ppe dom ppe cod
     else
-      pf ppf "{%s : %a}@, -> %a" nm
+      pf ppf "{%s : %a}@;-> %a" nm
         ppe dom ppe cod
   | PiE (nm,Expl,a,b) when Poly.(=) nm "" ->
     let pp_a = if (is_pi a) then
@@ -186,7 +186,8 @@ module ExprPdSyntax = struct
 
   let lift _ t = t
   let var _ _ nm = VarE nm
-
+  let strengthen _ _ _ e = e
+    
   let pp_dbg = pp_expr_dummy
 
 end
@@ -207,7 +208,7 @@ let pp_expr = pp_expr_gen
 
 let pp_expr_with_impl = pp_expr_gen
     ~tpd:ExprPdUtil.tele_to_name_pd
-    ~si:true ~fh:true ~pc:true
+    ~si:true ~fh:false ~pc:true
 
 (*****************************************************************************)
 (*                         Expr Syntax Implmentations                        *)

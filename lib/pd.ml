@@ -124,8 +124,8 @@ let map_disc (sph,d) ~f =
 let pp_sph pp_el ppf sph =
   let open Fmt in
   pf ppf "@[<hov>%a@]"
-    (pp_suite ~sep:(cut ++ any "| ")
-       (pair ~sep:(any " =>" ++ cut) (box pp_el) (box pp_el))) sph
+    (pp_suite ~sep:(any " | ")
+       (pair ~sep:(any " => ") (box pp_el) (box pp_el))) sph
 
 let pp_disc pp_el ppf (sph, flr) =
   let open Fmt in
@@ -392,6 +392,35 @@ let fold_left_with_sph pd f b =
 
   in fst (fold_left_with_disc_br Emp pd b)
 
+(** The types of cell appearing in a pd *)
+type cell_type =
+  | SrcCell of int
+  | TgtCell of int
+  | IntCell of int
+  | LocMaxCell of int
+
+let fold_pd_with_type pd init f =
+
+  let rec fold_pd_with_type_br d br b =
+    match br with
+    | Br (x,brs) ->
+      let ct = if (is_empty brs)
+        then LocMaxCell d
+        else SrcCell d in 
+      let b' = f x ct b in
+      fold_pd_with_type_brs true d brs b'
+
+  and fold_pd_with_type_brs is_tgt d brs b =
+    match brs with
+    | Emp -> b
+    | Ext (brs',(x,br)) ->
+      let b' = fold_pd_with_type_brs false d brs' b in
+      let ct = if is_tgt then TgtCell d else IntCell d in
+      let b'' = f x ct b' in
+      fold_pd_with_type_br (d+1) br b''
+
+  in fold_pd_with_type_br 0 pd init
+
 (*****************************************************************************)
 (*                              Pretty Printing                              *)
 (*****************************************************************************)
@@ -401,6 +430,7 @@ let rec pp_pd f ppf pd =
   | Br (s,brs) ->
     let pp_pair ppf (x,br) =
       Fmt.pf ppf "%a%a" (pp_pd f) br f x in
+      (* Fmt.pf ppf "%a%a" f x (pp_pd f) br  in *)
     Fmt.pf ppf "(%a%a)" f s
       (pp_suite ~sep:Fmt.nop pp_pair) brs
 

@@ -164,35 +164,38 @@ let is_pi_tm tm =
   | PiT (_,_,_,_) -> true
   | _ -> false
 
-let rec pp_term ppf tm =
+let rec pp_term_gen ?si:(si=false) ppf tm =
+  let ppt = pp_term_gen ~si:si in 
   match tm with
   | VarT i -> int ppf i
   | TopT nm -> string ppf nm
   | LamT (nm,Impl,t) ->
-    pf ppf "\\{%s}. %a" nm pp_term t
+    pf ppf "\\{%s}. %a" nm ppt t
   | LamT (nm,Expl,t) ->
-    pf ppf "\\%s. %a" nm pp_term t
-  | AppT (u,_,Impl) ->
-    (* pf ppf "%a {%a}" pp_term u pp_term v *)
-    pf ppf "%a" pp_term u
+    pf ppf "\\%s. %a" nm ppt t
+  | AppT (u,v,Impl) ->
+    if si then
+      pf ppf "%a {%a}" ppt u ppt v
+    else
+      pf ppf "%a" ppt u
   | AppT (u,v,Expl) ->
     (* Need's a generic lookahead for parens routine ... *)
     let pp_v = if (is_app_tm v) then
-        parens pp_term
-      else pp_term in
-    pf ppf "%a %a" pp_term u pp_v v
+        parens ppt
+      else ppt in
+    pf ppf "%a@;%a" ppt u pp_v v
   | PiT (nm,Impl,a,p) ->
-    pf ppf "{%s : %a} -> %a" nm
-      pp_term a pp_term p
+    pf ppf "{%s : %a}@;-> %a" nm
+      ppt a ppt p
   | PiT (nm,Expl,a,p) when Poly.(=) nm "" ->
     let pp_a = if (is_pi_tm a) then
-        parens pp_term
-      else pp_term in
-    pf ppf "%a -> %a"
-      pp_a a pp_term p
+        parens ppt
+      else ppt in
+    pf ppf "%a@;-> %a"
+      pp_a a ppt p
   | PiT (nm,Expl,a,p) ->
-    pf ppf "(%s : %a) -> %a" nm
-      pp_term a pp_term p
+    pf ppf "(%s : %a)@;-> %a" nm
+      ppt a ppt p
   | MetaT _ -> pf ppf "_"
   (* Again, misses some implicit information ... *)
   | InsMetaT _ -> pf ppf "*_*"
@@ -200,10 +203,11 @@ let rec pp_term ppf tm =
 
   | CatT -> pf ppf "Cat"
   | ObjT c ->
-    pf ppf "[%a]" pp_term c
-  | HomT (c,s,t) ->
-    pf ppf "@[%a@] |@, @[%a => %a@]" pp_term c pp_term s pp_term t
-  | ArrT c -> pf ppf "Arr %a" pp_term c
+    pf ppf "[%a]" ppt c
+  | HomT (_,s,t) ->
+    (* pf ppf "@[%a@] |@, @[%a => %a@]" ppt c ppt s ppt t *)
+    pf ppf "@[%a@] =>@;@[%a@]" ppt s ppt t
+  | ArrT c -> pf ppf "Arr %a" ppt c
 
   | UCompT (UnitPd pd) ->
     pf ppf "ucomp [ %a ]" pp_tr pd
@@ -213,18 +217,21 @@ let rec pp_term ppf tm =
   | CohT ((cn,_),pd,c,s,t) ->
     pf ppf "@[coh [ %s @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] ]@]" cn
       (pp_pd string) (map_pd pd ~f:fst)
-      pp_term c pp_term s pp_term t
+      ppt c ppt s ppt t
 
   | CylCohT ((cn,_),pd,c,s,t) ->
     pf ppf "@[cylcoh [ %s @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] ]@]" cn
       (pp_pd string) (map_pd pd ~f:fst)
-      pp_term c (pp_disc pp_term) s (pp_disc pp_term) t
+      ppt c (pp_disc ppt) s (pp_disc ppt) t
 
-  | BaseT c -> pf ppf "base %a" pp_term c
-  | LidT c -> pf ppf "lid %a" pp_term c
-  | CoreT c -> pf ppf "core %a" pp_term c
+  | BaseT c -> pf ppf "base %a" ppt c
+  | LidT c -> pf ppf "lid %a" ppt c
+  | CoreT c -> pf ppf "core %a" ppt c
   | CylT (b,l,c) ->
-    pf ppf "[| %a | %a | %a |]" pp_term b pp_term l pp_term c
+    pf ppf "[| %a | %a | %a |]" ppt b ppt l ppt c
+
+
+let pp_term = pp_term_gen ~si:false
 
 (*****************************************************************************)
 (*                               Free Variables                              *)
@@ -260,6 +267,48 @@ let rec free_vars k tm =
   | MetaT _ -> fvs_empty
   | InsMetaT _ -> fvs_empty
 
+
+(*****************************************************************************)
+(*                            Simple Substitutions                           *)
+(*****************************************************************************)
+
+let rec simple_sub (k : lvl) (tm : term) (sub : term option suite) : term =
+  let ss u = simple_sub k u sub in 
+  match tm with 
+  | VarT i when i >= k ->
+    begin match db_get (i - k) sub with
+      | Some t -> t
+      | None -> failwith (Fmt.str "undefined term in sub (i=%d) (k=%d)" i k)
+    end
+  | VarT i -> VarT i
+  | TopT nm -> TopT nm
+  | LamT (nm,ict,bdy) ->
+    let bdy' = simple_sub (k+1) bdy sub in 
+    LamT (nm,ict,bdy')
+  | AppT (u,v,ict) ->
+    AppT (ss u, ss v, ict)
+  | PiT (nm,ict,a,b) ->
+    let b' = simple_sub (k+1) b sub in 
+    PiT (nm,ict,ss a,b')
+  | ObjT c -> ObjT (ss c)
+  | HomT (c,s,t) ->
+    HomT (ss c, ss s, ss t)
+  | UCompT ud -> UCompT ud
+  | CohT (cn,pd,c,s,t) ->
+    CohT (cn,pd,c,s,t)
+  | CylCohT (cn,pd,c,s,t) -> 
+    CylCohT (cn,pd,c,s,t)
+  | CylT (b,l,c) ->
+    CylT (ss b, ss l, ss c)
+  | BaseT c -> BaseT (ss c)
+  | LidT c -> LidT (ss c)
+  | CoreT c -> CoreT (ss c)
+  | ArrT c -> ArrT (ss c)
+  | CatT -> CatT
+  | TypT -> TypT
+  | MetaT m -> MetaT m
+  | InsMetaT m -> InsMetaT m
+
 (*****************************************************************************)
 (*                             Term Pd Conversion                            *)
 (*****************************************************************************)
@@ -285,8 +334,45 @@ module TermPdSyntax = struct
   let lift i t = db_lift_by 0 i t
   let var k l _ = VarT (lvl_to_idx k l)
 
-  let pp_dbg = pp_term
+  let pp_dbg = pp_term 
 
+  let strengthen (src: bool) (dim : int) (pd : 'a pd) : term -> term =
+    
+    let bpd = Pd.truncate src dim pd in
+    let blvl = pd_length bpd in
+    
+    (* log_msg "-------------------";
+     * log_msg "strengthening ...";
+     * log_val "pd" pd Pd.pp_tr;
+     * log_val "bpd" bpd Pd.pp_tr;
+     * log_val "blvl" blvl Fmt.int; *)
+    
+    let sub = Pd.fold_pd_with_type pd (Ext (Emp, Some (VarT blvl)) , blvl - 1)
+        (fun _ ty (s,i) ->
+           let incld = (Ext (s,Some (VarT i)),i-1) in 
+           let excld = (Ext (s,None),i) in
+           match ty with
+           | SrcCell d ->
+             if src then 
+               (if (d > dim) then excld else incld)
+             else
+               (if (d < dim) then incld else excld)
+           | TgtCell d ->
+             if src then 
+               (if (d < dim) then incld else excld)
+             else
+               (if (d > dim) then excld else incld)
+           | IntCell d ->
+             if (d < dim) then incld else excld
+           | LocMaxCell d ->
+             if (d <= dim) then incld else excld
+        ) in 
+
+    (* log_val "sub" (fst sub) (pp_suite (Fmt.option ~none:(any "*") pp_term));
+     * log_msg "-------------------"; *)
+      
+    fun tm -> simple_sub 0 tm (fst sub)
+  
 end
 
 module TermPdUtil = PdUtil(TermPdSyntax)
@@ -328,7 +414,7 @@ module TermSyntax = struct
   include TermCylSyntax
   let lam nm ict bdy = LamT (nm,ict,bdy)
   let pi nm ict dom cod = PiT (nm,ict,dom,cod)
-  let pp_s = pp_term
+  let pp_s = pp_term 
 end
 
 module TermUtil = struct
@@ -342,3 +428,6 @@ let term_str_ucomp (c : string) (pd : string pd) : term =
 
 let term_ucomp (pd : 'a pd) : term =
   TermUtil.gen_ucomp pd
+
+
+

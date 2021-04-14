@@ -24,6 +24,16 @@ type 'a cyl = 'a cyl_typ * 'a blc
 type 'a susp_cyl_typ = 'a sph * ('a blc * 'a blc) list
 type 'a susp_cyl = 'a susp_cyl_typ * 'a blc
 
+let pp_blc pp_el ppf (b,l,c) = 
+  Fmt.pf ppf "(@[%a@]@;,@[%a@]@;,@[%a@])"
+    pp_el b pp_el l pp_el c
+    
+let pp_susp_cyl_typ pp_el ppf (bsph,ct) =
+  Fmt.pf ppf "@[<hov> @[%a@]@]@;| @[<hov>%a@]"
+    (pp_sph pp_el) bsph
+    (Fmt.list (Fmt.pair ~sep:(Fmt.any " => ")
+                 (pp_blc pp_el) (pp_blc pp_el))) ct
+
 let base_sph (ct : 'a cyl_typ) : 'a sph =
   map_suite ct ~f:(fun ((src,_,_),(tgt,_,_)) -> (src,tgt))
 
@@ -46,6 +56,11 @@ let sharp ((sph,ct) : 'a susp_cyl_typ) : 'a disc =
   | [] -> failwith "empty on sharp"
   | (_,(tb,tl,tc))::_ -> (sph |> (tb,tl) , tc)
 
+let map_cyl_bdry (b : ('a blc * 'a blc) list) ~f:(f : 'a -> 'b) =
+  let f' ((sb,sl,sc),(tb,tl,tc)) =
+    ((f sb, f sl, f sc), (f tb, f tl, f tc)) in 
+  List.map b ~f:f'
+  
 (* Folding over lists with three parameters. *)
 let rec fold3 a b c init f =
   match (a,b,c) with
@@ -53,7 +68,6 @@ let rec fold3 a b c init f =
   | (x::a',y::b',z::c') ->
     fold3 a' b' c' (f init x y z) f
   | _ -> failwith "unequal fold3"
-
 
 module CylinderOps(C : CylinderSyntax) = struct
 
@@ -177,85 +191,106 @@ module CylinderCoh(Syn: Syntax) = struct
   (*                           Cylinder Coherences                           *)
   (***************************************************************************)
 
-  (* Okay.  I think I'm starting to see the problem. And it's a bit
-     nasty.  We start of with a description of the various boundaries
-     of the main terms we would like to create the cylinder for.  And
-     hence these expressions all take place in the outermost context.
-     In particular, they refer to lower dimensional variables by their
-     position in the higher dimensional context.
-
-     Hence when we recurse, possibly truncating the pasting diagram,
-     these expressions need to now refer to the variables in the new
-     locations.
-
-     And the point of the fullness check was to make sure that these
-     terms really are valid in those contexts.  But when we write the
-     coherence term, we really definitely need to fix this first.
-
-     Ok.  Well, at least you understand the problem, although I don't
-     see immediately how you are going to fix this .... yikes.
-
-  *)
-
-  let rec cylcoh_susp (cn : nm_ict) (pd : nm_ict pd) (c : s)
+  let cylcoh_susp (cn : nm_ict) (pd : nm_ict pd) (c : s)
       (bsph : s sph) ((ssph,s) : s disc) ((tsph,t) : s disc) : s susp_cyl =
 
-    match (ssph,tsph) with
-    | (Emp,Emp) ->
+    (* log_msg "in cylcoh_susp"; *)
 
-      let tl = nm_ict_pd_to_tele cn pd in
+    let args = nm_ict_args_pd pd in
+    let bdim = length bsph in
+    
+    (* log_val "args" (ext_args args)
+     *   (pp_suite
+     *      (fun ppf (arg,ict) ->
+     *         Fmt.pf ppf "(%a,%a)" pp_s arg pp_ict ict)); *)
+    
+    (* log_val "bsph" bsph (pp_sph pp_s);
+     * 
+     * log_val "s" s pp_s;
+     * log_val "t" t pp_s; *)
+    
+    let go_fold (ct,k) ((ss,st),(ts,tt)) =
 
-      Fmt.pr "@[<v>pd: @[%a@]@,@]" (pp_tele pp_s) tl;
-      Fmt.pr "@[<v>s: @[%a@]@,t: @[%a@]@,@]" pp_s s pp_s t;
+      let ext_args arg_pd =
+        fold_pd_lf_nd arg_pd (Ext (Emp,(c,Impl)))
+          ~lf:(fun args (_,_,arg) -> Ext (args,(arg,Expl)))
+          ~nd:(fun args (_,_,arg) -> Ext (args,(arg,Impl))) in 
+      
+      (* let lg s x p = log_val ~idt:(k*2) s x p in *)
+      let tdim = bdim + k in
 
-      let args = pd_nm_ict_args cn pd in
-      let cc = sph_to_cat c bsph in
-      let coh_tm = app_args (coh cn pd cc s t) args in
-      ((bsph, []), (s, t, coh_tm))
+      (* lg "ss" ss pp_s;
+       * lg "st" st pp_s;
+       * lg "ts" ts pp_s;
+       * lg "tt" tt pp_s; *)
+      
+      let src_sub = strengthen true tdim pd in 
+      let tgt_sub = strengthen false tdim pd in
+      let str_bsph = map_suite bsph
+          ~f:(fun (s,t) -> (src_sub s, tgt_sub t)) in
+      
+      let src_ct = map_cyl_bdry ct ~f:src_sub in
+      let ss' = src_sub ss in
+      let ts' = src_sub ts in
+      let src_c = src_sub c in
+      let ((src_cc,_),sb,sl) = iter_advance src_c (str_bsph , src_ct) ss' ts' k in
+      let src_pd = pd_ict_canon (truncate true tdim pd) in
+      let sc_coh = coh cn src_pd (sph_to_cat src_c src_cc) sb sl in
+      let sc_args = ext_args (truncate true tdim args) in
 
-    | (Ext (ssph',(ss,st)), Ext (tsph',(ts,tt))) ->
+      (* lg "sc_coh" sc_coh pp_s;
+       * lg "sc_args" sc_args
+       *   (pp_suite (fun ppf (a,ict) -> 
+       *        match ict with
+       *        | Impl -> Fmt.pf ppf "{%a}" pp_s a
+       *        | Expl -> Fmt.pf ppf "%a" pp_s a 
+       *      )); *)
+        
+      let sc = app_args sc_coh sc_args in 
 
-      let tl = nm_ict_pd_to_tele cn pd in
+      let tgt_ct = map_cyl_bdry ct ~f:tgt_sub in
+      let st' = tgt_sub st in
+      let tt' = tgt_sub tt in 
+      let tgt_c = tgt_sub c in 
+      let ((tgt_cc,_),tb,tl) = iter_advance tgt_c (str_bsph , tgt_ct) st' tt' k in 
+      let tgt_pd = pd_ict_canon (truncate false tdim pd) in
+      let tc_coh = coh cn tgt_pd (sph_to_cat tgt_c tgt_cc) tb tl in
+      let tc_args = ext_args (truncate false tdim args) in
 
-      Fmt.pr "@[<v>pd: @[%a@]@,@]" (pp_tele pp_s) tl;
-      Fmt.pr "@[<v>ss: @[%a@]@,st: @[%a@]@,ts: @[%a@]@,tt: @[%a@]@,@]"
-        pp_s ss pp_s st pp_s ts pp_s tt ;
+      (* lg "tc_coh" tc_coh pp_s;
+       * lg "tc_args" tc_args
+       *   (pp_suite (fun ppf (a,ict) -> 
+       *        match ict with
+       *        | Impl -> Fmt.pf ppf "{%a}" pp_s a
+       *        | Expl -> Fmt.pf ppf "%a" pp_s a 
+       *      )); *)
+      
+      let tc = app_args tc_coh tc_args in 
+      
+      (List.append ct [((ss,ts,sc),(st,tt,tc))], k+1)
+  
+    in
+    
+    let lst = match List.zip (to_list ssph) (to_list tsph) with
+      | Ok l -> l
+      | _ -> failwith "unequal sphere dimensions" in
+    
+    let (ct,k) = List.fold lst ~init:([], 0) ~f:go_fold in
 
-      let d = dim_pd pd in
-      let cd = length bsph + length ssph in
-
-      Fmt.pr "@[<v>d: %d@,cd: %d@,@]" d cd;
-
-      let src_pd = if (cd < d) then
-          pd_ict_canon (truncate true cd pd)
-        else pd in
-
-      let tgt_pd = if (cd < d) then
-          pd_ict_canon (truncate false cd pd)
-        else pd in
-
-      Fmt.pr "@[<v>src_pd: @[%a@]@,@]" (pp_pd pp_nm_ict) src_pd;
-      Fmt.pr "@[<v>tgt_pd: @[%a@]@,@]" (pp_pd pp_nm_ict) tgt_pd;
-
-      let ((_,ct),(sb,sl,sc)) = cylcoh_susp cn src_pd c bsph (ssph',ss) (tsph',ts) in
-      let ((_,_ ),(tb,tl,tc)) = cylcoh_susp cn tgt_pd c bsph (ssph',st) (tsph',tt) in
-
-      (* Super yucky inefficient. *)
-      let ct' = List.append ct [(sb,sl,sc),(tb,tl,tc)] in
-      let ((coh_sph,_),b,l) = iter_advance c (bsph,ct') s t (List.length ct') in
-      let cc = sph_to_cat c coh_sph in
-      let coh_tm = coh cn pd cc b l in
-      let coh_tm_with_args = app_args coh_tm (pd_nm_ict_args cn pd) in
-
-      Fmt.pr "@[<v>coh_tm_wargs: @[%a@]@,@]" pp_s coh_tm_with_args;
-
-      ((bsph,ct'),(s,t,coh_tm_with_args))
-
-    | _ -> failwith "cylcoh dimension error"
+    let ((top_cc,_),b,l) = iter_advance c (bsph , ct) s t k in
+    let top_coh = coh cn pd (sph_to_cat c top_cc) b l in
+    let top_args = pd_nm_ict_args cn pd in 
+    let top = app_args top_coh top_args in 
+    
+    ((bsph,ct),(s,t,top))
 
   let cylcoh_impl cn pd c s t =
     let (bc, sph) = match_homs c in
     let (ct,(b,l,cr)) = cylcoh_susp cn pd bc sph s t in
+    (* log_val "ct" ct (pp_susp_cyl_typ pp_s);
+     * log_val "b" b pp_s;
+     * log_val "l" l pp_s;
+     * log_val "cr" cr pp_s; *)
     let cyl_typ = cyl_to_cat bc ct in
     let g = nm_ict_pd_to_tele cn pd in
     abstract_tele_with_type g (obj cyl_typ) (cyl b l cr)

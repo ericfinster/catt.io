@@ -24,6 +24,8 @@ let idx_pd pd =
   map_pd_lvls pd 0
     ~f:(fun k l _ _ -> lvl_to_idx k l)
 
+type perm = (lvl,lvl,Int.comparator_witness) Map.t
+
 type icit =
   | Impl
   | Expl
@@ -55,7 +57,19 @@ let ucmp_pd uc =
   match uc with
   | UnitPd pd -> pd
   | DimSeq ds -> comp_seq ds 
+
+(*****************************************************************************)
+(*                             Logging functions                             *)
+(*****************************************************************************)
+
+let log_msg ?idt:(i=0) (s : string) =
+  let indt = String.make i ' ' in 
+  Fmt.pr "@[<v>%s@,@]" (indt ^ s)
     
+let log_val ?idt:(i=0) (s : string) (a : 'a) (pp : 'a Fmt.t) =
+  let indt = String.make i ' ' in 
+  Fmt.pr "@[<v>%s: @[%a@]@,@]" (indt ^ s) pp a
+
 (*****************************************************************************)
 (*                                 Telescopes                                *)
 (*****************************************************************************)
@@ -90,6 +104,8 @@ module type PdSyntax = sig
   val lift : int -> s -> s
   val var : lvl -> lvl -> name -> s
 
+  val strengthen : bool -> int -> 'a pd -> s -> s
+  
   val pp_dbg : s Fmt.t
   
 end
@@ -255,11 +271,15 @@ module PdUtil(P : PdSyntax) = struct
     Pd.map_pd_lvls pd 0
       ~f:(fun k l _ _ -> var (k+1) (l+1) (nm_lvl (l+1)))
 
+  let nm_ict_args_pd pd =
+    Pd.map_pd_lvls pd 0
+      ~f:(fun k l _ (nm,ict) -> (nm, ict, var (k+1) (l+1) nm))
+  
   let pd_nm_ict_args (cn,ci) pd =
     let k = Pd.pd_length pd + 1 in 
-    Pd.fold_pd_lvls pd ~off:1 (Ext (Emp,(ci,var k 0 cn)))
-      ~f:(fun _ l _ (nm,ict) args -> Ext (args,(ict,var k l nm)))
-
+    Pd.fold_pd_lvls pd ~off:1 (Ext (Emp,(var k 0 cn,ci)))
+      ~f:(fun _ l _ (nm,ict) args -> Ext (args,(var k l nm,ict)))
+  
   let pd_ict_canon pd =
     map_pd_lf_nd pd
       ~lf:(fun (nm,_) -> (nm,Expl))
@@ -274,9 +294,9 @@ end
 
 (* This is a kind of orphan now.... *)
 let pd_args cat pd =
-  Pd.fold_pd_lf_nd pd (Ext (Emp,(Impl,cat)))
-    ~lf:(fun args arg -> Ext (args,(Expl,arg)))
-    ~nd:(fun args arg -> Ext (args,(Impl,arg)))
+  Pd.fold_pd_lf_nd pd (Ext (Emp,(cat,Impl)))
+    ~lf:(fun args arg -> Ext (args,(arg,Expl)))
+    ~nd:(fun args arg -> Ext (args,(arg,Impl)))
 
 (*****************************************************************************)
 (*                                 Coherences                                *)
@@ -295,7 +315,7 @@ module CohUtil(C : CohSyntax) = struct
 
   let app_args t args =
     fold_left args t
-      (fun t' (ict,arg) -> app t' arg ict) 
+      (fun t' (arg,ict) -> app t' arg ict) 
   
   (* Unbiased composition coherence *)
   let rec ucomp_coh (cn : nm_ict) (pd : nm_ict pd) : s =
@@ -336,7 +356,7 @@ module CohUtil(C : CohSyntax) = struct
 
   let gen_ucomp (pd : 'a pd) : s =
     ucomp_coh ("C",Impl) (fresh_pd pd)
-      
+
 end
 
 (*****************************************************************************)
@@ -373,9 +393,9 @@ module SyntaxUtil(Syn : Syntax) = struct
   include PdUtil(Syn)
 
   (* Utility Routines *)
-  let app_args t args =
-    fold_left args t
-      (fun t' (ict,arg) -> app t' arg ict) 
+  (* let app_args t args =
+   *   fold_left args t
+   *     (fun t' (arg,ict) -> app t' arg ict)  *)
 
   let id_sub t =
     let k = length t in

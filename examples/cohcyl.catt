@@ -58,7 +58,7 @@ cylcoh ichg_coh {C : Cat}
              {g :: x => y} {a :: f => g}
                            {b :: f => g}  (m :: a => b)
              {h :: x => y} (c :: g => h)
-    {z :: C} (i :: y => z) : 
+    {z :: C} (i :: y => z) : C | x => z | 
   ucomp [ 1 0 1 ] f i =>
   ucomp [ 1 0 1 ] h i
     |> ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] a c) i =>
@@ -236,4 +236,3 @@ cylcoh ichg_coh {C : Cat}
 #        ] m c i
 # |]
 
-  

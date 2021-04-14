@@ -138,6 +138,18 @@ type typing_error = [
   | `InternalError
 ]
 
+let pp_error ppf e =
+  match e with
+  | `NameNotInScope nm -> Fmt.pf ppf "Name not in scope: %s" nm
+  | `TypeMismatch msg -> Fmt.pf ppf "%s" msg  
+  | `PastingError msg -> Fmt.pf ppf "Error while checking pasting context: %s" msg
+  | `FullnessError msg -> Fmt.pf ppf "Fullness error: %s" msg 
+  | `IcityMismatch (_, _) -> Fmt.pf ppf "Icity mismatch"
+  | `BadCohQuot msg -> Fmt.pf ppf "%s" msg 
+  | `NotImplemented f -> Fmt.pf ppf "Feature not implemented: %s" f
+  | `InvalidCylinder msg -> Fmt.pf ppf "Invalid cylinder: %s" msg 
+  | `InternalError -> Fmt.pf ppf "Internal Error"
+
 let rec check gma expr typ =
   (* let typ_tm = quote false gma.lvl typ in
    * let typ_expr = term_to_expr (names gma) typ_tm in
@@ -178,10 +190,13 @@ let rec check gma expr typ =
 
   | (CylE (b,l,c) , ObjV cat) ->
     begin match value_to_cyl_typ cat with
-     | Error _ -> switch expr (ObjV cat)
+     | Error _ -> log_msg "switching in cylinder" ; switch expr (ObjV cat)
      | Ok (bc,ct) ->
        let module C = ValueCyl in
 
+       (* log_msg "checking cylinder";
+        * log_val "bc" bc pp_value; *)
+       
        let btyp = ObjV (C.sph_to_cat bc (base_sph ct)) in
        let ltyp = ObjV (C.sph_to_cat bc (lid_sph ct)) in
 
@@ -193,8 +208,12 @@ let rec check gma expr typ =
 
        let bv = eval gma.top gma.loc bt in
        let lv = eval gma.top gma.loc lt in
-       let ctyp = ObjV (C.sph_to_cat bc
-                          (C.core_sph bc (Emp,to_list ct) bv lv)) in
+
+       (* we "desuspend" so that all coherences are taken as low as
+          possible *)
+       let (bbc,bsph) = C.match_homs bc in 
+       let ctyp = ObjV (C.sph_to_cat bbc
+                          (C.core_sph bbc (bsph,to_list ct) bv lv)) in
 
        (* pr "@[core typ: %a@]@," pp_value ctyp; *)
 
@@ -447,9 +466,13 @@ and check_coh gma g c s t =
               let tot_tgt_vars = Set.union cat_vars tgt_vars in
 
               if (not (Set.is_subset pd_src_vars ~of_:tot_src_vars)) then
-                Error (`FullnessError "non-full source")
+                let msg = Fmt.str "@[<v>Non-full source:@,pd: @[%a@]@,src: @[%a@]@,"
+                    (pp_tele pp_expr) g pp_expr s in 
+                Error (`FullnessError msg)
               else if (not (Set.is_subset pd_tgt_vars ~of_:tot_tgt_vars)) then
-                Error (`FullnessError "non-full target")
+                let msg = Fmt.str "@[<v>Non-full target:@,pd: @[%a@]@,tgt: @[%a@]@,"
+                    (pp_tele pp_expr) g pp_expr t in 
+                Error (`FullnessError msg)
               else Ok (tl,cn,pd,c',s',t')
 
           with Unify_error _ -> Error (`FullnessError "invalid base category") end
@@ -531,7 +554,6 @@ and check_cyl_coh gma g c (ssph,s) (tsph,t) =
               let pd_src = Pd.truncate true (pd_dim - 1) ipd in
               let pd_tgt = Pd.truncate false (pd_dim - 1) ipd in
 
-
               let pd_src_vars = Pd.fold_pd pd_src (fvs_singleton cat_idx)
                   ~f:(fun vs i -> Set.add vs i) in
               let pd_tgt_vars = Pd.fold_pd pd_tgt (fvs_singleton cat_idx)
@@ -585,17 +607,23 @@ let rec check_defs gma defs =
     pr "----------------@,";
     pr "Checking cylinder coherence: %s@," id;
     let* (_,cn,pd,ct,(ssph,s),(tsph,t)) = check_cyl_coh gma g c s t in
-    (* pr "@[<v>ct: @[%a@]@,sdsc: @[%a@]@,tdsc: @[%a@]@,@]"
-     *   pp_term ct (Pd.pp_disc pp_term) (ssph,s) (Pd.pp_disc pp_term) (tsph,t); *)
     let cctt = TermCylCoh.cyl_coh_typ cn pd ct (ssph,s) (tsph,t) in
-    (* pr "cylinder type: %a@," pp_expr (term_to_expr Emp cctt); *)
     let cyl_ctm = eval gma.top gma.loc
         (CylCohT (cn,pd,ct,(ssph,s),(tsph,t))) in
     let cyl_cty = eval gma.top gma.loc cctt in
     let cyl_cty_nf = term_to_expr Emp (quote false gma.lvl cyl_cty) in
     let cyl_nf = term_to_expr Emp (quote false gma.lvl cyl_ctm) in
-    pr "@[<v>Cylcoh type: @[%a@]@,@]" pp_expr cyl_cty_nf;
+    pr "@[<v>Cylcoh type: @[%a@]@,@]" pp_expr_with_impl cyl_cty_nf;
     pr "@[<v>Cylcoh expr: @[%a@]@,@]" pp_expr cyl_nf;
+    let* _ = check gma cyl_cty_nf TypV in
+    log_msg "Type is valid ..."; 
     let* _ = check gma cyl_nf cyl_cty in
-    pr "@[<v>Rechecking succeeded!@,@]";
+    log_msg "Rechecking succeeded!";
     check_defs (define gma id cyl_ctm cyl_cty) ds
+
+let run_tc m =
+  match m with 
+  | Ok _ ->
+    Fmt.pr "@[<v>----------------@,Success!@,@,@]"
+  | Error err ->
+    Fmt.pr "@,Typing error: @,@,%a@,@," pp_error err

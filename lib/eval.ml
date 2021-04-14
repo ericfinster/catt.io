@@ -265,6 +265,8 @@ module ValuePdSyntax = struct
   let lift _ v = v
   let var _ l _ = RigidV (l,EmpSp)
 
+  let strengthen _ _ _ _ =
+    failwith "value strengthening not implemented"
 
   let pp_dbg = pp_value
 
