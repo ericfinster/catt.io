@@ -71,8 +71,8 @@ let rename m pren v =
     | ObjV c -> ObjT (go pr c)
     | HomV (c,s,t) -> HomT (go pr c, go pr s, go pr t)
 
-    | UCompV (_,cohv,sp) ->
-      goSp pr (go pr cohv) sp
+    | UCompV (_,cohv,_) ->
+       go pr cohv
     (* | CohV (v,sp) ->
      *   let pi_tm = go pr v in
      *   let (g,a) = pi_to_tele pi_tm in
@@ -209,11 +209,11 @@ let rec unify stgy top l t u =
 
   | (CohV (_,pd,_,_,_,_) , CohV (_,pd',_,_,_,_)) ->
     let msg = Fmt.str "@[%a@]@;=/= @[%a@]"
-        (Pd.pp_pd pp_nm_ict) pd (Pd.pp_pd pp_nm_ict) pd' in 
+        (Pd.pp_pd pp_nm_ict) pd (Pd.pp_pd pp_nm_ict) pd' in
     raise (Unify_error msg)
 
-  | (UCompV (_,cohv,sp), UCompV (_,cohv',sp')) when isUnfoldAll stgy ->
-    unify UnfoldAll top l (runSpV cohv sp) (runSpV cohv' sp')
+  | (UCompV (_,cohv,_), UCompV (_,cohv',_)) when isUnfoldAll stgy ->
+    unify UnfoldAll top l cohv cohv'
   | (UCompV (uc,_,sp), UCompV (uc',_,sp')) when isUnfoldNone stgy ->
     if (Poly.(=) (ucmp_pd uc) (ucmp_pd uc')) then
       unifySp UnfoldNone top l sp sp'
@@ -221,23 +221,23 @@ let rec unify stgy top l t u =
   | (UCompV (uc,cohv,sp), UCompV (uc',cohv',sp')) when isOneShot stgy ->
     if (Poly.(=) (ucmp_pd uc) (ucmp_pd uc')) then
       (try unifySp UnfoldNone top l sp sp'
-       with Unify_error _ -> log_msg "caught" ; unify UnfoldAll top l
-                               (runSpV cohv sp) (runSpV cohv' sp'))
-    else unify UnfoldAll top l (runSpV cohv sp) (runSpV cohv' sp')
+       with Unify_error _ -> log_msg "caught" ;
+                             unify UnfoldAll top l cohv cohv')
+    else unify UnfoldAll top l cohv cohv'
 
   | (UCompV (_,_,_), _) when isUnfoldNone stgy ->
     raise (Unify_error "refusing to unfold unbiased comp")
-  | (UCompV (_,cohv,sp), t) ->
+  | (UCompV (_,cohv,_), t) ->
     (* pr "unify ucomp left"; *)
-    unify stgy top l (runSpV cohv sp) t
+    unify stgy top l cohv t
 
   | (_, UCompV (_,_,_)) when isUnfoldNone stgy ->
     raise (Unify_error "refusing to unfold unbiased comp")
-  | (t, UCompV (_,cohv,sp)) ->
+  | (t, UCompV (_,cohv,_)) ->
     (* pr "unify ucomp right\n";
      * pr "t: @[%a@]\n" pp_value t;
      * pr "rcs: @[%a@]\n" pp_value (runSpV cohv sp); *)
-    unify stgy top l t (runSpV cohv sp)
+    unify stgy top l t cohv
 
   | (tm,um) ->
     let msg = str "Failed to unify: %a =/= %a"
