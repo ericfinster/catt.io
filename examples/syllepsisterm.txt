@@ -1,0 +1,948 @@
+\{C}. \{x}. \a. \b. coh [ C (u(x(f(a)g)y)v(s(h(b)k)t)w) :
+                          coh [ C (x1(x3(x5(m(p)x7(t2)x7(t4)x7)x6)x4)x2) :
+                               m => x7]
+                           (coh [ C (x(f(a(m)b(n)c(n)c)g)y) : a => c]
+                             (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                               (coh [ C (x(f(a)g)y(h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f h =>
+                                     coh [ C (x(f)y(g)z) : x => z] g h]
+                                 f s)
+                               (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f c =>
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f d]
+                                 y b))
+                             (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                               (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h =>
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      b h]
+                                 a s)
+                               (coh [ C (x(f)y(g(a)h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f g =>
+                                     coh [ C (x(f)y(g)z) : x => z] f h]
+                                 y k))
+                             (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h)
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      g b) =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f b)
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a k)]
+                               g k))
+                           (coh [ C (x(f(a(m(q)o)b(n)c)g)y) :
+                                 coh [ C (x(f(a(m)b(n)c)g)y) : a => c] m n =>
+                                 coh [ C (x(f(a(m)b(n)c)g)y) : a => c] o n]
+                             (coh [ C (u(x(f(a)g)y(h(b)k)z)v) :
+                                   coh [ C (x(f(a(m)b(n)c)g)y) : a => c]
+                                    (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                                      a h)
+                                    (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                                      g b) =>
+                                   coh [ C (x(f(a(m)b(n)c)g)y) : a => c]
+                                    (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                                      f b)
+                                    (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                                      a k)]
+                               (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h =>
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      b h]
+                                 a s)
+                               (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f c =>
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f d]
+                                 y b))
+                             (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h)
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      g b) =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f b)
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a k)]
+                               g k))
+                           (coh [ C (x(f(a(m)a(m)b(n)c)g)y) : a => c]
+                             (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                               (coh [ C (x(f(a)g)y(h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f h =>
+                                     coh [ C (x(f)y(g)z) : x => z] g h]
+                                 f s)
+                               (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f c =>
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f d]
+                                 y b))
+                             (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h)
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      g b) =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f b)
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a k)]
+                               f k)
+                             (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                               (coh [ C (x(f)y(g(a)h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f g =>
+                                     coh [ C (x(f)y(g)z) : x => z] f h]
+                                 x k)
+                               (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h =>
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      b h]
+                                 a t)))
+                           (coh [ C (x(f(a(m)b(n(q)o)c)g)y) :
+                                 coh [ C (x(f(a(m)b(n)c)g)y) : a => c] m n =>
+                                 coh [ C (x(f(a(m)b(n)c)g)y) : a => c] m o]
+                             (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                               (coh [ C (x(f(a)g)y(h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f h =>
+                                     coh [ C (x(f)y(g)z) : x => z] g h]
+                                 f s)
+                               (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f c =>
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f d]
+                                 y b))
+                             (coh [ C (u(x(f(a)g)y)v(s(k)t)w) :
+                                   coh [ C (x(f(a(m)b(n)c)g)y) : a => c]
+                                    (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                                      (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                            coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a h =>
+                                            coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             b h]
+                                        a s)
+                                      (coh [ C (x(f)y(g(a)h)z) :
+                                            coh [ C (x(f)y(g)z) : x => z] f g =>
+                                            coh [ C (x(f)y(g)z) : x => z] f h]
+                                        y k))
+                                    (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a h)
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             g b) =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f b)
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a k)]
+                                      g k) =>
+                                   coh [ C (x(f(a(m)b(n)c)g)y) : a => c]
+                                    (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a h)
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             g b) =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f b)
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a k)]
+                                      f k)
+                                    (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                                      (coh [ C (x(f)y(g(a)h)z) :
+                                            coh [ C (x(f)y(g)z) : x => z] f g =>
+                                            coh [ C (x(f)y(g)z) : x => z] f h]
+                                        x k)
+                                      (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                            coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a h =>
+                                            coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             b h]
+                                        a t))]
+                               a k))
+                           (coh [ C (x(f(a(m)b(n)c(n)c)g)y) : a => c]
+                             (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h)
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      g b) =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f b)
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a k)]
+                               f h)
+                             (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                               (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f c =>
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f d]
+                                 x b)
+                               (coh [ C (x(f(a)g)y(h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f h =>
+                                     coh [ C (x(f)y(g)z) : x => z] g h]
+                                 f t))
+                             (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                               (coh [ C (x(f)y(g(a)h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f g =>
+                                     coh [ C (x(f)y(g)z) : x => z] f h]
+                                 x k)
+                               (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h =>
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      b h]
+                                 a t)))
+                           (coh [ C (x(f(a(m(q)o)b(n)c)g)y) :
+                                 coh [ C (x(f(a(m)b(n)c)g)y) : a => c] m n =>
+                                 coh [ C (x(f(a(m)b(n)c)g)y) : a => c] o n]
+                             (coh [ C (u(x(f)y)v(s(h(b)k)t)w) :
+                                   coh [ C (x(f(a(m)b(n)c)g)y) : a => c]
+                                    (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                                      (coh [ C (x(f(a)g)y(h)z) :
+                                            coh [ C (x(f)y(g)z) : x => z] f h =>
+                                            coh [ C (x(f)y(g)z) : x => z] g h]
+                                        f s)
+                                      (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                            coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f c =>
+                                            coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f d]
+                                        y b))
+                                    (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a h)
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             g b) =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f b)
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a k)]
+                                      f k) =>
+                                   coh [ C (x(f(a(m)b(n)c)g)y) : a => c]
+                                    (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a h)
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             g b) =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f b)
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a k)]
+                                      f h)
+                                    (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                                      (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                            coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f c =>
+                                            coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f d]
+                                        x b)
+                                      (coh [ C (x(f(a)g)y(h)z) :
+                                            coh [ C (x(f)y(g)z) : x => z] f h =>
+                                            coh [ C (x(f)y(g)z) : x => z] g h]
+                                        f t))]
+                               f b)
+                             (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                               (coh [ C (x(f)y(g(a)h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f g =>
+                                     coh [ C (x(f)y(g)z) : x => z] f h]
+                                 x k)
+                               (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h =>
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      b h]
+                                 a t))) =>
+                          coh [ C (x1(x3(x5(x7(t2)x7(t4)x7(q)o)x6)x4)x2) :
+                               x7 => o]
+                           (coh [ C (x(f(a(m)b(n)c(n)c)g)y) : a => c]
+                             (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                               (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h =>
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      b h]
+                                 a s)
+                               (coh [ C (x(f)y(g(a)h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f g =>
+                                     coh [ C (x(f)y(g)z) : x => z] f h]
+                                 y h))
+                             (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                               (coh [ C (x(f(a)g)y(h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f h =>
+                                     coh [ C (x(f)y(g)z) : x => z] g h]
+                                 g s)
+                               (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f c =>
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f d]
+                                 y b))
+                             (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h)
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      g b) =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f b)
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a k)]
+                               g k))
+                           (coh [ C (x(f(a(m)a(m)b(n)c)g)y) : a => c]
+                             (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                               (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h =>
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      b h]
+                                 a s)
+                               (coh [ C (x(f)y(g(a)h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f g =>
+                                     coh [ C (x(f)y(g)z) : x => z] f h]
+                                 y h))
+                             (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h)
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      g b) =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f b)
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a k)]
+                               g h)
+                             (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                               (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f c =>
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f d]
+                                 x b)
+                               (coh [ C (x(f(a)g)y(h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f h =>
+                                     coh [ C (x(f)y(g)z) : x => z] g h]
+                                 g t)))
+                           (coh [ C (x(f(a(m)b(n(q)o)c)g)y) :
+                                 coh [ C (x(f(a(m)b(n)c)g)y) : a => c] m n =>
+                                 coh [ C (x(f(a(m)b(n)c)g)y) : a => c] m o]
+                             (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                               (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h =>
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      b h]
+                                 a s)
+                               (coh [ C (x(f)y(g(a)h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f g =>
+                                     coh [ C (x(f)y(g)z) : x => z] f h]
+                                 y h))
+                             (coh [ C (u(x(g)y)v(s(h(b)k)t)w) :
+                                   coh [ C (x(f(a(m)b(n)c)g)y) : a => c]
+                                    (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                                      (coh [ C (x(f(a)g)y(h)z) :
+                                            coh [ C (x(f)y(g)z) : x => z] f h =>
+                                            coh [ C (x(f)y(g)z) : x => z] g h]
+                                        g s)
+                                      (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                            coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f c =>
+                                            coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f d]
+                                        y b))
+                                    (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a h)
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             g b) =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f b)
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a k)]
+                                      g k) =>
+                                   coh [ C (x(f(a(m)b(n)c)g)y) : a => c]
+                                    (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a h)
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             g b) =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f b)
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a k)]
+                                      g h)
+                                    (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                                      (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                            coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f c =>
+                                            coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f d]
+                                        x b)
+                                      (coh [ C (x(f(a)g)y(h)z) :
+                                            coh [ C (x(f)y(g)z) : x => z] f h =>
+                                            coh [ C (x(f)y(g)z) : x => z] g h]
+                                        g t))]
+                               g b))
+                           (coh [ C (x(f(a(m)b(n)c(n)c)g)y) : a => c]
+                             (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h)
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      g b) =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f b)
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a k)]
+                               f h)
+                             (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                               (coh [ C (x(f)y(g(a)h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f g =>
+                                     coh [ C (x(f)y(g)z) : x => z] f h]
+                                 x h)
+                               (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h =>
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      b h]
+                                 a t))
+                             (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                               (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f c =>
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f d]
+                                 x b)
+                               (coh [ C (x(f(a)g)y(h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f h =>
+                                     coh [ C (x(f)y(g)z) : x => z] g h]
+                                 g t)))
+                           (coh [ C (x(f(a(m(q)o)b(n)c)g)y) :
+                                 coh [ C (x(f(a(m)b(n)c)g)y) : a => c] m n =>
+                                 coh [ C (x(f(a(m)b(n)c)g)y) : a => c] o n]
+                             (coh [ C (u(x(f(a)g)y)v(s(h)t)w) :
+                                   coh [ C (x(f(a(m)b(n)c)g)y) : a => c]
+                                    (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                                      (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                            coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a h =>
+                                            coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             b h]
+                                        a s)
+                                      (coh [ C (x(f)y(g(a)h)z) :
+                                            coh [ C (x(f)y(g)z) : x => z] f g =>
+                                            coh [ C (x(f)y(g)z) : x => z] f h]
+                                        y h))
+                                    (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a h)
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             g b) =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f b)
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a k)]
+                                      g h) =>
+                                   coh [ C (x(f(a(m)b(n)c)g)y) : a => c]
+                                    (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a h)
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             g b) =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h]
+                                           (coh [ C (x(f)y(g(a)h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f g =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h]
+                                             f b)
+                                           (coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a k)]
+                                      f h)
+                                    (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                                      (coh [ C (x(f)y(g(a)h)z) :
+                                            coh [ C (x(f)y(g)z) : x => z] f g =>
+                                            coh [ C (x(f)y(g)z) : x => z] f h]
+                                        x h)
+                                      (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                            coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             a h =>
+                                            coh [ C (x(f(a)g)y(h)z) :
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  f h =>
+                                                 coh [ C (x(f)y(g)z) : x => z]
+                                                  g h]
+                                             b h]
+                                        a t))]
+                               a h)
+                             (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                               (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f c =>
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f d]
+                                 x b)
+                               (coh [ C (x(f(a)g)y(h)z) :
+                                     coh [ C (x(f)y(g)z) : x => z] f h =>
+                                     coh [ C (x(f)y(g)z) : x => z] g h]
+                                 g t)))
+                           (coh [ C (x(f(a(m)b(n(q)o)c)g)y) :
+                                 coh [ C (x(f(a(m)b(n)c)g)y) : a => c] m n =>
+                                 coh [ C (x(f(a(m)b(n)c)g)y) : a => c] m o]
+                             (coh [ C (x(f(a)g)y(h(b)k)z) :
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h)
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      g b) =>
+                                   coh [ C (x(f(a)g(b)h)y) : f => h]
+                                    (coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f b)
+                                    (coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a k)]
+                               f h)
+                             (coh [ C (u(x(f(a)g)y(h(b)k)z)v) :
+                                   coh [ C (x(f(a(m)b(n)c)g)y) : a => c]
+                                    (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                                      f b)
+                                    (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                                      a k) =>
+                                   coh [ C (x(f(a(m)b(n)c)g)y) : a => c]
+                                    (coh [ C (x(f(a(m)b)g(c)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] b c]
+                                      a h)
+                                    (coh [ C (x(f(a)g(c(n)d)h)y) :
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a c =>
+                                          coh [ C (x(f(a)g(b)h)y) : f => h] a d]
+                                      g b)]
+                               (coh [ C (x(f)y(h(c(n)d)k)z) :
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f c =>
+                                     coh [ C (x(f)y(g(a)h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f g =>
+                                          coh [ C (x(f)y(g)z) : x => z] f h]
+                                      f d]
+                                 x b)
+                               (coh [ C (x(f(a(m)b)g)y(h)z) :
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      a h =>
+                                     coh [ C (x(f(a)g)y(h)z) :
+                                          coh [ C (x(f)y(g)z) : x => z] f h =>
+                                          coh [ C (x(f)y(g)z) : x => z] g h]
+                                      b h]
+                                 a t)))]
+  a b

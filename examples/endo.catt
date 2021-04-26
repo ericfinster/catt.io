@@ -1,0 +1,10 @@
+coh comp C (x(f)y(g)z) : x => z
+coh comp2 C (x2(f2)y2(g2)z2) : x2 => z2
+
+coh testcoh C (x(f)y(g)z) : comp f g => comp2 f g
+
+let test {C : Cat}
+    {x :: C}
+    {y :: C} (f :: x => y)
+    {z :: C} (g :: y => z)
+    : _ = testcoh f g

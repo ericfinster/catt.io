@@ -88,35 +88,46 @@ and appV t u ict =
   match t with
   | FlexV (m,sp) -> FlexV (m,AppSp(sp,u,ict))
   | RigidV (i,sp) -> RigidV (i,AppSp(sp,u,ict))
+  | TopV (nm,sp,CohV (cn,pd,c,s,t,spc)) ->
+     let sp' = AppSp (spc,u,ict) in
+     let x = CohV (cn,pd,c,s,t,sp') in
+     (match cohReduction cn pd c s t sp' u with
+      | Error s when s = "Not applied all arguments yet" -> TopV (nm,AppSp(sp,u,ict),x)
+      | Error _ -> (* pr "No reduction: %a because %s\n\n" pp_value x y; *) TopV (nm,AppSp(sp,u,ict),x)
+      | Ok y -> (* pr "Successful reduction %a to %a@," pp_value x pp_value y; *) y)
+  | TopV (_,_,LamV(_,_,cl)) -> cl $$ u
   | TopV (nm,sp,tv) -> TopV (nm,AppSp(sp,u,ict),appV tv u ict)
   | LamV (_,_,cl) -> cl $$ u
   | UCompV (ucd,cohv,sp) -> UCompV (ucd,appV cohv u ict,AppSp(sp,u,ict))
   | CohV (cn,pd,c,s,t,sp) ->
      let sp' = AppSp(sp,u,ict) in
      let x = CohV (cn,pd,c,s,t,sp') in
-     (match sp_to_suite sp' with
-     | Error _ -> x
-     | Ok (sp_list) ->
-        let k = length sp_list in
-        if k = pd_length pd + 1 then
-       (match alt (alt (insertionCoh cn pd c s t sp_list) (disc_removal pd c s t u)) (endo_coherence_removal cn pd k c s t sp_list) with
-        | Error _ ->
-           (* pr "Attempted reduction on %a: %s\n" pp_value x y; *)
-           x
-       | Ok y -> y) else x)
+     (match cohReduction cn pd c s t sp' u with
+      | Error s when s = "Not applied all arguments yet" -> x
+      | Error _ -> (* pr "No reduction: %a because %s\n\n" pp_value x y; *) x
+      | Ok y -> y)
   | _ -> raise (Eval_error (Fmt.str "malformed application: %a" pp_value t))
+
+and cohReduction cn pd c s t sp' u =
+  let* sp_list = sp_to_suite sp' in
+  let k = length sp_list in
+  if k = pd_length pd + 1 then
+    alt (alt (insertionCoh cn pd c s t sp_list) (disc_removal pd c s t u)) (endo_coherence_removal cn pd k c s t sp_list) else Error "Not applied all arguments yet"
 
 and dim_ty ty =
     match ty with
     | HomV (c,_,_) -> dim_ty c + 1
     | _ -> 0
 
-and insertionCoh cn pd c s t args =
-
-  let unfold v =
+and unfold v =
     match force_meta v with
     | TopV (_,_,x) -> x
-    | y -> y in
+
+    | y -> y
+
+and insertionCoh cn pd c s t args =
+
+
 
   let rec type_linearity c s t =
     match (unfold s, unfold t) with
@@ -213,6 +224,31 @@ and disc_removal pd c s t u =
     if HomV(c,s,t) = construct_disc_type (dim_pd pd) then Ok u
     else Error "Disc is not unbiased"
 
+(* Can this somehow bu merged with unify? *)
+and is_same l a b =
+  match (unfold a, unfold b) with
+  | (TypV , TypV) -> true
+  | (CatV , CatV) -> true
+  | (LamV (_,_,a) , LamV (_,_,a')) -> is_same (l + 1) (a $$ varV l) (a' $$ varV l)
+  | (PiV (_,_,a,b), PiV (_,_,a',b')) -> is_same l a a' && is_same (l+1) (b $$ varV l) (b' $$ varV l)
+  | (RigidV(i,sp), RigidV (i',sp')) when i = i' -> is_same_sp l sp sp'
+  | (FlexV(m,sp), FlexV(m',sp')) when m = m' -> is_same_sp l sp sp'
+  | (ObjV c, ObjV c') -> is_same l c c'
+  | (HomV (c,s,t), HomV (c',s',t')) -> is_same l c c' && is_same l s s' && is_same l t t'
+  | (ArrV c, ArrV c') -> is_same l c c'
+  | (CohV (_,pd,c,s,t,sp), CohV (_,pd',c',s',t',sp')) when Pd.shape_eq pd pd' ->
+     is_same l (HomV(c,s,t)) (HomV(c',s',t')) && is_same_sp l sp sp'
+  | _ -> a = b
+
+and is_same_sp l sp sp' =
+  match (sp, sp') with
+  | (EmpSp,EmpSp) -> true
+  | (AppSp (s,u,_), AppSp (s', u', _)) -> is_same_sp l s s' && is_same l u u'
+  | (BaseSp s, BaseSp s') -> is_same_sp l s s'
+  | (LidSp s, LidSp s') -> is_same_sp l s s'
+  | (CoreSp s, CoreSp s') -> is_same_sp l s s'
+  | _ -> false
+
 and endo_coherence_removal cn pd k c s t sp_list =
   (* Can't open syntax here: Must be a way to fix this *)
   let fresh_pd pd =
@@ -224,7 +260,7 @@ and endo_coherence_removal cn pd k c s t sp_list =
     match ty with
     | HomV(a,b,c) -> Ext(Ext(type_to_suite a, (b,Impl)), (c,Impl))
     | _ -> Emp in
-  if not (s = t) then Error "Not an endo coherence"
+  if not (is_same 0 s t) then Error "Not an endo coherence"
   else
     let dim = dim_ty c in
     let new_pd = fresh_pd (unit_disc_pd dim) in
@@ -484,3 +520,24 @@ let rec value_to_cyl_typ (cat : value) : (value * value cyl_typ , string) Result
     Ok (bc, ct |> ((baseV s, lidV s, coreV s),
                    (baseV t, lidV t, coreV t)))
   | _ -> Error "Not a cylinder type"
+
+let rec syntax_tree k v =
+  match force_meta v with
+  | FlexV _ -> Ok "[]"
+  | RigidV _ -> Ok "[]"
+  | TopV (_,_,tv) -> syntax_tree k tv
+  | LamV (_,_,cl) -> syntax_tree (k+1) (cl $$ varV k)
+  | PiV (_,_,_,_) -> Error "No implementation"
+  | ObjV c -> syntax_tree k c
+  | HomV (_,s,t) ->
+     let* s' = syntax_tree k s in
+     let* t' = syntax_tree k t in
+     Ok (String.concat "" [s';t'])
+  | UCompV _ -> Error "No implementation"
+  | CohV (_,_,_,s,t,sp) ->
+     let* sp_suite = sp_to_suite sp in
+     let* s' = syntax_tree k s in
+     let* t' = syntax_tree k t in
+     let* sp' = map_suite_m sp_suite ~f:(fun (v,ict) -> if ict = Expl then syntax_tree k v else Ok "") in
+     Ok (Printf.sprintf "[%s%s%s]" s' t' (String.concat "" (to_list sp')))
+  | _ -> Error "No implementaiton"

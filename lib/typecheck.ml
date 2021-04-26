@@ -591,8 +591,11 @@ let rec check_defs gma defs =
     pr "Term: @[%a@]@," pp_expr tm_nf;
     let tm_unfolded_nf = term_to_expr Emp (quote true (gma.lvl) tm_val) in
     let ty_unfolded_nf = term_to_expr Emp (quote true (gma.lvl) ty_val) in
-    pr "Type unfolded: @[%a@]@," pp_expr ty_unfolded_nf;
-    pr "Term unfolded: @[%a@]@," pp_expr tm_unfolded_nf;
+    (match syntax_tree 0 tm_val with
+     | Ok s -> pr "Term syntax tree: @[%s@]@," s
+     | Error y -> pr "Could not print syntax tree: %s" y);
+    pr "Type unfolded:@, @[%a@]@," pp_expr ty_unfolded_nf;
+    pr "Term unfolded:@, @[%a@]@," pp_expr tm_unfolded_nf;
     check_defs (define gma id tm_val ty_val) ds
   | (CohDef (id,g,c,s,t))::ds ->
     pr "----------------@,";
