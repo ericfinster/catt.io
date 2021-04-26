@@ -92,13 +92,23 @@ and appV t u ict =
      let sp' = AppSp (spc,u,ict) in
      let x = CohV (cn,pd,c,s,t,sp') in
      (match cohReduction cn pd c s t sp' u with
-      | Error s when s = "Not applied all arguments yet" -> TopV (nm,AppSp(sp,u,ict),x)
       | Error _ -> (* pr "No reduction: %a because %s\n\n" pp_value x y; *) TopV (nm,AppSp(sp,u,ict),x)
       | Ok y -> (* pr "Successful reduction %a to %a@," pp_value x pp_value y; *) y)
   | TopV (_,_,LamV(_,_,cl)) -> cl $$ u
+  | TopV (nm,sp2,UCompV(ucd, CohV (cn,pd,c,s,t,spc), sp)) ->
+     let sp' = AppSp (spc,u,ict) in
+     (match cohReduction cn pd c s t sp' u with
+      | Error _ -> TopV (nm, AppSp(sp2,u,ict), UCompV (ucd, CohV(cn,pd,c,s,t,sp'), AppSp(sp,u,ict)))
+      | Ok y -> y
+     )
   | TopV (nm,sp,tv) -> TopV (nm,AppSp(sp,u,ict),appV tv u ict)
   | LamV (_,_,cl) -> cl $$ u
-  | UCompV (ucd,cohv,sp) -> UCompV (ucd,appV cohv u ict,AppSp(sp,u,ict))
+  | UCompV (ucd,CohV (cn,pd,c,s,t,spc),sp) ->
+     let sp' = AppSp (spc,u,ict) in
+     let x = CohV (cn,pd,c,s,t,sp') in
+     (match cohReduction cn pd c s t sp' u with
+      | Error _ -> UCompV(ucd, x, AppSp(sp,u,ict))
+      | Ok y -> y)
   | CohV (cn,pd,c,s,t,sp) ->
      let sp' = AppSp(sp,u,ict) in
      let x = CohV (cn,pd,c,s,t,sp') in
@@ -121,8 +131,8 @@ and dim_ty ty =
 
 and unfold v =
     match force_meta v with
-    | TopV (_,_,x) -> x
-
+    | TopV (_,_,x) -> unfold x
+    | UCompV (_,cohv,_) -> cohv
     | y -> y
 
 and insertionCoh cn pd c s t args =

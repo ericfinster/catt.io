@@ -349,7 +349,7 @@ coh five_cell {C : Cat}
     {w :: C} {s :: v => w}
              {t :: v => w} {h :: s => t}
                            {k :: s => t} (b :: h => k)
-  : comp443 (comp432 (swap4 (comp310 a s) (comp130 y b)) (swap3 g k)) (vert_right a b) =>
+  : ucomp [ 4 3 4 ] (comp432 (swap4 (comp310 a s) (comp130 y b)) (swap3 g k)) (vert_right a b) =>
     comp443 (vert_left a b) (comp342 (swap3 f h) (swap4inv (comp130 x b) (comp310 a t)))
 
 let syllepsis {C : Cat}
