@@ -81,7 +81,7 @@ and appV t u ict =
   | RigidV (i,sp) -> RigidV (i,AppSp(sp,u,ict))
   | TopV (nm,sp,tv) -> TopV (nm,AppSp(sp,u,ict),appV tv u ict)
   | LamV (_,_,cl) -> cl $$ u
-  | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,AppSp(sp,u,ict))
+  | UCompV (ucd,cohv,sp) -> UCompV (ucd,appV cohv u ict,AppSp(sp,u,ict))
   | CohV (cn,pd,c,s,t,sp) ->
     CohV (cn,pd,c,s,t,AppSp(sp,u,ict))
 
@@ -93,7 +93,7 @@ and baseV v =
   | RigidV (i,sp) -> RigidV (i,BaseSp sp)
   | TopV (nm,sp,tv) -> TopV (nm,BaseSp sp, baseV tv)
   | CylV (b,_,_) -> b
-  | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,BaseSp sp)
+  | UCompV (ucd,cohv,sp) -> UCompV (ucd,baseV cohv,BaseSp sp)
   | CohV (cn,pd,sph,s,t,sp) ->
     CohV (cn,pd,sph,s,t,BaseSp sp)
   | _ -> raise (Eval_error "malformed base projection")
@@ -104,7 +104,7 @@ and lidV v =
   | RigidV (i,sp) -> RigidV (i,LidSp sp)
   | TopV (nm,sp,tv) -> TopV (nm,LidSp sp, lidV tv)
   | CylV (_,l,_) -> l
-  | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,LidSp sp)
+  | UCompV (ucd,cohv,sp) -> UCompV (ucd,lidV cohv,LidSp sp)
   | CohV (cn,pd,sph,s,t,sp) ->
     CohV (cn,pd,sph,s,t,LidSp sp)
   | _ -> raise (Eval_error "malformed lid projection")
@@ -115,7 +115,7 @@ and coreV v =
   | RigidV (i,sp) -> RigidV (i,CoreSp sp)
   | TopV (nm,sp,tv) -> TopV (nm,CoreSp sp, coreV tv)
   | CylV (_,_,c) -> c
-  | UCompV (ucd,cohv,sp) -> UCompV (ucd,cohv,CoreSp sp)
+  | UCompV (ucd,cohv,sp) -> UCompV (ucd,coreV cohv,CoreSp sp)
   | CohV (cn,pd,sph,s,t,sp) ->
     CohV (cn,pd,sph,s,t,CoreSp sp)
   | _ ->
@@ -160,8 +160,8 @@ and quote ufld k v =
   | ObjV c -> ObjT (qc c)
   | HomV (c,s,t) -> HomT (qc c, qc s, qc t)
 
-  | UCompV (_,cohv,sp) when ufld ->
-    qcs (quote ufld k cohv) sp
+  | UCompV (_,cohv,_) when ufld ->
+     quote ufld k cohv
   | UCompV (uc,_,sp) -> qcs (UCompT uc) sp
 
   | CohV (cn,pd,c,s,t,sp) ->
