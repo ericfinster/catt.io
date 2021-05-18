@@ -141,13 +141,13 @@ type typing_error = [
 let pp_error ppf e =
   match e with
   | `NameNotInScope nm -> Fmt.pf ppf "Name not in scope: %s" nm
-  | `TypeMismatch msg -> Fmt.pf ppf "%s" msg  
+  | `TypeMismatch msg -> Fmt.pf ppf "%s" msg
   | `PastingError msg -> Fmt.pf ppf "Error while checking pasting context: %s" msg
-  | `FullnessError msg -> Fmt.pf ppf "Fullness error: %s" msg 
+  | `FullnessError msg -> Fmt.pf ppf "Fullness error: %s" msg
   | `IcityMismatch (_, _) -> Fmt.pf ppf "Icity mismatch"
-  | `BadCohQuot msg -> Fmt.pf ppf "%s" msg 
+  | `BadCohQuot msg -> Fmt.pf ppf "%s" msg
   | `NotImplemented f -> Fmt.pf ppf "Feature not implemented: %s" f
-  | `InvalidCylinder msg -> Fmt.pf ppf "Invalid cylinder: %s" msg 
+  | `InvalidCylinder msg -> Fmt.pf ppf "Invalid cylinder: %s" msg
   | `InternalError -> Fmt.pf ppf "Internal Error"
 
 let rec check gma expr typ =
@@ -196,7 +196,7 @@ let rec check gma expr typ =
 
        (* log_msg "checking cylinder";
         * log_val "bc" bc pp_value; *)
-       
+
        let btyp = ObjV (C.sph_to_cat bc (base_sph ct)) in
        let ltyp = ObjV (C.sph_to_cat bc (lid_sph ct)) in
 
@@ -211,7 +211,7 @@ let rec check gma expr typ =
 
        (* we "desuspend" so that all coherences are taken as low as
           possible *)
-       let (bbc,bsph) = C.match_homs bc in 
+       let (bbc,bsph) = C.match_homs bc in
        let ctyp = ObjV (C.sph_to_cat bbc
                           (C.core_sph bbc (bsph,to_list ct) bv lv)) in
 
@@ -467,11 +467,11 @@ and check_coh gma g c s t =
 
               if (not (Set.is_subset pd_src_vars ~of_:tot_src_vars)) then
                 let msg = Fmt.str "@[<v>Non-full source:@,pd: @[%a@]@,src: @[%a@]@,"
-                    (pp_tele pp_expr) g pp_expr s in 
+                    (pp_tele pp_expr) g pp_expr s in
                 Error (`FullnessError msg)
               else if (not (Set.is_subset pd_tgt_vars ~of_:tot_tgt_vars)) then
                 let msg = Fmt.str "@[<v>Non-full target:@,pd: @[%a@]@,tgt: @[%a@]@,"
-                    (pp_tele pp_expr) g pp_expr t in 
+                    (pp_tele pp_expr) g pp_expr t in
                 Error (`FullnessError msg)
               else Ok (tl,cn,pd,c',s',t')
 
@@ -593,7 +593,7 @@ let rec check_defs gma defs =
     let ty_unfolded_nf = term_to_expr Emp (quote true (gma.lvl) ty_val) in
     (match syntax_tree 0 tm_val with
      | Ok s -> pr "Term syntax tree: @[%s@]@," s
-     | Error y -> pr "Could not print syntax tree: %s" y);
+     | Error y -> pr "Could not print syntax tree: %s@," y);
     pr "Type unfolded:@, @[%a@]@," pp_expr ty_unfolded_nf;
     pr "Term unfolded:@, @[%a@]@," pp_expr tm_unfolded_nf;
     check_defs (define gma id tm_val ty_val) ds
@@ -623,13 +623,13 @@ let rec check_defs gma defs =
     pr "@[<v>Cylcoh type: @[%a@]@,@]" pp_expr_with_impl cyl_cty_nf;
     pr "@[<v>Cylcoh expr: @[%a@]@,@]" pp_expr cyl_nf;
     let* _ = check gma cyl_cty_nf TypV in
-    log_msg "Type is valid ..."; 
+    log_msg "Type is valid ...";
     let* _ = check gma cyl_nf cyl_cty in
     log_msg "Rechecking succeeded!";
     check_defs (define gma id cyl_ctm cyl_cty) ds
 
 let run_tc m =
-  match m with 
+  match m with
   | Ok _ ->
     Fmt.pr "@[<v>----------------@,Success!@,@,@]"
   | Error err ->

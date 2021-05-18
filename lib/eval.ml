@@ -122,7 +122,7 @@ and cohReduction cn pd c s t sp' u =
   let* sp_list = sp_to_suite sp' in
   let k = length sp_list in
   if k = pd_length pd + 1 then
-    alt (alt (insertionCoh cn pd c s t sp_list) (disc_removal pd c s t u)) (endo_coherence_removal cn pd k c s t sp_list) else Error "Not applied all arguments yet"
+    alt (alt (insertionCoh cn pd c s t sp_list false) (disc_removal pd c s t u)) (endo_coherence_removal cn pd k c s t sp_list) else Error "Not applied all arguments yet"
 
 and dim_ty ty =
     match ty with
@@ -135,9 +135,7 @@ and unfold v =
     | UCompV (_,cohv,_) -> cohv
     | y -> y
 
-and insertionCoh cn pd c s t args =
-
-
+and insertionCoh cn pd c s t args only_prune =
 
   let rec type_linearity c s t =
     match (unfold s, unfold t) with
@@ -149,6 +147,20 @@ and insertionCoh cn pd c s t args =
   let rec get_redex xs =
     match xs with
     | Emp -> Error "No redex found"
+    | Ext (xs, ((_,_,_,_,t), redex_path)) when only_prune ->
+       (match (unfold t) with
+        | CohV (cn', pd', c', s', t', sp') ->
+           let* args_inner = sp_to_suite sp' in
+           let pda = map_pd_lvls pd' 1 ~f:(fun _ n _ (nm, ict) -> let (v,_) = nth n args_inner in (false, n , nm , ict, v)) in
+           let dim = dim_pd pd' in
+           let cond1 = is_disc pd' in
+           let cond2 = is_same 0
+                  (HomV (construct_disc_type dim, RigidV (2*dim + 1,EmpSp), RigidV (2*dim + 1,EmpSp)))
+                  (HomV (c', s', t')) in
+           if cond1 && cond2
+           then Ok (cn', pd', c', s', t', pda, redex_path)
+           else get_redex xs
+        | _ -> get_redex xs)
     | Ext (xs, ((_,_,_,_,t), redex_path)) ->
        match (unfold t) with
        | CohV (cn', pd', c', s', t', sp') ->
@@ -231,7 +243,7 @@ and disc_removal pd c s t u =
 
   if not (is_disc pd) then Error "Not disc"
   else
-    if HomV(c,s,t) = construct_disc_type (dim_pd pd) then Ok u
+    if is_same 0 (HomV(c,s,t)) (construct_disc_type (dim_pd pd)) then Ok u
     else Error "Disc is not unbiased"
 
 (* Can this somehow bu merged with unify? *)
@@ -532,7 +544,7 @@ let rec value_to_cyl_typ (cat : value) : (value * value cyl_typ , string) Result
   | _ -> Error "Not a cylinder type"
 
 let rec syntax_tree k v =
-  match force_meta v with
+  match unfold v with
   | FlexV _ -> Ok "[]"
   | RigidV _ -> Ok "[]"
   | TopV (_,_,tv) -> syntax_tree k tv

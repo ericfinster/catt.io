@@ -444,7 +444,7 @@ let fold_pd_with_type pd init f =
     | Br (x,brs) ->
       let ct = if (is_empty brs)
         then LocMaxCell d
-        else SrcCell d in 
+        else SrcCell d in
       let b' = f x ct b in
       fold_pd_with_type_brs true d brs b'
 
