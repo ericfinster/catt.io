@@ -84,9 +84,9 @@ let rename m pren v =
     | CohV (cn,pd,c,s,t,sp) ->
 
       let k' = Suite.length (Pd.labels pd) + 1 in
-      let c' = quote true k' c in
-      let s' = quote true k' s in
-      let t' = quote true k' t in
+      let c' = quote ufld_true k' c in
+      let s' = quote ufld_true k' s in
+      let t' = quote ufld_true k' t in
 
       goSp pr (CohT (cn,pd,c',s',t')) sp
 

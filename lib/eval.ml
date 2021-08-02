@@ -19,6 +19,30 @@ open Pd
 
 exception Eval_error of string
 
+type unfolding = {
+  level : int option;
+  ufld_comp : bool;
+  }
+
+let decrease (ufld : unfolding) : unfolding = {
+    level = Option.bind ufld.level (fun n -> Option.some (max 0 (n - 1)));
+    ufld_comp = ufld.ufld_comp;
+  }
+
+let should_unfold (ufld: unfolding) : bool = not (Option.equal (=) ufld.level (Option.some 0))
+
+let ufld_build n = {
+    level = Option.some n;
+    ufld_comp = true;
+  }
+
+let ufld_true = {
+    level = Option.none;
+    ufld_comp = true;
+  }
+
+let ufld_false = ufld_build 0
+
 let rec eval top loc tm =
   (* pr "Evaluating: %a@," pp_term tm; *)
   match tm with
@@ -113,7 +137,6 @@ and appV t u ict =
      let sp' = AppSp(sp,u,ict) in
      let x = CohV (cn,pd,c,s,t,sp') in
      (match cohReduction cn pd c s t sp' u with
-      | Error s when s = "Not applied all arguments yet" -> x
       | Error _ -> (* pr "No reduction: %a because %s\n\n" pp_value x y; *) x
       | Ok y -> y)
   | _ -> raise (Eval_error (Fmt.str "malformed application: %a" pp_value t))
@@ -232,7 +255,7 @@ and insertionCoh cn pd c s t args only_prune =
      Ok (runSpV (CohV(cn,pd_final,cv,sv,tv,EmpSp)) final_spine)
 
 and applySubstitution k v sub =
-  let t = quote true k v in
+  let t = quote ufld_true k v in
   eval Emp sub t
 
 and construct_disc_type n =
@@ -359,29 +382,30 @@ and force_meta v =
 (*                                  Quoting                                  *)
 (*****************************************************************************)
 
-and quote ufld k v =
+and quote (ufld : unfolding) k v =
+  let dec_ufld = decrease ufld in
   let qc x = quote ufld k x in
-  let qcs x s = quote_sp ufld k x s in
+  let qcs x s = quote_sp dec_ufld k x s in
   match force_meta v with
   | FlexV (m,sp) -> qcs (MetaT m) sp
   | RigidV (l,sp) -> qcs (VarT (lvl_to_idx k l)) sp
-  | TopV (_,_,tv) when ufld -> qc tv
+  | TopV (_,_,tv) when should_unfold ufld -> qc tv
   | TopV (nm,sp,_) -> qcs (TopT nm) sp
   | LamV (nm,ict,cl) -> LamT (nm, ict, quote ufld (k+1) (cl $$ varV k))
   | PiV (nm,ict,u,cl) -> PiT (nm, ict, qc u, quote ufld (k+1) (cl $$ varV k))
   | ObjV c -> ObjT (qc c)
   | HomV (c,s,t) -> HomT (qc c, qc s, qc t)
 
-  | UCompV (_,cohv,_) when ufld ->
-     quote ufld k cohv
+  | UCompV (_,cohv,_) when should_unfold ufld && ufld.ufld_comp ->
+     qc cohv
   | UCompV (uc,_,sp) -> qcs (UCompT uc) sp
 
   | CohV (cn,pd,c,s,t,sp) ->
 
     let k' = length (Pd.labels pd) + 1 in
-    let c' = quote ufld k' c in
-    let s' = quote ufld k' s in
-    let t' = quote ufld k' t in
+    let c' = quote dec_ufld k' c in
+    let s' = quote dec_ufld k' s in
+    let t' = quote dec_ufld k' t in
 
     qcs (CohT (cn,pd,c',s',t')) sp
 
@@ -407,12 +431,12 @@ let quote_tele tl =
     | Emp -> (Emp,0)
     | Ext (typs',(nm,ict,typ)) ->
       let (r,k) = go typs' in
-      let ty_tm = quote true k typ in
+      let ty_tm = quote ufld_true k typ in
       (Ext (r,(nm,ict,ty_tm)),k+1)
   in fst (go tl)
 
 let nf top loc tm =
-  quote true (length loc) (eval top loc tm)
+  quote ufld_true (length loc) (eval top loc tm)
 
 (*****************************************************************************)
 (*                               Free Variables                              *)

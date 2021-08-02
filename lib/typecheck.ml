@@ -165,8 +165,8 @@ let rec check gma expr typ =
       pr "Unification error: %s\n" msg;
       (* I guess the unification error will have more information .... *)
       let nms = names gma in
-      let inferred_nf = term_to_expr nms (quote false gma.lvl inferred) in
-      let expected_nf = term_to_expr nms (quote true gma.lvl expected) in
+      let inferred_nf = term_to_expr nms (quote ufld_false gma.lvl inferred) in
+      let expected_nf = term_to_expr nms (quote ufld_true gma.lvl expected) in
       let msg = String.concat [ str "@[<v>The expression: @,@, @[%a@]@,@,@]" pp_expr e;
                                 str "@[<v>has type: @,@,  @[%a@]@,@,@]" pp_expr inferred_nf;
                                 str "@[<v>but was expected to have type: @,@, @[%a@]@,@]"
@@ -244,7 +244,7 @@ and infer gma expr =
   | LamE (nm,ict,e) ->
     let a = eval gma.top gma.loc (fresh_meta ()) in
     let* (e', t) = insert gma (infer (bind gma nm a) e) in
-    let cl = Closure (gma.top,gma.loc,quote false (gma.lvl + 1) t) in
+    let cl = Closure (gma.top,gma.loc,quote ufld_false (gma.lvl + 1) t) in
     Ok (LamT (nm,ict,e') , PiV (nm,ict,a,cl))
 
   | AppE (u,v,ict) ->
@@ -585,12 +585,12 @@ let rec check_defs gma defs =
     let* tm_tm = check gma abs_tm ty_val in
     let tm_val = eval gma.top gma.loc tm_tm in
     pr "Checking complete for %s@," id;
-    let tm_nf = term_to_expr Emp (quote false (gma.lvl) tm_val) in
-    let ty_nf = term_to_expr Emp (quote false (gma.lvl) ty_val) in
+    let tm_nf = term_to_expr Emp (quote ufld_false (gma.lvl) tm_val) in
+    let ty_nf = term_to_expr Emp (quote ufld_false (gma.lvl) ty_val) in
     pr "Type: @[%a@]@," pp_expr ty_nf;
     pr "Term: @[%a@]@," pp_expr tm_nf;
-    let tm_unfolded_nf = term_to_expr Emp (quote true (gma.lvl) tm_val) in
-    let ty_unfolded_nf = term_to_expr Emp (quote true (gma.lvl) ty_val) in
+    let tm_unfolded_nf = term_to_expr Emp (quote (ufld_build 1) (gma.lvl) tm_val) in
+    let ty_unfolded_nf = term_to_expr Emp (quote (ufld_build 1) (gma.lvl) ty_val) in
     (match syntax_tree 0 tm_val with
      | Ok s -> pr "Term syntax tree: @[%s@]@," s
      | Error y -> pr "Could not print syntax tree: %s@," y);
@@ -604,8 +604,8 @@ let rec check_defs gma defs =
     let coh_ty = eval gma.top gma.loc
         (tele_to_pi tl (ObjT (HomT (ct,st,tt)))) in
     let coh_tm = eval gma.top gma.loc (CohT (cn,pd,ct,st,tt)) in
-    let coh_ty_nf = term_to_expr Emp (quote false gma.lvl coh_ty) in
-    let coh_tm_nf = term_to_expr Emp (quote false gma.lvl coh_tm) in
+    let coh_ty_nf = term_to_expr Emp (quote ufld_false gma.lvl coh_ty) in
+    let coh_tm_nf = term_to_expr Emp (quote ufld_false gma.lvl coh_tm) in
     pr "@[<v>Coh type: @[%a@]@,@]" pp_expr coh_ty_nf;
     (* pr "@[<v>Coh term: @[%a@]@,@]" pp_term (CohT (cn,pd,ct,st,tt)); *)
     pr "@[<v>Coh expr: @[%a@]@,@]" pp_expr coh_tm_nf;
@@ -618,8 +618,8 @@ let rec check_defs gma defs =
     let cyl_ctm = eval gma.top gma.loc
         (CylCohT (cn,pd,ct,(ssph,s),(tsph,t))) in
     let cyl_cty = eval gma.top gma.loc cctt in
-    let cyl_cty_nf = term_to_expr Emp (quote false gma.lvl cyl_cty) in
-    let cyl_nf = term_to_expr Emp (quote false gma.lvl cyl_ctm) in
+    let cyl_cty_nf = term_to_expr Emp (quote ufld_false gma.lvl cyl_cty) in
+    let cyl_nf = term_to_expr Emp (quote ufld_false gma.lvl cyl_ctm) in
     pr "@[<v>Cylcoh type: @[%a@]@,@]" pp_expr_with_impl cyl_cty_nf;
     pr "@[<v>Cylcoh expr: @[%a@]@,@]" pp_expr cyl_nf;
     let* _ = check gma cyl_cty_nf TypV in
