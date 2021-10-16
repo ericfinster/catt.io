@@ -105,6 +105,44 @@ let rec zip_with_addr_lcl addr pd =
 let zip_with_addr pd =
   zip_with_addr_lcl Emp pd
 
+let rec loc_max_bh pd =
+  match pd with
+  | Br (x , Emp) -> Error x
+  | Br (_ , Ext (Emp , (_ , p))) ->
+     (match loc_max_bh p with
+      | Error x -> Error x
+      | Ok xs -> Ok (map_suite xs ~f:(fun (x,xs) -> (x, Ext (xs,0)))))
+  | Br (_ , brs) ->
+     let rs = map_with_lvl brs ~f:(fun i (_,p) ->
+                  match loc_max_bh p with
+                  | Error x -> Ext (Emp, (x,Ext (Emp, i)))
+                  | Ok xs -> map_suite xs ~f:(fun (x,xs) -> (x, Ext (xs,i)))) in
+     Ok (join rs)
+
+let rec insertion pd path pd2 =
+  let replace l xs l2 =
+    match xs with
+    | Emp -> (l2, Emp)
+    | Ext (ys, (_,y)) -> (l, Ext (ys, (l2,y))) in
+  match (pd, pd2, path) with
+  | (Br (l, brs), Br (l2,brs2), Ext (Emp, n)) ->
+     let (xs, ys) = split_suite (n + 1) brs in
+     let* (_, xsd) = drop xs in
+     let (l', xsr) = replace l xsd l2 in
+     Ok (Br (l', append (append xsr brs2) ys))
+  | (Br (l, brs), Br (l2, Ext (Emp, (l3, p2))), Ext(ns, n)) ->
+     let (xs, ys) = split_suite (n + 1) brs in
+     let* ((_,br), xsd) = drop xs in
+     let (l', xsr) = replace l xsd l2 in
+     let* pdr = insertion br ns p2 in
+     Ok (Br (l', append (Ext (xsr, (l3, pdr))) ys))
+  | (_,_,_) -> Error "Insertion failed"
+
+let rec get_all_paths pd =
+  match pd with
+  | Br (_, brs) ->
+     fold_left (map_with_lvl brs ~f:(fun i (_,p) -> append (singleton (singleton (i + 1))) (map_suite (get_all_paths p) ~f:(fun xs -> Ext (xs, i))))) (singleton (singleton 0)) append
+
 (*****************************************************************************)
 (*                             Discs and Spheres                             *)
 (*****************************************************************************)
@@ -406,7 +444,7 @@ let fold_pd_with_type pd init f =
     | Br (x,brs) ->
       let ct = if (is_empty brs)
         then LocMaxCell d
-        else SrcCell d in 
+        else SrcCell d in
       let b' = f x ct b in
       fold_pd_with_type_brs true d brs b'
 

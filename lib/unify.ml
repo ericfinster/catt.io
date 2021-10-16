@@ -84,9 +84,9 @@ let rename m pren v =
     | CohV (cn,pd,c,s,t,sp) ->
 
       let k' = Suite.length (Pd.labels pd) + 1 in
-      let c' = quote true k' c in
-      let s' = quote true k' s in
-      let t' = quote true k' t in
+      let c' = quote ufld_true k' c in
+      let s' = quote ufld_true k' s in
+      let t' = quote ufld_true k' t in
 
       goSp pr (CohT (cn,pd,c',s',t')) sp
 
@@ -128,6 +128,12 @@ type strategy =
   | UnfoldNone
   | OneShot
 
+let pp_strat ppf stgy =
+  match stgy with
+  | UnfoldAll -> pf ppf "unfold all"
+  | UnfoldNone -> pf ppf "unfold none"
+  | OneShot -> pf ppf "one shot"
+
 let isUnfoldAll s =
   match s with
   | UnfoldAll -> true
@@ -143,8 +149,15 @@ let isOneShot s =
   | OneShot -> true
   | _ -> false
 
+let resolve_coh tm =
+  match tm with
+  | CohV (cn,pd,c,s,t,sp) -> runSpV (CohV(cn,pd,c,s,t,EmpSp)) sp
+  | TopV (nm,sp,CohV(cn,pd,c,s,t,sp')) -> TopV(nm,sp,runSpV (CohV(cn,pd,c,s,t,EmpSp)) sp')
+  | _ -> tm
+
 let rec unify stgy top l t u =
-  match (force_meta t , force_meta u) with
+  (* pr "Unifying (strategy %a) %a with %a@," pp_strat stgy pp_value t pp_value u; *)
+  match (resolve_coh (force_meta t) , resolve_coh (force_meta u)) with
   | (TypV , TypV) -> ()
   | (CatV , CatV) -> ()
 
