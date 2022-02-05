@@ -46,6 +46,7 @@ type defn =
   | TermDef of name * expr tele * expr * expr
   | CohDef of name * expr tele * expr * expr * expr
   | CylCohDef of name * expr tele * expr * expr disc * expr disc
+  | Normalize of expr tele * expr 
 
 (*****************************************************************************)
 (*                         Pretty Printing Raw Syntax                        *)
@@ -67,6 +68,14 @@ let arr_parens e =
   | HomE _ -> true
   | _ -> false
 
+let app_parens ppe e =
+  match e with
+  | AppE (_,_,_) -> parens ppe
+  | BaseE _ -> parens ppe
+  | LidE _ -> parens ppe
+  | CoreE _ -> parens ppe
+  | _ -> ppe
+
 let tele_to_pd_dummy _ =
   Error "dummy"
 
@@ -83,10 +92,7 @@ let rec pp_expr_gen ?tpd:(tpd = tele_to_pd_dummy)
     else
       pf ppf "%a" ppe u
   | AppE (u, v, Expl) ->
-    let pp_v = if (is_app v) then
-        parens ppe
-      else ppe in
-    pf ppf "%a@;%a" ppe u pp_v v
+    pf ppf "%a@;%a" ppe u (app_parens ppe v) v
   | PiE (nm,Impl,dom,cod) ->
     if (is_pi cod) then
       pf ppf "{%s : %a}@;%a" nm
@@ -151,11 +157,11 @@ let rec pp_expr_gen ?tpd:(tpd = tele_to_pd_dummy)
       (pp_tele ppe) g ppe c (pp_disc ppe) s (pp_disc ppe) t
 
   | BaseE c ->
-    pf ppf "base %a" ppe c
+    pf ppf "base %a" (app_parens ppe c) c
   | LidE c ->
-    pf ppf "lid %a" ppe c
+    pf ppf "lid %a" (app_parens ppe c) c
   | CoreE c ->
-    pf ppf "core %a" ppe c
+    pf ppf "core %a" (app_parens ppe c) c
   | CylE (b,l,c) ->
     pf ppf "cyl @[<hov>@[(%a)@]@;@[(%a)@]@;@[(%a)@]@]"
       ppe b ppe l ppe c

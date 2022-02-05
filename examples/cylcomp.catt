@@ -19,258 +19,284 @@ coh J {C : Cat}
     {y :: C} {f :: x => y}
              {g :: x => y} (a :: f => g)
     {z :: C} (h :: y => z)
-  : comp f h =>
-    `[ scomp 1 0 1 0 1 ] g (id y) h
+  : ucomp [ 1 0 1 ] f h =>
+    ucomp [ 1 0 1 0 1 ] g (id y) h
+
+let Js₁ {C : Cat}
+    {x :: C}
+    {y :: C} (f :: x => y)
+    {z :: C} (h :: y => z)
+  : [ x => z ]
+  = ucomp [ 1 0 1 ] f h
+
+let Jt₁ {C : Cat}
+    {x :: C}
+    {y :: C} (f :: x => y)
+    {z :: C} (h :: y => z)
+  : [ x => z ] 
+  = ucomp [ 1 0 1 0 1 ] f (id y) h 
 
 #
-#  initial condition 
+#  initial term
 #
 
-let basecoh {C : Cat}
-    {x :: Arr C}
-    {y :: Arr C} {f :: x => y}
-                 {g :: x => y} (a :: f => g)
-    {z :: Arr C} (h :: y => z)
-  : [ comp (base f) (base h) => 
-      `[ scomp 1 0 1 0 1 ] (base g) (id (base y)) (base h) ]
-  = J {C}
-      {base x}
-      {base y} {base f}
-               {base g} (base a)
-      {base z} (base h)
-
-
-#
-#  z cylinder
-#
-
-let z_cyl_src {C : Cat}
+let T₀ {C : Cat}
     {x :: C}
     {y :: C} {f :: x => y}
              {g :: x => y} (a :: f => g)
-    {zb :: C} (h :: y => zb)
-    {zl :: C} (zc :: zb => zl)
-  : [ comp (comp f h) zc =>
-      comp (`[ scomp 1 0 1 0 1 ] g (id y) h) zc ]
-  = `[ scomp 2 0 1 ] (J a h) zc
+    {z₀ :: C} (h :: y => z₀)
+    {z₁ :: C} (z :: z₀ => z₁)
+  : [ comp (comp f h) z =>
+      comp (Jt₁ g h) z ]
+  = ucomp [ 2 0 1 ] (J a h) z
 
-let z_cyl_tgt {C : Cat}
+#
+#  z - cylinder
+#
+
+# let coh_z {C : Cat}
+#     {x :: Arr C}
+#     {y :: Arr C} {f :: x => y}
+#                  {g :: x => y} (a :: f => g)
+#     {z :: Arr C} (h :: y => z)
+#   : [ comp (base f) (comp (base h) (core z)) => 
+#       `[ scomp 1 0 1 0 1 ] (base g) (id (base y)) (comp (base h) (core z)) ]
+#   = J {C}
+#       {base x}
+#       {base y} {base f}
+#                {base g} (base a)
+#       {lid z} (comp (base h) (core z))
+
+let T₁ {C : Cat}
     {x :: C}
     {y :: C} {f :: x => y}
              {g :: x => y} (a :: f => g)
-    {zb :: C} (h :: y => zb)
-    {zl :: C} (zc :: zb => zl)
-  : [ comp f (comp h zc) =>
-      `[ scomp 1 0 1 0 1 ] g (id y) (`[ scomp 1 0 1] h zc) ]
-  = J a (comp h zc)
-
-let coh_z {C : Cat}
-    {x :: Arr C}
-    {y :: Arr C} {f :: x => y}
-                 {g :: x => y} (a :: f => g)
-    {z :: Arr C} (h :: y => z)
-  : [ comp (base f) (comp (base h) (core z)) => 
-      `[ scomp 1 0 1 0 1 ] (base g) (id (base y)) (comp (base h) (core z)) ]
-  = J {C}
-      {base x}
-      {base y} {base f}
-               {base g} (base a)
-      {lid z} (comp (base h) (core z))
+    {z₀ :: C} (h :: y => z₀)
+    {z₁ :: C} (z :: z₀ => z₁)
+  : [ comp f (comp h z) =>
+      Jt₁ g (comp h z) ]
+  = J a (comp h z)
 
 #
-#  h cylinder
+#  h - cylinder
 #
+
+# let T₂ {C : Cat}
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (a :: f => g)
+#     {z :: C} {h₀ :: y => z}
+#              {h₁ :: y => z} (h :: h₀ => h₁)
+#   : [ => ]
+#   = J a
 
 coh J_src_h {C : Cat}
     {x :: C}
     {y :: C} (f :: x => y)
-    {z :: C} {hb :: y => z}
-             {hl :: y => z} (hc :: hb => hl)
-  : comp f hb =>
-    comp f hl
+    {z :: C} {h₀ :: y => z}
+             {h₁ :: y => z} (h :: h₀ => h₁)
+  : Js₁ f h₀ =>
+    Js₁ f h₁
     
 coh J_tgt_h {C : Cat}
     {x :: C}
     {y :: C} (g :: x => y)
-    {z :: C} {hb :: y => z}
-             {hl :: y => z} (hc :: hb => hl)
-  : `[ scomp 1 0 1 0 1 ] g (id y) hb => 
-    `[ scomp 1 0 1 0 1 ] g (id y) hl 
+    {z :: C} {h₀ :: y => z}
+             {h₁ :: y => z} (hc :: h₀ => h₁)
+  : Jt₁ g h₀ => Jt₁ g h₁
 
-#
-#  notice how these compositions are suspended in order to 
-#  make the results agree with how the suspended cylinder should
-#  behave ...
-#
+  # ucomp [ 1 0 1 0 1 ] g (id y) h₀ => 
+  #   ucomp [ 1 0 1 0 1 ] g (id y) h₁
 
-let h_cyl_src {C : Cat}
+let U₁ {C : Cat}
     {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} (a :: f => g)
-    {z :: C} {hb :: y => z}
-             {hl :: y => z} (hc :: hb => hl)
-  : [ comp f hb => 
-      `[ scomp 1 0 1 0 1 ] g (id y) hl ]
-  = comp (J a hb) (J_tgt_h g hc)
+    {y :: C} (g :: x => y)
+    {z :: C} {h₀ :: y => z}
+             {h₁ :: y => z} (h :: h₀ => h₁)
+  : [ comp g h₀ =>
+      Jt₁ g h₀ ]
+  = comp (J a h₀) (J_tgt_h g h)
 
-let h_cyl_tgt {C : Cat}
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} (a :: f => g)
-    {z :: C} {hb :: y => z}
-             {hl :: y => z} (hc :: hb => hl)
-  : _
-  = comp (J_src_h f hc) (J a hl)
+# let Jt₁ {C : Cat}
+#     {x :: C}
+#     {y :: C} (f :: x => y)
+#     {z :: C} (h :: y => z)
+#   : [ x => z ] 
+#   = ucomp [ 1 0 1 0 1 ] f (id y) h 
 
-coh h_cyl_src_tgt {C : Cat}
-    {x :: C}
-    {y :: C} {f :: x => y}
-             {g :: x => y} (a :: f => g)
-    {z :: C} {hb :: y => z}
-             {hl :: y => z} (hc :: hb => hl)
-  : comp (J a hb) (J_tgt_h g hc) =>
-    comp (J_src_h f hc) (J a hl)
+# let U₂ {C : Cat}
+#     {x :: C}
+#     {y :: C} (g :: x => y)
+#     {z :: C} {h₀ :: y => z}
+#              {h₁ :: y => z} (h :: h₀ => h₁)
+#   : 
+#   = comp (J_src_h f h) (J a h₁)
 
-#
-#  I see. So h_cyl_src_tgt is the core of a 1-suspended 1-cylinder.
-#  I guess in order to *really* see the pattern, you should actually
-#  write the whole cylinder.  So, what context does it live in?  And
-#  what is its type, as a cylinder?
-#
+# let h_cyl_src {C : Cat}
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (a :: f => g)
+#     {z :: C} {hb :: y => z}
+#              {hl :: y => z} (hc :: hb => hl)
+#   : [ comp f hb => 
+#       `[ scomp 1 0 1 0 1 ] g (id y) hl ]
+#   = comp (J a hb) (J_tgt_h g hc)
 
-let coh_h {C : Cat}
-    {x :: Arr C}
-    {y :: Arr C} {f :: x => y}
-                 {g :: x => y} (a :: f => g)
-    {z :: Arr C} (h :: y => z)
-  : [ comp (base f) (comp (core y) (lid h)) => 
-      `[ scomp 1 0 1 0 1 ] (base g) (id (base y)) (comp (core y) (lid h)) ]
-  = J {C}
-      {base x}
-      {base y} {base f}
-               {base g} (base a)
-      {lid z} (comp (core y) (lid h))
+# let h_cyl_tgt {C : Cat}
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (a :: f => g)
+#     {z :: C} {hb :: y => z}
+#              {hl :: y => z} (hc :: hb => hl)
+#   : _
+#   = comp (J_src_h f hc) (J a hl)
 
-let my_h_src_cyl {C : Cat}
-    {x :: Arr C}
-    {y :: Arr C} {f :: x => y}
-                 {g :: x => y} (a :: f => g)
-    {z :: Arr C} (h :: y => z)
-  : [ Arr (C | base x => lid z) ]
-  = cyl (comp (base f) (comp (base h) (core z)))
-        (comp (base f) (comp (core y) (lid h)))
-        (J_src_h (base f) (core h))
+# coh h_cyl_src_tgt {C : Cat}
+#     {x :: C}
+#     {y :: C} {f :: x => y}
+#              {g :: x => y} (a :: f => g)
+#     {z :: C} {hb :: y => z}
+#              {hl :: y => z} (hc :: hb => hl)
+#   : comp (J a hb) (J_tgt_h g hc) =>
+#     comp (J_src_h f hc) (J a hl)
 
-let my_h_tgt_cyl {C : Cat}
-    {x :: Arr C}
-    {y :: Arr C} {f :: x => y}
-                 {g :: x => y} (a :: f => g)
-    {z :: Arr C} (h :: y => z)
-  : [ Arr (C | base x => lid z) ]
-  = cyl (`[ scomp 1 0 1 0 1 ] (base g) (id (base y)) (comp (base h) (core z)))
-        (`[ scomp 1 0 1 0 1 ] (base g) (id (base y)) (comp (core y) (lid h)))
-        (J_tgt_h (base g) (core h))
+# #
+# #  I see. So h_cyl_src_tgt is the core of a 1-suspended 1-cylinder.
+# #  I guess in order to *really* see the pattern, you should actually
+# #  write the whole cylinder.  So, what context does it live in?  And
+# #  what is its type, as a cylinder?
+# #
+
+# let coh_h {C : Cat}
+#     {x :: Arr C}
+#     {y :: Arr C} {f :: x => y}
+#                  {g :: x => y} (a :: f => g)
+#     {z :: Arr C} (h :: y => z)
+#   : [ comp (base f) (comp (core y) (lid h)) => 
+#       `[ scomp 1 0 1 0 1 ] (base g) (id (base y)) (comp (core y) (lid h)) ]
+#   = J {C}
+#       {base x}
+#       {base y} {base f}
+#                {base g} (base a)
+#       {lid z} (comp (core y) (lid h))
+
+# let my_h_src_cyl {C : Cat}
+#     {x :: Arr C}
+#     {y :: Arr C} {f :: x => y}
+#                  {g :: x => y} (a :: f => g)
+#     {z :: Arr C} (h :: y => z)
+#   : [ Arr (C | base x => lid z) ]
+#   = cyl (comp (base f) (comp (base h) (core z)))
+#         (comp (base f) (comp (core y) (lid h)))
+#         (J_src_h (base f) (core h))
+
+# let my_h_tgt_cyl {C : Cat}
+#     {x :: Arr C}
+#     {y :: Arr C} {f :: x => y}
+#                  {g :: x => y} (a :: f => g)
+#     {z :: Arr C} (h :: y => z)
+#   : [ Arr (C | base x => lid z) ]
+#   = cyl (`[ scomp 1 0 1 0 1 ] (base g) (id (base y)) (comp (base h) (core z)))
+#         (`[ scomp 1 0 1 0 1 ] (base g) (id (base y)) (comp (core y) (lid h)))
+#         (J_tgt_h (base g) (core h))
         
-# something like this. 
-let my_h_cyl {C : Cat}
-    {x :: Arr C}
-    {y :: Arr C} {f :: x => y}
-                 {g :: x => y} (a :: f => g)
-    {z :: Arr C} (h :: y => z)
-  : [ Arr (C | base x => lid z)
-    | my_h_src_cyl a h =>
-      my_h_tgt_cyl a h 
-    ]
-  = cyl (coh_z a h) (coh_h a h) (h_cyl_src_tgt (base a) (core h))
+# # something like this. 
+# let my_h_cyl {C : Cat}
+#     {x :: Arr C}
+#     {y :: Arr C} {f :: x => y}
+#                  {g :: x => y} (a :: f => g)
+#     {z :: Arr C} (h :: y => z)
+#   : [ Arr (C | base x => lid z)
+#     | my_h_src_cyl a h =>
+#       my_h_tgt_cyl a h 
+#     ]
+#   = cyl (coh_z a h) (coh_h a h) (h_cyl_src_tgt (base a) (core h))
 
-#
-#  y cylinder
-#
+# #
+# #  y cylinder
+# #
 
-let coh_y {C : Cat}
-    {x :: Arr C}
-    {y :: Arr C} {f :: x => y}
-                 {g :: x => y} (a :: f => g)
-    {z :: Arr C} (h :: y => z)
-  : [ comp (comp (base f) (core y)) (lid h) => 
-      `[ scomp 1 0 1 0 1 ] (comp (base g) (core y)) (id (lid y)) (lid h) ]
-  = J {C}
-      {base x}
-      {lid y} {comp (base f) (core y)}
-              {comp (base g) (core y)} (`[ scomp 2 0 1 ] (base a) (core y))
-      {lid z} (lid h)
+# let coh_y {C : Cat}
+#     {x :: Arr C}
+#     {y :: Arr C} {f :: x => y}
+#                  {g :: x => y} (a :: f => g)
+#     {z :: Arr C} (h :: y => z)
+#   : [ comp (comp (base f) (core y)) (lid h) => 
+#       `[ scomp 1 0 1 0 1 ] (comp (base g) (core y)) (id (lid y)) (lid h) ]
+#   = J {C}
+#       {base x}
+#       {lid y} {comp (base f) (core y)}
+#               {comp (base g) (core y)} (`[ scomp 2 0 1 ] (base a) (core y))
+#       {lid z} (lid h)
 
-#
-#  g cylinder
-#
+# #
+# #  g cylinder
+# #
 
-let coh_g {C : Cat}
-    {x :: Arr C}
-    {y :: Arr C} {f :: x => y}
-                 {g :: x => y} (a :: f => g)
-    {z :: Arr C} (h :: y => z)
-  : [ comp (comp (base f) (core y)) (lid h) => 
-      `[ scomp 1 0 1 0 1 ] (comp (core x) (lid g)) (id (lid y)) (lid h) ]
-  = J {C}
-      {base x}
-      {lid y} {comp (base f) (core y)}
-              {comp (core x) (lid g)}
-              (`[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] (base a) (core y)) (core g))
-      {lid z} (lid h)
+# let coh_g {C : Cat}
+#     {x :: Arr C}
+#     {y :: Arr C} {f :: x => y}
+#                  {g :: x => y} (a :: f => g)
+#     {z :: Arr C} (h :: y => z)
+#   : [ comp (comp (base f) (core y)) (lid h) => 
+#       `[ scomp 1 0 1 0 1 ] (comp (core x) (lid g)) (id (lid y)) (lid h) ]
+#   = J {C}
+#       {base x}
+#       {lid y} {comp (base f) (core y)}
+#               {comp (core x) (lid g)}
+#               (`[ scomp 2 1 2 ] (`[ scomp 2 0 1 ] (base a) (core y)) (core g))
+#       {lid z} (lid h)
 
-#
-#  a cylinder
-#
+# #
+# #  a cylinder
+# #
 
-let coh_a {C : Cat}
-    {x :: Arr C}
-    {y :: Arr C} {f :: x => y}
-                 {g :: x => y} (a :: f => g)
-    {z :: Arr C} (h :: y => z)
-  : [ comp (comp (base f) (core y)) (lid h) => 
-      `[ scomp 1 0 1 0 1 ] (comp (core x) (lid g)) (id (lid y)) (lid h) ]
-  = J {C}
-      {base x}
-      {lid y} {comp (base f) (core y)}
-              {comp (core x) (lid g)}
-              (`[ scomp 2 1 2 ] (core f) (`[ scomp 1 0 2 ] (core x) (lid a)))
-      {lid z} (lid h)
+# let coh_a {C : Cat}
+#     {x :: Arr C}
+#     {y :: Arr C} {f :: x => y}
+#                  {g :: x => y} (a :: f => g)
+#     {z :: Arr C} (h :: y => z)
+#   : [ comp (comp (base f) (core y)) (lid h) => 
+#       `[ scomp 1 0 1 0 1 ] (comp (core x) (lid g)) (id (lid y)) (lid h) ]
+#   = J {C}
+#       {base x}
+#       {lid y} {comp (base f) (core y)}
+#               {comp (core x) (lid g)}
+#               (`[ scomp 2 1 2 ] (core f) (`[ scomp 1 0 2 ] (core x) (lid a)))
+#       {lid z} (lid h)
 
-#
-#  f cylinder
-#
+# #
+# #  f cylinder
+# #
 
-let coh_f {C : Cat}
-    {x :: Arr C}
-    {y :: Arr C} {f :: x => y}
-                 {g :: x => y} (a :: f => g)
-    {z :: Arr C} (h :: y => z)
-  : [ comp (comp (core x) (lid f)) (lid h) => 
-      `[ scomp 1 0 1 0 1 ] (comp (core x) (lid g)) (id (lid y)) (lid h) ]
-  = J {C}
-      {base x}
-      {lid y} {comp (core x) (lid f)}
-              {comp (core x) (lid g)} (`[ scomp 1 0 2 ] (core x) (lid a))
-      {lid z} (lid h)
+# let coh_f {C : Cat}
+#     {x :: Arr C}
+#     {y :: Arr C} {f :: x => y}
+#                  {g :: x => y} (a :: f => g)
+#     {z :: Arr C} (h :: y => z)
+#   : [ comp (comp (core x) (lid f)) (lid h) => 
+#       `[ scomp 1 0 1 0 1 ] (comp (core x) (lid g)) (id (lid y)) (lid h) ]
+#   = J {C}
+#       {base x}
+#       {lid y} {comp (core x) (lid f)}
+#               {comp (core x) (lid g)} (`[ scomp 1 0 2 ] (core x) (lid a))
+#       {lid z} (lid h)
 
-#
-#  x cylinder
-#
+# #
+# #  x cylinder
+# #
 
-let coh_x {C : Cat}
-    {x :: Arr C}
-    {y :: Arr C} {f :: x => y}
-                 {g :: x => y} (a :: f => g)
-    {z :: Arr C} (h :: y => z)
-  : [ comp (lid f) (lid h) => 
-      `[ scomp 1 0 1 0 1 ] (lid g) (id (lid y)) (lid h) ]
-  = J {C}
-      {lid x}
-      {lid y} {lid f}
-               {lid g} (lid a)
-      {lid z} (lid h)
+# let coh_x {C : Cat}
+#     {x :: Arr C}
+#     {y :: Arr C} {f :: x => y}
+#                  {g :: x => y} (a :: f => g)
+#     {z :: Arr C} (h :: y => z)
+#   : [ comp (lid f) (lid h) => 
+#       `[ scomp 1 0 1 0 1 ] (lid g) (id (lid y)) (lid h) ]
+#   = J {C}
+#       {lid x}
+#       {lid y} {lid f}
+#                {lid g} (lid a)
+#       {lid z} (lid h)
 
 
-# cylcoh [ (x(f(a)g)y(h)z) : x => z
-#            @ f => g | a
-#            @ h => u | b ]

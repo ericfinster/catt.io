@@ -239,6 +239,11 @@ let rec unify stgy top l t u =
      * pr "rcs: @[%a@]\n" pp_value (runSpV cohv sp); *)
     unify stgy top l t cohv
 
+  | (CylV (bs,ld,cr), CylV (bs',ld',cr')) ->
+    unify stgy top l bs bs';
+    unify stgy top l ld ld';
+    unify stgy top l cr cr'
+
   | (tm,um) ->
     let msg = str "Failed to unify: %a =/= %a"
         pp_value tm pp_value um in

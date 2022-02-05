@@ -8,7 +8,7 @@
 %token LET LAMBDA COLON DBLCOLON EQUAL DOT
 %token LPAR RPAR LBR RBR LBRKT RBRKT 
 %token VBAR DBLARROW ARROW HOLE BARARROW
-%token UCOMP COH CYLCOH  
+%token UCOMP COH CYLCOH NORMALIZE
 %token CYL BASE CORE LID
 %token TYPE CAT ARR
 %token <string> IDENT
@@ -44,6 +44,8 @@ defn:
   | CYLCOH id = IDENT pd = pd_expr COLON cat = expr
       src = disc_expr tgt = disc_expr 
     { CylCohDef (id,pd,cat,src,tgt) }
+  | NORMALIZE tl = tele VBAR tm = expr
+    { Normalize (tl,tm) } 
 
 var_decl:
   | LPAR id = IDENT COLON ty = expr RPAR

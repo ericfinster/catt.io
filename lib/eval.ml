@@ -321,12 +321,18 @@ module ValueCyl = CylinderOps(ValueCylinderSyntax)
 
 (* Revisit whether we really need these now ... *)
 (* here, you could keep going and get a suspended one ... *)
-let rec value_to_cyl_typ (cat : value) : (value * value cyl_typ , string) Result.t =
-  match force_meta cat with
-  | ArrV bc ->
-    Ok (bc , Emp)
-  | HomV (cat',s,t) ->
-    let* (bc,ct) = value_to_cyl_typ cat' in
-    Ok (bc, ct |> ((baseV s, lidV s, coreV s),
-                   (baseV t, lidV t, coreV t)))
-  | _ -> Error "Not a cylinder type"
+let rec value_to_cyl_typ (cat : value) : (value * value susp_cyl_typ , string) Result.t =
+
+  let rec go c l = 
+    match force_meta c with
+    | ArrV bc ->
+      let (bc',sph) = ValuePdUtil.match_homs bc in 
+      Ok (bc' , (sph,l))
+    | HomV (c',s,t) ->
+      go c' (((baseV s, lidV s, coreV s),
+              (baseV t, lidV t, coreV t))::l)
+    | TopV (_,_,tv) -> value_to_cyl_typ tv
+    | _ -> Error "Not a cylinder type"
+
+  in go cat []
+

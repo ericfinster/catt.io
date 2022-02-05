@@ -40,11 +40,21 @@ let base_sph (ct : 'a cyl_typ) : 'a sph =
 let base_disc ((ct,(b,_,_)) : 'a cyl) : 'a disc =
   (base_sph ct,b)
 
+let susp_base_sph (ct : 'a susp_cyl_typ) : 'a sph =
+  Suite.append_list (fst ct)
+    (List.map (snd ct)
+       ~f:(fun ((src,_,_),(tgt,_,_)) -> (src,tgt)))
+
 let lid_sph (ct : 'a cyl_typ) : 'a sph =
   map_suite ct ~f:(fun ((_,src,_),(_,tgt,_)) -> (src,tgt))
 
 let lid_disc ((ct,(_,l,_)) : 'a cyl) : 'a disc =
   (lid_sph ct,l)
+
+let susp_lid_sph (ct : 'a susp_cyl_typ) : 'a sph =
+  Suite.append_list (fst ct)
+    (List.map (snd ct)
+       ~f:(fun ((_,src,_),(_,tgt,_)) -> (src,tgt)))
 
 let flat ((sph,ct) : 'a susp_cyl_typ) : 'a disc =
   match ct with

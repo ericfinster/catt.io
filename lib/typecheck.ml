@@ -161,12 +161,12 @@ let rec check gma expr typ =
      * pr "exp: %a@," pp_term (quote gma.lvl expected false); *)
     let* (e',inferred) = insert gma (infer gma e) in
     try unify OneShot gma.top gma.lvl expected inferred ; Ok e'
-    with Unify_error msg ->
-      pr "Unification error: %s\n" msg;
+    with Unify_error _ ->
+      (* pr "Unification error: %s\n" msg; *)
       (* I guess the unification error will have more information .... *)
       let nms = names gma in
       let inferred_nf = term_to_expr nms (quote false gma.lvl inferred) in
-      let expected_nf = term_to_expr nms (quote true gma.lvl expected) in
+      let expected_nf = term_to_expr nms (quote false gma.lvl expected) in
       let msg = String.concat [ str "@[<v>The expression: @,@, @[%a@]@,@,@]" pp_expr e;
                                 str "@[<v>has type: @,@,  @[%a@]@,@,@]" pp_expr inferred_nf;
                                 str "@[<v>but was expected to have type: @,@, @[%a@]@,@]"
@@ -197,8 +197,8 @@ let rec check gma expr typ =
        (* log_msg "checking cylinder";
         * log_val "bc" bc pp_value; *)
        
-       let btyp = ObjV (C.sph_to_cat bc (base_sph ct)) in
-       let ltyp = ObjV (C.sph_to_cat bc (lid_sph ct)) in
+       let btyp = ObjV (C.sph_to_cat bc (susp_base_sph ct)) in
+       let ltyp = ObjV (C.sph_to_cat bc (susp_lid_sph ct)) in
 
        (* pr "@[base typ: %a@]@," pp_value btyp;
         * pr "@[lid typ: %a@]@," pp_value ltyp; *)
@@ -209,11 +209,8 @@ let rec check gma expr typ =
        let bv = eval gma.top gma.loc bt in
        let lv = eval gma.top gma.loc lt in
 
-       (* we "desuspend" so that all coherences are taken as low as
-          possible *)
-       let (bbc,bsph) = C.match_homs bc in 
-       let ctyp = ObjV (C.sph_to_cat bbc
-                          (C.core_sph bbc (bsph,to_list ct) bv lv)) in
+       let ctyp = ObjV (C.sph_to_cat bc
+                          (C.core_sph bc ct bv lv)) in
 
        (* pr "@[core typ: %a@]@," pp_value ctyp; *)
 
@@ -327,7 +324,7 @@ and infer gma expr =
         | Error _ -> Ok (btm,obj_meta gma cyl_typ)
         | Ok (bc,ct) ->
           let module C = ValueCyl in
-          let btyp = ObjV (C.sph_to_cat bc (base_sph ct)) in
+          let btyp = ObjV (C.sph_to_cat bc (susp_base_sph ct)) in
           (* pr "@[inferred base typ: %a@]@," pp_value btyp; *)
           Ok (btm,btyp))
      | _ -> Ok (btm,obj_meta gma cyl_typ))
@@ -342,28 +339,40 @@ and infer gma expr =
         | Error _ -> Ok (ltm,obj_meta gma cyl_typ)
         | Ok (bc,ct) ->
           let module C = ValueCyl in
-          let ltyp = ObjV (C.sph_to_cat bc (lid_sph ct)) in
+          let ltyp = ObjV (C.sph_to_cat bc (susp_lid_sph ct)) in
           (* pr "@[inferred lid typ: %a@]@," pp_value ltyp; *)
           Ok (ltm,ltyp))
      | _ -> Ok (ltm,obj_meta gma cyl_typ))
 
   | CoreE cyl ->
+    (* log_msg "inferring core type";
+     * log_val "cyl" cyl pp_expr;  *)
     let* (cyl_tm,cyl_typ) = infer gma cyl in
+
+    (* let nms = names gma in
+     * let val_to_expr v = term_to_expr nms
+     *     (quote false gma.lvl v) in 
+     * let cyl_typ_expr = val_to_expr cyl_typ in
+     * 
+     * log_val "cyl_typ_expr" cyl_typ_expr pp_expr; *)
+    
     let cyl_val = eval gma.top gma.loc cyl_tm in
     let ctm = CoreT cyl_tm in
     begin match force_meta cyl_typ with
-     | ObjV cat ->
-       (match value_to_cyl_typ cat with
-        | Error _ -> Ok (ctm,obj_meta gma cyl_typ)
-        | Ok (bc,ct) ->
-          let module C = ValueCyl in
-          let ctyp = ObjV (C.sph_to_cat bc
-                             (C.core_sph bc (Emp,to_list ct)
-                             (baseV cyl_val) (lidV cyl_val))) in
-          (* pr "@[inferred core typ: %a@]@," pp_value ctyp; *)
-          Ok (ctm,ctyp))
-
-     | _ -> Ok (ctm,obj_meta gma cyl_typ)
+      | ObjV cat ->
+        (* log_val "cat" (val_to_expr cat) pp_expr; *)
+        begin match value_to_cyl_typ cat with
+          | Error _ -> Ok (ctm,obj_meta gma cyl_typ)
+          | Ok (bc,ct) ->
+            let module C = ValueCyl in
+            let ctyp = ObjV (C.sph_to_cat bc
+                               (C.core_sph bc ct
+                                  (baseV cyl_val) (lidV cyl_val))) in
+            (* log_val "ctyp" ctyp pp_value; *)
+            (* pr "@[inferred core typ: %a@]@," pp_value ctyp; *)
+            Ok (ctm,ctyp)
+        end
+      | _ -> Ok (ctm,obj_meta gma cyl_typ)
     end
 
   | ArrE c ->
@@ -577,31 +586,30 @@ let rec check_defs gma defs =
   match defs with
   | [] -> Ok gma
   | (TermDef (id,tl,ty,tm))::ds ->
-    pr "----------------@,";
-    pr "Checking definition: %s@," id;
+    log_msg "----------------";
+    log_msg (Fmt.str "Checking definition: %s" id); 
     let (abs_ty,abs_tm) = E.abstract_tele_with_type tl ty tm in
     let* ty_tm = check gma abs_ty TypV in
     let ty_val = eval gma.top gma.loc ty_tm in
     let* tm_tm = check gma abs_tm ty_val in
     let tm_val = eval gma.top gma.loc tm_tm in
-    pr "Checking complete for %s@," id;
+    log_msg (Fmt.str "Checking complete for %s" id); 
     (* let tm_nf = term_to_expr Emp (quote (gma.lvl) tm_val false) in
      * let ty_nf = term_to_expr Emp (quote (gma.lvl) ty_val false) in *)
     (* pr "Type: @[%a@]@," pp_expr ty_nf; *)
     (* pr "Term: @[%a@]@," pp_expr tm_nf; *)
     check_defs (define gma id tm_val ty_val) ds
   | (CohDef (id,g,c,s,t))::ds ->
-    pr "----------------@,";
-    pr "Checking coherence: %s@," id;
+    log_msg "----------------";
+    log_msg (Fmt.str "Checking coherence: %s" id);
     let* (tl,cn,pd,ct,st,tt) = check_coh gma g c s t in
     let coh_ty = eval gma.top gma.loc
         (tele_to_pi tl (ObjT (HomT (ct,st,tt)))) in
     let coh_tm = eval gma.top gma.loc (CohT (cn,pd,ct,st,tt)) in
     let coh_ty_nf = term_to_expr Emp (quote false gma.lvl coh_ty) in
     let coh_tm_nf = term_to_expr Emp (quote false gma.lvl coh_tm) in
-    pr "@[<v>Coh type: @[%a@]@,@]" pp_expr coh_ty_nf;
-    (* pr "@[<v>Coh term: @[%a@]@,@]" pp_term (CohT (cn,pd,ct,st,tt)); *)
-    pr "@[<v>Coh expr: @[%a@]@,@]" pp_expr coh_tm_nf;
+    log_msg (Fmt.str "Coh type: @[%a@]" pp_expr coh_ty_nf);
+    log_msg (Fmt.str "Coh expr: @[%a@]" pp_expr coh_tm_nf);
     check_defs (define gma id coh_tm coh_ty) ds
   | (CylCohDef (id,g,c,s,t))::ds ->
     pr "----------------@,";
@@ -620,6 +628,18 @@ let rec check_defs gma defs =
     let* _ = check gma cyl_nf cyl_cty in
     log_msg "Rechecking succeeded!";
     check_defs (define gma id cyl_ctm cyl_cty) ds
+  | (Normalize (tl,tm))::ds ->
+    log_msg "----------------";
+    log_msg (Fmt.str "Normalizing: @[%a@]" pp_expr tm);
+    let* _ = with_tele gma tl (fun gma' _ _ ->
+        let* (tm',_) = infer gma' tm in
+        let tm_val = eval gma'.top gma'.loc tm' in
+        let tm_nf = term_to_expr (names gma') (quote true (gma'.lvl) tm_val) in
+        log_val "Normal form" tm_nf pp_expr;
+        Ok ()
+      ) in 
+    check_defs gma ds
+
 
 let run_tc m =
   match m with 
