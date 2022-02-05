@@ -8,8 +8,7 @@
 %token LET LAMBDA COLON DBLCOLON EQUAL DOT
 %token LPAR RPAR LBR RBR LBRKT RBRKT 
 %token VBAR DBLARROW ARROW HOLE BARARROW
-%token UCOMP COH CYLCOH NORMALIZE
-%token CYL BASE CORE LID
+%token UCOMP COH NORMALIZE
 %token TYPE CAT ARR
 %token <string> IDENT
 %token <int> INT
@@ -41,9 +40,6 @@ defn:
     { CohDef (id,pd,cat,src,tgt) }
   | COH id = IDENT pd = pd_expr COLON src = expr1 DBLARROW tgt = expr1
     { CohDef (id,pd,HoleE,src,tgt) }
-  | CYLCOH id = IDENT pd = pd_expr COLON cat = expr
-      src = disc_expr tgt = disc_expr 
-    { CylCohDef (id,pd,cat,src,tgt) }
   | NORMALIZE tl = tele VBAR tm = expr
     { Normalize (tl,tm) } 
 
@@ -108,14 +104,6 @@ expr3:
     { ObjE c }
   | ARR c = expr3
     { ArrE c }
-  | BASE e = expr3
-    { BaseE e }
-  | LID e = expr3
-    { LidE e }
-  | CORE e = expr3
-    { CoreE e }
-  | CYL b = expr3 l = expr3 c = expr3
-    { CylE (b,l,c) }
   | LPAR t = expr RPAR
     { t }
 
@@ -143,22 +131,9 @@ pd_expr:
   | cat = IDENT pd = id_pd
     { string_pd_to_expr_tele cat pd }
 
-sph_expr:
-  | BARARROW
-    {Emp}
-  | sph = sph_expr src = expr1 DBLARROW tgt = expr1 VBAR
-    { Ext (sph,(src,tgt)) }
-
-disc_expr:
-  | sph = sph_expr d = expr1
-    { (sph,d) }
-
 coh_expr:
   | UCOMP LBRKT upd = ucomp_pd RBRKT
     { UCompE upd }
   | COH LBRKT pd = pd_expr COLON cat = expr
       BARARROW src = expr1 DBLARROW tgt = expr1 RBRKT
     { CohE (pd,cat,src,tgt) }
-  | CYLCOH LBRKT pd = pd_expr COLON cat = expr
-      src = disc_expr tgt = disc_expr RBRKT
-    { CylCohE (pd,cat,src,tgt) }

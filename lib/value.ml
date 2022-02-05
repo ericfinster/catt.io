@@ -34,15 +34,9 @@ type value =
   | UCompV of ucmp_desc * value * spine
   | CohV of (name * icit) * (name * icit) pd * value * value * value * spine
 
-  (* Cylinders *)
-  | CylV of value * value * value
-
 and spine =
   | EmpSp
   | AppSp of spine * value * icit
-  | BaseSp of spine
-  | LidSp of spine
-  | CoreSp of spine
 
 and top_env = (name * value) suite
 and loc_env = value suite
@@ -92,10 +86,6 @@ let rec pp_value ppf v =
       (pp_pd string) (map_pd pd ~f:fst)
       pp_value c pp_value s pp_value t pp_spine sp
       
-  | CylV (b,l,c) ->
-    pf ppf "[| %a | %a | %a |]"
-      pp_value b pp_value l pp_value c
-
 and pp_spine ppf sp =
   match sp with
   | EmpSp -> ()
@@ -103,12 +93,6 @@ and pp_spine ppf sp =
     pf ppf "%a %a" pp_spine sp' pp_value v
   | AppSp (sp',v,Impl) ->
     pf ppf "%a {%a}" pp_spine sp' pp_value v
-  | BaseSp sp' ->
-    pf ppf "base %a" pp_spine sp'
-  | LidSp sp' ->
-    pf ppf "lid %a" pp_spine sp'
-  | CoreSp sp' ->
-    pf ppf "core %a" pp_spine sp'
 
 let pp_top_env = hovbox (pp_suite (parens (pair ~sep:(any " : ") string pp_value)))
 let pp_loc_env = hovbox (pp_suite ~sep:comma pp_value)

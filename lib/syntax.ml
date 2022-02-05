@@ -360,29 +360,13 @@ module CohUtil(C : CohSyntax) = struct
 end
 
 (*****************************************************************************)
-(*                              Cylinder Syntax                              *)
-(*****************************************************************************)
-
-module type CylinderSyntax = sig
-  include PdSyntax
-  include CohSyntax
-
-  val arr : s -> s
-  val cyl : s -> s -> s -> s
-  val base : s -> s
-  val lid : s -> s
-  val core : s -> s
-
-end
-
-(*****************************************************************************)
 (*                               Generic Syntax                              *)
 (*****************************************************************************)
     
 module type Syntax = sig
   include PdSyntax
   include CohSyntax
-  include CylinderSyntax
+  val arr : s -> s
   val lam : name -> icit -> s -> s
   val pi : name -> icit -> s -> s -> s
   val pp_s : s Fmt.t

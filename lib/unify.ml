@@ -42,11 +42,6 @@ let invert cod sp =
         | _ -> raise (Unify_error "meta-var applied to non-bound-variable")
       end
 
-    (* TODO: More sophisticated unification here? *)
-    | BaseSp _ -> raise (Unify_error "base projected spine")
-    | LidSp _ -> raise (Unify_error "lid projected spine")
-    | CoreSp _ -> raise (Unify_error "core projected spine")
-
   in let (dom,ren) = go sp
   in { dom = dom ; cod = cod ; ren = ren }
 
@@ -90,7 +85,6 @@ let rename m pren v =
 
       goSp pr (CohT (cn,pd,c',s',t')) sp
 
-    | CylV (b,l,c) -> CylT (go pr b, go pr l, go pr c)
     | ArrV c -> ArrT (go pr c)
     | CatV -> CatT
     | TypV -> TypT
@@ -99,9 +93,6 @@ let rename m pren v =
     match sp with
     | EmpSp -> v
     | AppSp (sp',u,ict) -> AppT (goSp pr v sp', go pr u, ict)
-    | BaseSp sp' -> BaseT (goSp pr v sp')
-    | LidSp sp' -> LidT (goSp pr v sp')
-    | CoreSp sp' -> CoreT (goSp pr v sp')
 
   in go pren v
 
@@ -111,9 +102,6 @@ let rec lams k sp t =
   | AppSp (sp',_,ict) ->
     let nm = Printf.sprintf "x%d" k in
     lams (k+1) sp' (LamT (nm,ict,t))
-  | BaseSp sp' -> lams k sp' t
-  | LidSp sp' -> lams k sp' t
-  | CoreSp sp' -> lams k sp' t
 
 let solve top k m sp v =
   let prn = invert k sp in
@@ -239,11 +227,6 @@ let rec unify stgy top l t u =
      * pr "rcs: @[%a@]\n" pp_value (runSpV cohv sp); *)
     unify stgy top l t cohv
 
-  | (CylV (bs,ld,cr), CylV (bs',ld',cr')) ->
-    unify stgy top l bs bs';
-    unify stgy top l ld ld';
-    unify stgy top l cr cr'
-
   | (tm,um) ->
     let msg = str "Failed to unify: %a =/= %a"
         pp_value tm pp_value um in
@@ -255,12 +238,6 @@ and unifySp stgy top l sp sp' =
   | (AppSp (s,u,_), AppSp (s',u',_)) ->
     unifySp stgy top l s s';
     unify stgy top l u u'
-  | (BaseSp s , BaseSp s') ->
-    unifySp stgy top l s s'
-  | (LidSp s , LidSp s') ->
-    unifySp stgy top l s s'
-  | (CoreSp s , CoreSp s') ->
-    unifySp stgy top l s s'
   | _ -> let msg = Fmt.str "@[<v>spine mismatch: @[%a@]@, is not: @[%a@]@,"
              pp_spine sp pp_spine sp' in
     raise (Unify_error msg)

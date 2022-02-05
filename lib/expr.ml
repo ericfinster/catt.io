@@ -33,19 +33,11 @@ type expr =
   (* Forms of coherences *)
   | UCompE of ucmp_desc
   | CohE of expr tele * expr * expr * expr
-  | CylCohE of expr tele * expr * expr disc * expr disc
-
-  (* cylinders *)
-  | CylE of expr * expr * expr
-  | BaseE of expr
-  | LidE of expr
-  | CoreE of expr
 
 (* This probably belongs elsewhere .... *)
 type defn =
   | TermDef of name * expr tele * expr * expr
   | CohDef of name * expr tele * expr * expr * expr
-  | CylCohDef of name * expr tele * expr * expr disc * expr disc
   | Normalize of expr tele * expr 
 
 (*****************************************************************************)
@@ -71,9 +63,6 @@ let arr_parens e =
 let app_parens ppe e =
   match e with
   | AppE (_,_,_) -> parens ppe
-  | BaseE _ -> parens ppe
-  | LidE _ -> parens ppe
-  | CoreE _ -> parens ppe
   | _ -> ppe
 
 let tele_to_pd_dummy _ =
@@ -152,20 +141,6 @@ let rec pp_expr_gen ?tpd:(tpd = tele_to_pd_dummy)
             (pp_tele ppe) g ppe s ppe t
     end
 
-  | CylCohE (g,c,s,t) ->
-    pf ppf "cylcoh [ %a : %a |> %a => %a ]"
-      (pp_tele ppe) g ppe c (pp_disc ppe) s (pp_disc ppe) t
-
-  | BaseE c ->
-    pf ppf "base %a" (app_parens ppe c) c
-  | LidE c ->
-    pf ppf "lid %a" (app_parens ppe c) c
-  | CoreE c ->
-    pf ppf "core %a" (app_parens ppe c) c
-  | CylE (b,l,c) ->
-    pf ppf "cyl @[<hov>@[(%a)@]@;@[(%a)@]@;@[(%a)@]@]"
-      ppe b ppe l ppe c
-
 let pp_expr_dummy = pp_expr_gen ~tpd:tele_to_pd_dummy ~si:true ~fh:true ~pc:true
 
 (*****************************************************************************)
@@ -243,10 +218,6 @@ module ExprCylSyntax = struct
   include ExprCohSyntax
 
   let arr e = ArrE e
-  let cyl b l c = CylE (b,l,c)
-  let base e = BaseE e
-  let lid e = LidE e
-  let core e = CoreE e
 
 end
 

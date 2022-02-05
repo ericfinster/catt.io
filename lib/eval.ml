@@ -10,7 +10,6 @@ open Meta
 open Value
 open Suite
 open Syntax
-open Cylinder
 
 (*****************************************************************************)
 (*                                 Evaluation                                *)
@@ -37,10 +36,6 @@ let rec eval top loc tm =
   | HomT (c,s,t) ->
     HomV (eval top loc c, eval top loc s, eval top loc t)
 
-  | CylCohT (cn,pd,c,s,t) ->
-    eval top loc
-      (snd (TermCylCoh.cylcoh_impl cn pd c s t))
-
   | UCompT uc ->
     let v = eval top loc (term_ucomp (ucmp_pd uc)) in
     UCompV (uc, v, EmpSp)
@@ -56,10 +51,6 @@ let rec eval top loc tm =
 
     CohV (nm,pd,c',s',t',EmpSp)
 
-  | CylT (b,l,c) -> CylV (eval top loc b, eval top loc l, eval top loc c)
-  | BaseT c -> baseV (eval top loc c)
-  | LidT c -> lidV (eval top loc c)
-  | CoreT c -> coreV (eval top loc c)
   | ArrT c -> ArrV (eval top loc c)
   | CatT -> CatV
   | TypT -> TypV
@@ -84,43 +75,8 @@ and appV t u ict =
   | UCompV (ucd,cohv,sp) -> UCompV (ucd,appV cohv u ict,AppSp(sp,u,ict))
   | CohV (cn,pd,c,s,t,sp) ->
     CohV (cn,pd,c,s,t,AppSp(sp,u,ict))
-
   | _ -> raise (Eval_error (Fmt.str "malformed application: %a" pp_value t))
 
-and baseV v =
-  match v with
-  | FlexV (m,sp) -> FlexV (m,BaseSp sp)
-  | RigidV (i,sp) -> RigidV (i,BaseSp sp)
-  | TopV (nm,sp,tv) -> TopV (nm,BaseSp sp, baseV tv)
-  | CylV (b,_,_) -> b
-  | UCompV (ucd,cohv,sp) -> UCompV (ucd,baseV cohv,BaseSp sp)
-  | CohV (cn,pd,sph,s,t,sp) ->
-    CohV (cn,pd,sph,s,t,BaseSp sp)
-  | _ -> raise (Eval_error "malformed base projection")
-
-and lidV v =
-  match v with
-  | FlexV (m,sp) -> FlexV (m,LidSp sp)
-  | RigidV (i,sp) -> RigidV (i,LidSp sp)
-  | TopV (nm,sp,tv) -> TopV (nm,LidSp sp, lidV tv)
-  | CylV (_,l,_) -> l
-  | UCompV (ucd,cohv,sp) -> UCompV (ucd,lidV cohv,LidSp sp)
-  | CohV (cn,pd,sph,s,t,sp) ->
-    CohV (cn,pd,sph,s,t,LidSp sp)
-  | _ -> raise (Eval_error "malformed lid projection")
-
-and coreV v =
-  match v with
-  | FlexV (m,sp) -> FlexV (m,CoreSp sp)
-  | RigidV (i,sp) -> RigidV (i,CoreSp sp)
-  | TopV (nm,sp,tv) -> TopV (nm,CoreSp sp, coreV tv)
-  | CylV (_,_,c) -> c
-  | UCompV (ucd,cohv,sp) -> UCompV (ucd,coreV cohv,CoreSp sp)
-  | CohV (cn,pd,sph,s,t,sp) ->
-    CohV (cn,pd,sph,s,t,CoreSp sp)
-  | _ ->
-    let msg = Fmt.str "Cannot project core from: %a" pp_value v in
-    raise (Eval_error msg)
 
 and appLocV loc v =
   match loc with
@@ -131,9 +87,6 @@ and runSpV v sp =
   match sp with
   | EmpSp -> v
   | AppSp (sp',u,ict) -> appV (runSpV v sp') u ict
-  | BaseSp sp' -> baseV (runSpV v sp')
-  | LidSp sp' -> lidV (runSpV v sp')
-  | CoreSp sp' -> coreV (runSpV v sp')
 
 and force_meta v =
   match v with
@@ -173,7 +126,6 @@ and quote ufld k v =
 
     qcs (CohT (cn,pd,c',s',t')) sp
 
-  | CylV (b,l,c) -> CylT (qc b, qc l, qc c)
   | ArrV c -> ArrT (qc c)
   | CatV -> CatT
   | TypV -> TypT
@@ -185,9 +137,6 @@ and quote_sp ufld k t sp =
   | EmpSp -> t
   | AppSp (sp',u,ict) ->
     AppT (qcs t sp',qc u,ict)
-  | BaseSp sp' -> BaseT (qcs t sp')
-  | LidSp sp' -> LidT (qcs t sp')
-  | CoreSp sp' -> CoreT (qcs t sp')
 
 let quote_tele tl =
   let rec go tl =
@@ -222,8 +171,6 @@ let rec free_vars_val k v =
     S.union_list (module Base.Int) [fvc c; fvc s; fvc t]
   | UCompV (_,_,sp) -> sp_vars sp
   | CohV (_,_,_,_,_,sp) -> sp_vars sp
-  | CylV (b,l,c) ->
-    S.union_list (module Base.Int) [fvc b; fvc l; fvc c]
   | ArrV c -> fvc c
   | CatV -> fvs_empty
   | TypV -> fvs_empty
@@ -236,9 +183,6 @@ and free_vars_sp k sp =
   | EmpSp -> fvs_empty
   | AppSp (sp',u,_) ->
     S.union (fvcs sp') (fvc u)
-  | BaseSp sp' -> fvcs sp'
-  | LidSp sp' -> fvcs sp'
-  | CoreSp sp' -> fvcs sp'
 
 (*****************************************************************************)
 (*                            Value Pd Conversion                            *)
@@ -310,29 +254,6 @@ module ValueCylinderSyntax = struct
   include ValueCohSyntax
 
   let arr v = ArrV v
-  let cyl b l c = CylV (b,l,c)
-  let base v = baseV v
-  let lid v = lidV v
-  let core v = coreV v
 
 end
-
-module ValueCyl = CylinderOps(ValueCylinderSyntax)
-
-(* Revisit whether we really need these now ... *)
-(* here, you could keep going and get a suspended one ... *)
-let rec value_to_cyl_typ (cat : value) : (value * value susp_cyl_typ , string) Result.t =
-
-  let rec go c l = 
-    match force_meta c with
-    | ArrV bc ->
-      let (bc',sph) = ValuePdUtil.match_homs bc in 
-      Ok (bc' , (sph,l))
-    | HomV (c',s,t) ->
-      go c' (((baseV s, lidV s, coreV s),
-              (baseV t, lidV t, coreV t))::l)
-    | TopV (_,_,tv) -> value_to_cyl_typ tv
-    | _ -> Error "Not a cylinder type"
-
-  in go cat []
 

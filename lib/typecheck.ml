@@ -15,7 +15,6 @@ open Meta
 open Eval
 open Unify
 open Syntax
-open Cylinder
 
 (* Monadic bind for errors in scope *)
 let (let*) m f = Base.Result.bind m ~f
@@ -134,7 +133,6 @@ type typing_error = [
   | `FullnessError of string
   | `NotImplemented of string
   | `BadCohQuot of string
-  | `InvalidCylinder of string
   | `InternalError
 ]
 
@@ -147,7 +145,6 @@ let pp_error ppf e =
   | `IcityMismatch (_, _) -> Fmt.pf ppf "Icity mismatch"
   | `BadCohQuot msg -> Fmt.pf ppf "%s" msg 
   | `NotImplemented f -> Fmt.pf ppf "Feature not implemented: %s" f
-  | `InvalidCylinder msg -> Fmt.pf ppf "Invalid cylinder: %s" msg 
   | `InternalError -> Fmt.pf ppf "Internal Error"
 
 let rec check gma expr typ =
@@ -187,37 +184,6 @@ let rec check gma expr typ =
   | (t , PiV (nm,Impl,a,b)) ->
     let* bdy = check (bind gma nm a) t (b $$ varV gma.lvl) in
     Ok (LamT (nm,Impl,bdy))
-
-  | (CylE (b,l,c) , ObjV cat) ->
-    begin match value_to_cyl_typ cat with
-     | Error _ -> log_msg "switching in cylinder" ; switch expr (ObjV cat)
-     | Ok (bc,ct) ->
-       let module C = ValueCyl in
-
-       (* log_msg "checking cylinder";
-        * log_val "bc" bc pp_value; *)
-       
-       let btyp = ObjV (C.sph_to_cat bc (susp_base_sph ct)) in
-       let ltyp = ObjV (C.sph_to_cat bc (susp_lid_sph ct)) in
-
-       (* pr "@[base typ: %a@]@," pp_value btyp;
-        * pr "@[lid typ: %a@]@," pp_value ltyp; *)
-
-       let* bt = check gma b btyp in
-       let* lt = check gma l ltyp in
-
-       let bv = eval gma.top gma.loc bt in
-       let lv = eval gma.top gma.loc lt in
-
-       let ctyp = ObjV (C.sph_to_cat bc
-                          (C.core_sph bc ct bv lv)) in
-
-       (* pr "@[core typ: %a@]@," pp_value ctyp; *)
-
-       let* ct = check gma c ctyp in
-
-       Ok (CylT (bt,lt,ct))
-    end
 
   | (HoleE , _) -> (* pr "fresh meta@,"; *)
     let mv = fresh_meta () in Ok mv
@@ -293,8 +259,6 @@ and infer gma expr =
     let* (_,ty) = infer gma e in
     Ok (UCompT (DimSeq ds),ty)
 
-  | CylCohE _ -> Error (`NotImplemented "cylcoh")
-
   | CohE (g,c,s,t) ->
     let* (tl,cn,pd,ct,st,tt) = check_coh gma g c s t in
     let coh_ty = eval gma.top gma.loc
@@ -303,77 +267,6 @@ and infer gma expr =
      * pr "@[<v>Coherence: @[%a@]@,inferred to have type: @[%a@]@,@]"
      *   pp_expr_with_impl (CohE (g,c,s,t)) pp_expr_with_impl ty_nf; *)
     Ok (CohT (cn,pd,ct,st,tt) , coh_ty)
-
-  | CylE (b,l,c) ->
-    (* This could be much smarter.  By deconstructing the
-       types of the various components, we could have tighter
-       constraints for unification ... *)
-    let* (btm,_) = infer gma b in
-    let* (ltm,_) = infer gma l in
-    let* (ctm,_) = infer gma c in
-    let m = eval gma.top gma.loc (fresh_meta ()) in
-    Ok (CylT (btm,ltm,ctm), m)
-
-  | BaseE cyl ->
-    let* (cyl_tm,cyl_typ) = infer gma cyl in
-    let btm = BaseT cyl_tm in
-
-    (match force_meta cyl_typ with
-     | ObjV cat ->
-       (match value_to_cyl_typ cat with
-        | Error _ -> Ok (btm,obj_meta gma cyl_typ)
-        | Ok (bc,ct) ->
-          let module C = ValueCyl in
-          let btyp = ObjV (C.sph_to_cat bc (susp_base_sph ct)) in
-          (* pr "@[inferred base typ: %a@]@," pp_value btyp; *)
-          Ok (btm,btyp))
-     | _ -> Ok (btm,obj_meta gma cyl_typ))
-
-  | LidE cyl ->
-    let* (cyl_tm,cyl_typ) = infer gma cyl in
-    let ltm = LidT cyl_tm in
-
-    (match force_meta cyl_typ with
-     | ObjV cat ->
-       (match value_to_cyl_typ cat with
-        | Error _ -> Ok (ltm,obj_meta gma cyl_typ)
-        | Ok (bc,ct) ->
-          let module C = ValueCyl in
-          let ltyp = ObjV (C.sph_to_cat bc (susp_lid_sph ct)) in
-          (* pr "@[inferred lid typ: %a@]@," pp_value ltyp; *)
-          Ok (ltm,ltyp))
-     | _ -> Ok (ltm,obj_meta gma cyl_typ))
-
-  | CoreE cyl ->
-    (* log_msg "inferring core type";
-     * log_val "cyl" cyl pp_expr;  *)
-    let* (cyl_tm,cyl_typ) = infer gma cyl in
-
-    (* let nms = names gma in
-     * let val_to_expr v = term_to_expr nms
-     *     (quote false gma.lvl v) in 
-     * let cyl_typ_expr = val_to_expr cyl_typ in
-     * 
-     * log_val "cyl_typ_expr" cyl_typ_expr pp_expr; *)
-    
-    let cyl_val = eval gma.top gma.loc cyl_tm in
-    let ctm = CoreT cyl_tm in
-    begin match force_meta cyl_typ with
-      | ObjV cat ->
-        (* log_val "cat" (val_to_expr cat) pp_expr; *)
-        begin match value_to_cyl_typ cat with
-          | Error _ -> Ok (ctm,obj_meta gma cyl_typ)
-          | Ok (bc,ct) ->
-            let module C = ValueCyl in
-            let ctyp = ObjV (C.sph_to_cat bc
-                               (C.core_sph bc ct
-                                  (baseV cyl_val) (lidV cyl_val))) in
-            (* log_val "ctyp" ctyp pp_value; *)
-            (* pr "@[inferred core typ: %a@]@," pp_value ctyp; *)
-            Ok (ctm,ctyp)
-        end
-      | _ -> Ok (ctm,obj_meta gma cyl_typ)
-    end
 
   | ArrE c ->
     let* c' = check gma c CatV in
@@ -611,23 +504,6 @@ let rec check_defs gma defs =
     log_msg (Fmt.str "Coh type: @[%a@]" pp_expr coh_ty_nf);
     log_msg (Fmt.str "Coh expr: @[%a@]" pp_expr coh_tm_nf);
     check_defs (define gma id coh_tm coh_ty) ds
-  | (CylCohDef (id,g,c,s,t))::ds ->
-    pr "----------------@,";
-    pr "Checking cylinder coherence: %s@," id;
-    let* (_,cn,pd,ct,(ssph,s),(tsph,t)) = check_cyl_coh gma g c s t in
-    let cctt = TermCylCoh.cyl_coh_typ cn pd ct (ssph,s) (tsph,t) in
-    let cyl_ctm = eval gma.top gma.loc
-        (CylCohT (cn,pd,ct,(ssph,s),(tsph,t))) in
-    let cyl_cty = eval gma.top gma.loc cctt in
-    let cyl_cty_nf = term_to_expr Emp (quote false gma.lvl cyl_cty) in
-    let cyl_nf = term_to_expr Emp (quote false gma.lvl cyl_ctm) in
-    pr "@[<v>Cylcoh type: @[%a@]@,@]" pp_expr_with_impl cyl_cty_nf;
-    pr "@[<v>Cylcoh expr: @[%a@]@,@]" pp_expr cyl_nf;
-    let* _ = check gma cyl_cty_nf TypV in
-    log_msg "Type is valid ..."; 
-    let* _ = check gma cyl_nf cyl_cty in
-    log_msg "Rechecking succeeded!";
-    check_defs (define gma id cyl_ctm cyl_cty) ds
   | (Normalize (tl,tm))::ds ->
     log_msg "----------------";
     log_msg (Fmt.str "Normalizing: @[%a@]" pp_expr tm);

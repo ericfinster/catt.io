@@ -36,7 +36,6 @@ let rec token buf =
   | "let"        -> LET
   | "coh"        -> COH
   | "ucomp"      -> UCOMP
-  | "cylcoh"     -> CYLCOH
   | "normalize"  -> NORMALIZE 
   | "->"         -> ARROW
   | "=>"         -> DBLARROW
@@ -46,10 +45,6 @@ let rec token buf =
   | "}"          -> RBR
   | "["          -> LBRKT
   | "]"          -> RBRKT
-  | "cyl"        -> CYL
-  | "base"       -> BASE
-  | "lid"        -> LID
-  | "core"       -> CORE
   | "|>"         -> BARARROW
   | ":"          -> COLON
   | "::"         -> DBLCOLON

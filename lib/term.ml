@@ -36,13 +36,6 @@ type term =
   (* Coherences *)
   | UCompT of ucmp_desc
   | CohT of nm_ict * nm_ict pd * term * term * term
-  | CylCohT of nm_ict * nm_ict pd * term * term disc * term disc
-
-  (* Cylinders *)
-  | CylT of term * term * term
-  | BaseT of term
-  | LidT of term
-  | CoreT of term
 
 (*****************************************************************************)
 (*                              DeBrujin Lifting                             *)
@@ -70,12 +63,6 @@ let rec db_lift_by l k tm =
 
   | UCompT pd -> UCompT pd
   | CohT (cnm,pd,c,s,t) -> CohT (cnm,pd,c,s,t)
-  | CylCohT (cn,pd,c,s,t) -> CylCohT (cn,pd,c,s,t)
-
-  | BaseT t -> BaseT (lft t)
-  | LidT t -> LidT (lft t)
-  | CoreT t -> CoreT (lft t)
-  | CylT (b,l,c) -> CylT (lft b, lft l, lft c)
 
 let db_lift l t = db_lift_by l 1 t
 
@@ -116,21 +103,6 @@ let rec term_to_expr nms tm =
          let s' = tte nms' s in
          let t' = tte nms' t in
          CohE (g,c',s',t'))
-  | CylCohT (cn,pd,c,s,t) ->
-    let g = ExprPdUtil.nm_ict_pd_to_tele cn pd in
-    fold_accum_cont g nms
-      (fun (nm,_,_) nms' -> ((),Ext (nms',nm)))
-      (fun _ nms' ->
-         let c' = tte nms' c in
-         let s' = map_disc ~f:(tte nms') s in
-         let t' = map_disc ~f:(tte nms') t in
-         CylCohE (g,c',s',t'))
-
-  | BaseT c -> BaseE (tte nms c)
-  | LidT c -> LidE (tte nms c)
-  | CoreT c -> CoreE (tte nms c)
-  | CylT (b,l,c) ->
-    CylE (tte nms b, tte nms l, tte nms c)
 
 (*****************************************************************************)
 (*                                 Telescopes                                *)
@@ -219,18 +191,6 @@ let rec pp_term_gen ?si:(si=false) ppf tm =
       (pp_pd string) (map_pd pd ~f:fst)
       ppt c ppt s ppt t
 
-  | CylCohT ((cn,_),pd,c,s,t) ->
-    pf ppf "@[cylcoh [ %s @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] ]@]" cn
-      (pp_pd string) (map_pd pd ~f:fst)
-      ppt c (pp_disc ppt) s (pp_disc ppt) t
-
-  | BaseT c -> pf ppf "base %a" ppt c
-  | LidT c -> pf ppf "lid %a" ppt c
-  | CoreT c -> pf ppf "core %a" ppt c
-  | CylT (b,l,c) ->
-    pf ppf "[| %a | %a | %a |]" ppt b ppt l ppt c
-
-
 let pp_term = pp_term_gen ~si:false
 
 (*****************************************************************************)
@@ -255,12 +215,6 @@ let rec free_vars k tm =
     Set.union (free_vars k c) (Set.union (free_vars k s) (free_vars k t))
   | UCompT _ -> fvs_empty
   | CohT _ -> fvs_empty
-  | CylCohT _ -> fvs_empty
-  | CylT (b,l,c) ->
-    Set.union (free_vars k b) (Set.union (free_vars k l) (free_vars k c))
-  | BaseT c -> free_vars k c
-  | LidT c -> free_vars k c
-  | CoreT c -> free_vars k c
   | ArrT c -> free_vars k c
   | CatT -> fvs_empty
   | TypT -> fvs_empty
@@ -296,13 +250,6 @@ let rec simple_sub (k : lvl) (tm : term) (sub : term option suite) : term =
   | UCompT ud -> UCompT ud
   | CohT (cn,pd,c,s,t) ->
     CohT (cn,pd,c,s,t)
-  | CylCohT (cn,pd,c,s,t) -> 
-    CylCohT (cn,pd,c,s,t)
-  | CylT (b,l,c) ->
-    CylT (ss b, ss l, ss c)
-  | BaseT c -> BaseT (ss c)
-  | LidT c -> LidT (ss c)
-  | CoreT c -> CoreT (ss c)
   | ArrT c -> ArrT (ss c)
   | CatT -> CatT
   | TypT -> TypT
@@ -403,10 +350,6 @@ module TermCylSyntax = struct
   include TermCohSyntax
 
   let arr e = ArrT e
-  let cyl b l c = CylT (b,l,c)
-  let base e = BaseT e
-  let lid e = LidT e
-  let core e = CoreT e
 
 end
 
