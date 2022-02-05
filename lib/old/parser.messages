@@ -1,0 +1,525 @@
+prog: COH IDENT COLON WHERE
+##
+## Ends in an error in state: 66.
+##
+## cmd -> COH IDENT tele COLON . ty_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## COH IDENT tele COLON
+##
+
+Coherence has invalid type definition
+
+prog: COH IDENT WHERE
+##
+## Ends in an error in state: 65.
+##
+## cmd -> COH IDENT tele . COLON ty_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF COH ]
+## tele -> tele . var_decl [ LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## COH IDENT tele
+##
+
+Coherence has no type definition
+
+prog: COH WHERE
+##
+## Ends in an error in state: 63.
+##
+## cmd -> COH . IDENT tele COLON ty_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## COH
+##
+
+Expected identifier in coherence definition
+
+prog: IMPRT IDENT WHERE
+##
+## Ends in an error in state: 73.
+##
+## list(import) -> import . list(import) [ SIG SECTION PRUNE NORMALIZE LET INFER COH ]
+##
+## The known suffix of the stack is as follows:
+## import
+##
+
+Expected import 
+
+prog: IMPRT WHERE
+##
+## Ends in an error in state: 1.
+##
+## import -> IMPRT . IDENT [ SIG SECTION PRUNE NORMALIZE LET INFER IMPRT COH ]
+##
+## The known suffix of the stack is as follows:
+## IMPRT
+##
+
+Expected identifier in import 
+
+prog: INFER VBAR WHERE
+##
+## Ends in an error in state: 61.
+##
+## cmd -> INFER tele VBAR . tm_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## INFER tele VBAR
+##
+
+Malformed term in inference command
+
+prog: INFER WHERE
+##
+## Ends in an error in state: 60.
+##
+## cmd -> INFER tele . VBAR tm_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF COH ]
+## tele -> tele . var_decl [ VBAR LPAR ]
+##
+## The known suffix of the stack is as follows:
+## INFER tele
+##
+
+Malformed inference command
+
+prog: LET IDENT COLON OBJ EQUAL WHERE
+##
+## Ends in an error in state: 45.
+##
+## decl -> LET IDENT tele COLON ty_expr EQUAL . tm_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF END COH ]
+##
+## The known suffix of the stack is as follows:
+## LET IDENT tele COLON ty_expr EQUAL
+##
+
+Invalid term in let definition
+
+prog: LET IDENT COLON OBJ WHERE
+##
+## Ends in an error in state: 44.
+##
+## decl -> LET IDENT tele COLON ty_expr . EQUAL tm_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF END COH ]
+##
+## The known suffix of the stack is as follows:
+## LET IDENT tele COLON ty_expr
+##
+
+No term provided in let definition
+
+prog: LET IDENT COLON WHERE
+##
+## Ends in an error in state: 43.
+##
+## decl -> LET IDENT tele COLON . ty_expr EQUAL tm_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF END COH ]
+##
+## The known suffix of the stack is as follows:
+## LET IDENT tele COLON
+##
+
+Invalid type in let definition
+
+prog: LET IDENT WHERE
+##
+## Ends in an error in state: 42.
+##
+## decl -> LET IDENT tele . COLON ty_expr EQUAL tm_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF END COH ]
+## tele -> tele . var_decl [ LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## LET IDENT tele
+##
+
+No type in let definition
+
+prog: LET WHERE
+##
+## Ends in an error in state: 40.
+##
+## decl -> LET . IDENT tele COLON ty_expr EQUAL tm_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF END COH ]
+##
+## The known suffix of the stack is as follows:
+## LET
+##
+
+Expected identifier in let definition
+
+prog: NORMALIZE VBAR WHERE
+##
+## Ends in an error in state: 57.
+##
+## cmd -> NORMALIZE tele VBAR . tm_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## NORMALIZE tele VBAR
+##
+
+Malformed normalization command
+
+prog: NORMALIZE WHERE
+##
+## Ends in an error in state: 56.
+##
+## cmd -> NORMALIZE tele . VBAR tm_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF COH ]
+## tele -> tele . var_decl [ VBAR LPAR ]
+##
+## The known suffix of the stack is as follows:
+## NORMALIZE tele
+##
+
+Malformed normalization command
+
+prog: PRUNE VBAR COH LBRACKET COLON OBJ RBRACKET LPAR IDENT COH
+##
+## Ends in an error in state: 23.
+##
+## arg_list -> arg_list . COMMA tm_expr [ RPAR COMMA ]
+## tm_expr -> COH LBRACKET tele COLON ty_expr RBRACKET LPAR arg_list . RPAR [ SIG SECTION RPAR RBRACKET PRUNE NORMALIZE LET INFER EQUAL EOF END COMMA COH ARROW ]
+##
+## The known suffix of the stack is as follows:
+## COH LBRACKET tele COLON ty_expr RBRACKET LPAR arg_list
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 13, spurious reduction of production tm_expr -> IDENT 
+## In state 22, spurious reduction of production arg_list -> tm_expr 
+##
+
+Invalid argument list
+
+prog: PRUNE VBAR COH LBRACKET COLON OBJ RBRACKET LPAR WHERE
+##
+## Ends in an error in state: 21.
+##
+## tm_expr -> COH LBRACKET tele COLON ty_expr RBRACKET LPAR . arg_list RPAR [ SIG SECTION RPAR RBRACKET PRUNE NORMALIZE LET INFER EQUAL EOF END COMMA COH ARROW ]
+##
+## The known suffix of the stack is as follows:
+## COH LBRACKET tele COLON ty_expr RBRACKET LPAR
+##
+
+Invalid argument list
+
+prog: PRUNE VBAR COH LBRACKET COLON OBJ RBRACKET WHERE
+##
+## Ends in an error in state: 20.
+##
+## tm_expr -> COH LBRACKET tele COLON ty_expr RBRACKET . LPAR arg_list RPAR [ SIG SECTION RPAR RBRACKET PRUNE NORMALIZE LET INFER EQUAL EOF END COMMA COH ARROW ]
+##
+## The known suffix of the stack is as follows:
+## COH LBRACKET tele COLON ty_expr RBRACKET
+##
+
+Invalid argument list in coherence
+
+prog: PRUNE VBAR COH LBRACKET COLON OBJ WHERE
+##
+## Ends in an error in state: 19.
+##
+## tm_expr -> COH LBRACKET tele COLON ty_expr . RBRACKET LPAR arg_list RPAR [ SIG SECTION RPAR RBRACKET PRUNE NORMALIZE LET INFER EQUAL EOF END COMMA COH ARROW ]
+##
+## The known suffix of the stack is as follows:
+## COH LBRACKET tele COLON ty_expr
+##
+
+Malformed coherence expression
+
+prog: PRUNE VBAR COH LBRACKET COLON WHERE
+##
+## Ends in an error in state: 18.
+##
+## tm_expr -> COH LBRACKET tele COLON . ty_expr RBRACKET LPAR arg_list RPAR [ SIG SECTION RPAR RBRACKET PRUNE NORMALIZE LET INFER EQUAL EOF END COMMA COH ARROW ]
+##
+## The known suffix of the stack is as follows:
+## COH LBRACKET tele COLON
+##
+
+Malformed type in coherence expression
+
+prog: PRUNE VBAR COH LBRACKET WHERE
+##
+## Ends in an error in state: 17.
+##
+## tele -> tele . var_decl [ LPAR COLON ]
+## tm_expr -> COH LBRACKET tele . COLON ty_expr RBRACKET LPAR arg_list RPAR [ SIG SECTION RPAR RBRACKET PRUNE NORMALIZE LET INFER EQUAL EOF END COMMA COH ARROW ]
+##
+## The known suffix of the stack is as follows:
+## COH LBRACKET tele
+##
+
+Invalid telescope
+
+prog: PRUNE VBAR COH WHERE
+##
+## Ends in an error in state: 15.
+##
+## tm_expr -> COH . LBRACKET tele COLON ty_expr RBRACKET LPAR arg_list RPAR [ SIG SECTION RPAR RBRACKET PRUNE NORMALIZE LET INFER EQUAL EOF END COMMA COH ARROW ]
+##
+## The known suffix of the stack is as follows:
+## COH
+##
+
+Malformed coherence expression
+
+prog: PRUNE VBAR IDENT LPAR COMMA WHERE
+##
+## Ends in an error in state: 25.
+##
+## arg_list -> arg_list COMMA . tm_expr [ RPAR COMMA ]
+##
+## The known suffix of the stack is as follows:
+## arg_list COMMA
+##
+
+Invalid argument list
+
+prog: PRUNE VBAR IDENT LPAR IDENT COH
+##
+## Ends in an error in state: 31.
+##
+## arg_list -> arg_list . COMMA tm_expr [ RPAR COMMA ]
+## tm_expr -> IDENT LPAR arg_list . RPAR [ SIG SECTION RPAR RBRACKET PRUNE NORMALIZE LET INFER EQUAL EOF END COMMA COH ARROW ]
+##
+## The known suffix of the stack is as follows:
+## IDENT LPAR arg_list
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 13, spurious reduction of production tm_expr -> IDENT 
+## In state 22, spurious reduction of production arg_list -> tm_expr 
+##
+
+Invalid argument list
+
+prog: PRUNE VBAR IDENT LPAR WHERE
+##
+## Ends in an error in state: 14.
+##
+## tm_expr -> IDENT LPAR . arg_list RPAR [ SIG SECTION RPAR RBRACKET PRUNE NORMALIZE LET INFER EQUAL EOF END COMMA COH ARROW ]
+##
+## The known suffix of the stack is as follows:
+## IDENT LPAR
+##
+
+Invalid argument list
+
+prog: PRUNE VBAR IDENT WHERE
+##
+## Ends in an error in state: 13.
+##
+## tm_expr -> IDENT . LPAR arg_list RPAR [ SIG SECTION RPAR RBRACKET PRUNE NORMALIZE LET INFER EQUAL EOF END COMMA COH ARROW ]
+## tm_expr -> IDENT . [ SIG SECTION RPAR RBRACKET PRUNE NORMALIZE LET INFER EQUAL EOF END COMMA COH ARROW ]
+##
+## The known suffix of the stack is as follows:
+## IDENT
+##
+
+Invalid identifier expression
+
+prog: PRUNE VBAR WHERE
+##
+## Ends in an error in state: 53.
+##
+## cmd -> PRUNE tele VBAR . tm_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## PRUNE tele VBAR
+##
+
+Malformed prune command
+
+prog: PRUNE WHERE
+##
+## Ends in an error in state: 52.
+##
+## cmd -> PRUNE tele . VBAR tm_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF COH ]
+## tele -> tele . var_decl [ VBAR LPAR ]
+##
+## The known suffix of the stack is as follows:
+## PRUNE tele
+##
+
+Malformed prune command
+
+prog: SECTION LPAR IDENT COLON OBJ WHERE
+##
+## Ends in an error in state: 33.
+##
+## var_decl -> LPAR IDENT COLON ty_expr . RPAR [ WHERE VBAR LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## LPAR IDENT COLON ty_expr
+##
+
+Invalid type declaration
+
+prog: SECTION LPAR IDENT COLON WHERE
+##
+## Ends in an error in state: 11.
+##
+## var_decl -> LPAR IDENT COLON . ty_expr RPAR [ WHERE VBAR LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## LPAR IDENT COLON
+##
+
+Invalid type declaration
+
+prog: SECTION LPAR IDENT WHERE
+##
+## Ends in an error in state: 10.
+##
+## var_decl -> LPAR IDENT . COLON ty_expr RPAR [ WHERE VBAR LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## LPAR IDENT
+##
+
+Invalid type declaration
+
+prog: SECTION LPAR WHERE
+##
+## Ends in an error in state: 9.
+##
+## var_decl -> LPAR . IDENT COLON ty_expr RPAR [ WHERE VBAR LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## LPAR
+##
+
+Invalid type declaration
+
+prog: SECTION VBAR
+##
+## Ends in an error in state: 38.
+##
+## cmd -> SECTION tele . WHERE list(decl) END [ SIG SECTION PRUNE NORMALIZE LET INFER EOF COH ]
+## tele -> tele . var_decl [ WHERE LPAR ]
+##
+## The known suffix of the stack is as follows:
+## SECTION tele
+##
+
+Malformed section
+
+prog: SECTION WHERE END WHERE
+##
+## Ends in an error in state: 71.
+##
+## nonempty_list(cmd) -> cmd . [ EOF ]
+## nonempty_list(cmd) -> cmd . nonempty_list(cmd) [ EOF ]
+##
+## The known suffix of the stack is as follows:
+## cmd
+##
+
+Invalid command
+
+prog: SECTION WHERE SIG IDENT COLON OBJ WHERE
+##
+## Ends in an error in state: 49.
+##
+## list(decl) -> decl . list(decl) [ END ]
+##
+## The known suffix of the stack is as follows:
+## decl
+##
+
+Expected a declaration
+
+prog: SECTION WHERE WHERE
+##
+## Ends in an error in state: 39.
+##
+## cmd -> SECTION tele WHERE . list(decl) END [ SIG SECTION PRUNE NORMALIZE LET INFER EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## SECTION tele WHERE
+##
+
+Invalid section 
+
+prog: SIG IDENT COLON IDENT ARROW WHERE
+##
+## Ends in an error in state: 28.
+##
+## ty_expr -> tm_expr ARROW . tm_expr [ SIG SECTION RPAR RBRACKET PRUNE NORMALIZE LET INFER EQUAL EOF END COH ]
+##
+## The known suffix of the stack is as follows:
+## tm_expr ARROW
+##
+
+Incomplete type expression
+
+prog: SIG IDENT COLON IDENT SIG
+##
+## Ends in an error in state: 27.
+##
+## ty_expr -> tm_expr . ARROW tm_expr [ SIG SECTION RPAR RBRACKET PRUNE NORMALIZE LET INFER EQUAL EOF END COH ]
+##
+## The known suffix of the stack is as follows:
+## tm_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 13, spurious reduction of production tm_expr -> IDENT 
+##
+
+Incomplete type expression
+
+prog: SIG IDENT COLON WHERE
+##
+## Ends in an error in state: 35.
+##
+## decl -> SIG IDENT tele COLON . ty_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF END COH ]
+##
+## The known suffix of the stack is as follows:
+## SIG IDENT tele COLON
+##
+
+Invalid type expression in signature
+
+prog: SIG IDENT WHERE
+##
+## Ends in an error in state: 8.
+##
+## decl -> SIG IDENT tele . COLON ty_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF END COH ]
+## tele -> tele . var_decl [ LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## SIG IDENT tele
+##
+
+Invalid signature
+
+prog: SIG WHERE
+##
+## Ends in an error in state: 6.
+##
+## decl -> SIG . IDENT tele COLON ty_expr [ SIG SECTION PRUNE NORMALIZE LET INFER EOF END COH ]
+##
+## The known suffix of the stack is as follows:
+## SIG
+##
+
+Expected identifier in signature
+
+prog: WHERE
+##
+## Ends in an error in state: 0.
+##
+## prog' -> . prog [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+Invalid syntax
+
+

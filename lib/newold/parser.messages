@@ -1,0 +1,471 @@
+prog: COH IDENT COLON CAT RPAR
+##
+## Ends in an error in state: 56.
+##
+## nonempty_list(defn) -> defn . [ EOF ]
+## nonempty_list(defn) -> defn . nonempty_list(defn) [ EOF ]
+##
+## The known suffix of the stack is as follows:
+## defn
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 16, spurious reduction of production term1 -> term2 
+## In state 18, spurious reduction of production term -> term1 
+## In state 52, spurious reduction of production defn -> COH IDENT tele COLON term 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: COH IDENT COLON VBAR
+##
+## Ends in an error in state: 51.
+##
+## defn -> COH IDENT tele COLON . term [ LET EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## COH IDENT tele COLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: COH IDENT VBAR
+##
+## Ends in an error in state: 50.
+##
+## defn -> COH IDENT tele . COLON term [ LET EOF COH ]
+## tele -> tele . var_decl [ LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## COH IDENT tele
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: COH VBAR
+##
+## Ends in an error in state: 48.
+##
+## defn -> COH . IDENT tele COLON term [ LET EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## COH
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON LAMBDA IDENT DOT VBAR
+##
+## Ends in an error in state: 12.
+##
+## term1 -> LAMBDA IDENT DOT . term1 [ VBAR RPAR RBRKT LET EQUAL EOF DBLARROW COH ]
+##
+## The known suffix of the stack is as follows:
+## LAMBDA IDENT DOT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON LAMBDA IDENT VBAR
+##
+## Ends in an error in state: 11.
+##
+## term1 -> LAMBDA IDENT . DOT term1 [ VBAR RPAR RBRKT LET EQUAL EOF DBLARROW COH ]
+##
+## The known suffix of the stack is as follows:
+## LAMBDA IDENT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON LAMBDA VBAR
+##
+## Ends in an error in state: 10.
+##
+## term1 -> LAMBDA . IDENT DOT term1 [ VBAR RPAR RBRKT LET EQUAL EOF DBLARROW COH ]
+##
+## The known suffix of the stack is as follows:
+## LAMBDA
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON LBRKT TYPE RPAR
+##
+## Ends in an error in state: 29.
+##
+## term3 -> LBRKT term . RBRKT [ VBAR TYPE RPAR RBRKT LPAR LET LBRKT IDENT EQUAL EOF DBLARROW COH CAT ]
+##
+## The known suffix of the stack is as follows:
+## LBRKT term
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 16, spurious reduction of production term1 -> term2 
+## In state 18, spurious reduction of production term -> term1 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON LBRKT VBAR
+##
+## Ends in an error in state: 9.
+##
+## term3 -> LBRKT . term RBRKT [ VBAR TYPE RPAR RBRKT LPAR LET LBRKT IDENT EQUAL EOF DBLARROW COH CAT ]
+##
+## The known suffix of the stack is as follows:
+## LBRKT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON LPAR IDENT COLON TYPE RPAR ARROW VBAR
+##
+## Ends in an error in state: 35.
+##
+## term1 -> LPAR IDENT COLON term1 RPAR ARROW . term1 [ VBAR RPAR RBRKT LET EQUAL EOF DBLARROW COH ]
+##
+## The known suffix of the stack is as follows:
+## LPAR IDENT COLON term1 RPAR ARROW
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON LPAR IDENT COLON TYPE RPAR VBAR
+##
+## Ends in an error in state: 34.
+##
+## term1 -> LPAR IDENT COLON term1 RPAR . ARROW term1 [ VBAR RPAR RBRKT LET EQUAL EOF DBLARROW COH ]
+##
+## The known suffix of the stack is as follows:
+## LPAR IDENT COLON term1 RPAR
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON LPAR IDENT COLON TYPE VBAR
+##
+## Ends in an error in state: 33.
+##
+## term1 -> LPAR IDENT COLON term1 . RPAR ARROW term1 [ VBAR RPAR RBRKT LET EQUAL EOF DBLARROW COH ]
+##
+## The known suffix of the stack is as follows:
+## LPAR IDENT COLON term1
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 16, spurious reduction of production term1 -> term2 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON LPAR IDENT COLON VBAR
+##
+## Ends in an error in state: 32.
+##
+## term1 -> LPAR IDENT COLON . term1 RPAR ARROW term1 [ VBAR RPAR RBRKT LET EQUAL EOF DBLARROW COH ]
+##
+## The known suffix of the stack is as follows:
+## LPAR IDENT COLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON LPAR IDENT RBRKT
+##
+## Ends in an error in state: 31.
+##
+## term1 -> LPAR IDENT . COLON term1 RPAR ARROW term1 [ VBAR RPAR RBRKT LET EQUAL EOF DBLARROW COH ]
+## term3 -> IDENT . [ VBAR TYPE RPAR LPAR LBRKT IDENT DBLARROW CAT ]
+##
+## The known suffix of the stack is as follows:
+## LPAR IDENT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON LPAR TYPE RBRKT
+##
+## Ends in an error in state: 25.
+##
+## term3 -> LPAR term . RPAR [ VBAR TYPE RPAR RBRKT LPAR LET LBRKT IDENT EQUAL EOF DBLARROW COH CAT ]
+##
+## The known suffix of the stack is as follows:
+## LPAR term
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 16, spurious reduction of production term1 -> term2 
+## In state 18, spurious reduction of production term -> term1 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON LPAR VBAR
+##
+## Ends in an error in state: 8.
+##
+## term1 -> LPAR . IDENT COLON term1 RPAR ARROW term1 [ VBAR RPAR RBRKT LET EQUAL EOF DBLARROW COH ]
+## term3 -> LPAR . term RPAR [ VBAR TYPE RPAR RBRKT LPAR LET LBRKT IDENT EQUAL EOF DBLARROW COH CAT ]
+##
+## The known suffix of the stack is as follows:
+## LPAR
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON TYPE DBLARROW VBAR
+##
+## Ends in an error in state: 23.
+##
+## term -> term1 DBLARROW . term1 [ RPAR RBRKT LET EQUAL EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## term1 DBLARROW
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON TYPE EQUAL VBAR
+##
+## Ends in an error in state: 44.
+##
+## defn -> LET IDENT tele COLON term EQUAL . term [ LET EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## LET IDENT tele COLON term EQUAL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON TYPE LAMBDA
+##
+## Ends in an error in state: 16.
+##
+## term1 -> term2 . [ VBAR RPAR RBRKT LET EQUAL EOF DBLARROW COH ]
+## term2 -> term2 . term3 [ VBAR TYPE RPAR RBRKT LPAR LET LBRKT IDENT EQUAL EOF DBLARROW COH CAT ]
+##
+## The known suffix of the stack is as follows:
+## term2
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON TYPE LPAR VBAR
+##
+## Ends in an error in state: 17.
+##
+## term3 -> LPAR . term RPAR [ VBAR TYPE RPAR RBRKT LPAR LET LBRKT IDENT EQUAL EOF DBLARROW COH CAT ]
+##
+## The known suffix of the stack is as follows:
+## LPAR
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON TYPE RPAR
+##
+## Ends in an error in state: 43.
+##
+## defn -> LET IDENT tele COLON term . EQUAL term [ LET EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## LET IDENT tele COLON term
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 16, spurious reduction of production term1 -> term2 
+## In state 18, spurious reduction of production term -> term1 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON TYPE VBAR TYPE DBLARROW VBAR
+##
+## Ends in an error in state: 21.
+##
+## term -> term1 VBAR term1 DBLARROW . term1 [ RPAR RBRKT LET EQUAL EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## term1 VBAR term1 DBLARROW
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON TYPE VBAR TYPE VBAR
+##
+## Ends in an error in state: 20.
+##
+## term -> term1 VBAR term1 . DBLARROW term1 [ RPAR RBRKT LET EQUAL EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## term1 VBAR term1
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 16, spurious reduction of production term1 -> term2 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON TYPE VBAR VBAR
+##
+## Ends in an error in state: 19.
+##
+## term -> term1 VBAR . term1 DBLARROW term1 [ RPAR RBRKT LET EQUAL EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## term1 VBAR
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT COLON VBAR
+##
+## Ends in an error in state: 42.
+##
+## defn -> LET IDENT tele COLON . term EQUAL term [ LET EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## LET IDENT tele COLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT LPAR IDENT COLON TYPE RBRKT
+##
+## Ends in an error in state: 40.
+##
+## var_decl -> LPAR IDENT COLON term . RPAR [ LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## LPAR IDENT COLON term
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 16, spurious reduction of production term1 -> term2 
+## In state 18, spurious reduction of production term -> term1 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT LPAR IDENT COLON VBAR
+##
+## Ends in an error in state: 39.
+##
+## var_decl -> LPAR IDENT COLON . term RPAR [ LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## LPAR IDENT COLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT LPAR IDENT DBLCOLON TYPE RBRKT
+##
+## Ends in an error in state: 37.
+##
+## var_decl -> LPAR IDENT DBLCOLON term . RPAR [ LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## LPAR IDENT DBLCOLON term
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 16, spurious reduction of production term1 -> term2 
+## In state 18, spurious reduction of production term -> term1 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT LPAR IDENT DBLCOLON VBAR
+##
+## Ends in an error in state: 6.
+##
+## var_decl -> LPAR IDENT DBLCOLON . term RPAR [ LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## LPAR IDENT DBLCOLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT LPAR IDENT VBAR
+##
+## Ends in an error in state: 5.
+##
+## var_decl -> LPAR IDENT . COLON term RPAR [ LPAR COLON ]
+## var_decl -> LPAR IDENT . DBLCOLON term RPAR [ LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## LPAR IDENT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT LPAR VBAR
+##
+## Ends in an error in state: 4.
+##
+## var_decl -> LPAR . IDENT COLON term RPAR [ LPAR COLON ]
+## var_decl -> LPAR . IDENT DBLCOLON term RPAR [ LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## LPAR
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET IDENT VBAR
+##
+## Ends in an error in state: 3.
+##
+## defn -> LET IDENT tele . COLON term EQUAL term [ LET EOF COH ]
+## tele -> tele . var_decl [ LPAR COLON ]
+##
+## The known suffix of the stack is as follows:
+## LET IDENT tele
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: LET VBAR
+##
+## Ends in an error in state: 1.
+##
+## defn -> LET . IDENT tele COLON term EQUAL term [ LET EOF COH ]
+##
+## The known suffix of the stack is as follows:
+## LET
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+prog: VBAR
+##
+## Ends in an error in state: 0.
+##
+## prog' -> . prog [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+

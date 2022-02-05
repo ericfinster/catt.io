@@ -1,0 +1,133 @@
+#
+#  example1.catt - a 2-dimensional example
+#
+
+coh id C (x) : x => x
+coh comp C (x(f)y(g)z) : x => z 
+
+coh assoc-l C (x(f)y(g)z(h)w)
+  : comp f (comp g h) =>
+    comp (comp f g) h
+
+coh assoc-r C (x(f)y(g)z(h)w)
+  : comp (comp f g) h =>
+    comp f (comp g h) 
+
+#
+#  The identity cylinder.
+#
+
+coh lr-id C (x(f)y)
+  : comp (id x) f =>
+    comp f (id y) 
+
+let id-cyl {C : Cat} (x :: Arr C)
+  : [ x => x ]
+  = cyl (id (base x))
+        (id (lid x))
+        (lr-id (core x))
+
+#
+#  The composition cylinder
+#
+
+let comp-cyl {C : Cat}
+    {x :: Arr C}
+    {y :: Arr C} (f :: x => y)
+    {z :: Arr C} (g :: y => z)
+  : [ x => z ]
+  = cyl (comp (base f) (base g))
+        (comp (lid f) (lid g))
+        (ucomp [ 2 1 2 1 2 1 2 1 2 ]
+          (assoc-r (base f) (base g) (core z))
+          (ucomp [ 1 0 2 ] (base f) (core g))
+          (assoc-l (base f) (core y) (lid g))
+          (ucomp [ 2 0 1 ] (core f) (lid g))
+          (assoc-r (core x) (lid f) (lid g))
+        )
+
+#
+#  The goal
+#
+
+coh J C (x(f(a)g)y(h)z)
+  : comp (comp f (id y)) h =>
+    comp (id x) (comp g h)
+
+# Here's the source core unfolded a bit:
+let J-cyl-src-core {C : Cat}
+    {x :: Arr C}
+    {y :: Arr C} {f :: x => y}
+                 {g :: x => y} (a :: f => g)
+    {z :: Arr C} (h :: y => z)
+  : [ comp (base (comp-cyl (comp-cyl f (id-cyl y)) h)) (core z) =>
+      comp (core x) (lid (comp-cyl (comp-cyl f (id-cyl y)) h)) ]
+  = (ucomp [ 2 1 2 1 2 1 2 1 2 ]
+      (assoc-r (comp (base f) (id (base y))) (base h) (core z))
+      (ucomp [ 1 0 2 ] (comp (base f) (id (base y))) (core h))
+      (assoc-l (comp (base f) (id (base y))) (core y) (lid h))
+      (ucomp [ 2 0 1 ] (ucomp [ 2 1 2 1 2 1 2 1 2 ]
+                         (assoc-r (base f) (id (base y)) (core y))
+                         (ucomp [ 1 0 2 ] (base f) (lr-id (core y)))
+                         (assoc-l (base f) (core y) (id (lid y)))
+                         (ucomp [ 2 0 1 ] (core f) (id (lid y)))
+                         (assoc-r (core x) (lid f) (id (lid y)))
+                       ) (lid h))
+      (assoc-r (core x) (comp (lid f) (id (lid y))) (lid h))
+    )
+
+# And now the target:
+let J-cyl-tgt-core {C : Cat}
+    {x :: Arr C}
+    {y :: Arr C} {f :: x => y}
+                 {g :: x => y} (a :: f => g)
+    {z :: Arr C} (h :: y => z)
+  : [ comp (base (comp-cyl (id-cyl x) (comp-cyl g h))) (core z) =>
+      comp (core x) (lid (comp-cyl (id-cyl x) (comp-cyl g h))) ]
+  = (ucomp [ 2 1 2 1 2 1 2 1 2 ]
+      (assoc-r (id (base x)) (comp (base g) (base h)) (core z))
+      (ucomp [ 1 0 2 ] (id (base x))
+                       (ucomp [ 2 1 2 1 2 1 2 1 2 ]
+                         (assoc-r (base g) (base h) (core z))
+                         (ucomp [ 1 0 2 ] (base g) (core h))
+                         (assoc-l (base g) (core y) (lid h))
+                         (ucomp [ 2 0 1 ] (core g) (lid h))
+                         (assoc-r (core x) (lid g) (lid h))))
+      (assoc-l (id (base x)) (core x) (comp (lid g) (lid h)))
+      (ucomp [ 2 0 1 ] (lr-id (core x)) (comp (lid g) (lid h)))
+      (assoc-r (core x) (id (lid x)) (comp (lid g) (lid h)))
+    )
+
+#
+#  So then here's the type of the core....
+
+let J-cyl-core {C : Cat}
+    {x :: Arr C}
+    {y :: Arr C} {f :: x => y}
+                 {g :: x => y} (a :: f => g)
+    {z :: Arr C} (h :: y => z)
+  : [ ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] (J (base a) (base h)) (core z)) (J-cyl-tgt-core a h) =>
+      ucomp [ 2 1 2 ] (J-cyl-src-core a h) (ucomp [ 1 0 2 ] (core x) (J (lid a) (lid h))) ]
+  = _ 
+
+# coh J C (x(f(a)g)y(h)z)
+#   : comp (comp f (id y)) h =>
+#     comp (id x) (comp g h)
+
+
+#
+#  Now, we'd like to find a cylinder like this:
+#
+
+let J-cyl {C : Cat}
+    {x :: Arr C}
+    {y :: Arr C} {f :: x => y}
+                 {g :: x => y} (a :: f => g)
+    {z :: Arr C} (h :: y => z)
+  : [ comp-cyl (comp-cyl f (id-cyl y)) h =>
+      comp-cyl (id-cyl x) (comp-cyl g h) ]
+  = cyl (J (base a) (base h))
+        (J (lid a) (lid h))
+        (J-cyl-core a h) 
+
+

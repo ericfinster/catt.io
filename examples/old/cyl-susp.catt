@@ -1,0 +1,25 @@
+#
+#  cyl-susp.catt - Testing suspended cylinders
+#
+
+import base
+import cylutil
+
+section
+  (x : *)
+  (y : *)
+  (f : x -> y) (g : x -> y) (a : f -> g)
+  (z : *)
+  (h0 : y -> z) (h1 : y -> z) (h : h0 -> h1)
+  (k0 : y -> z) (k1 : y -> z) (k : k0 -> k1)
+  (b0 : h0 -> k0) (b1 : h1 -> k1) (b : vert(b0,k) -> vert(h,b1)) where
+
+  let cyl_x : * = x
+  let cyl_z : * = z
+
+  let cyl_f0 : x -> z = src_coh()
+  let cyl_f1 : x -> z = ?
+  let cyl_f : cyl_f0() -> cyl_f1()
+
+
+end

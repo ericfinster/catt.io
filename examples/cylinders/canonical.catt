@@ -1,0 +1,298 @@
+#
+#  canonical.catt - the canonical cylinder
+#
+
+coh id C (x) : x => x
+coh comp C (x(f)y(g)z) : x => z 
+
+coh assoc-l C (x(f)y(g)z(h)w)
+  : comp f (comp g h) =>
+    comp (comp f g) h
+
+coh assoc-r C (x(f)y(g)z(h)w)
+  : comp (comp f g) h =>
+    comp f (comp g h) 
+
+
+#
+#  Concatenation
+#
+
+let concat₀ {C : Cat}
+  {x₀ :: C} {x₁ :: C} (x₀₁ :: x₀ => x₁)
+  {x₂ :: C} (x₁₂ :: x₁ => x₂)
+  : [ Arr C ]
+  = cyl x₀ x₂ (comp x₀₁ x₁₂)
+
+let concat₁ {C : Cat}
+  {x₀ :: C} {x₁ :: C} {x₂ :: C}
+  {x₀₁ :: x₀ => x₁} {x₁₂ :: x₁ => x₂}
+  {y₀ :: C} {y₁ :: C} {y₂ :: C}
+  {y₀₁ :: y₀ => y₁} {y₁₂ :: y₁ => y₂}
+  {f₀ :: x₀ => y₀} {f₁ :: x₁ => y₁} {f₂ :: x₂ => y₂}
+  (f₀₁ :: comp f₀ y₀₁ => comp x₀₁ f₁)
+  (f₁₂ :: comp f₁ y₁₂ => comp x₁₂ f₂)
+  : [ Arr C | concat₀ x₀₁ x₁₂ => concat₀ y₀₁ y₁₂ ] 
+  = cyl f₀ f₂
+      (ucomp [ 2 1 2 1 2 1 2 1 2 ]
+        (assoc-l f₀ y₀₁ y₁₂)
+        (ucomp [ 2 0 1 ] f₀₁ y₁₂)
+        (assoc-r x₀₁ f₁ y₁₂)
+        (ucomp [ 1 0 2 ] x₀₁ f₁₂)
+        (assoc-l x₀₁ x₁₂ f₂))
+
+
+#
+#  1-Suspended Concatenation
+#
+
+let susp-concat₀ {C : Cat} {u :: C} {v :: C} 
+  {x₀ :: C | u => v} {x₁ :: C | u => v} (x₀₁ :: x₀ => x₁)
+  {x₂ :: C | u => v} (x₁₂ :: x₁ => x₂)
+  : [ Arr (C | u => v) ]
+  = cyl x₀ x₂ (ucomp [ 2 1 2 ] x₀₁ x₁₂)
+
+coh assoc₂-l C (x(f(a)g(b)h(c)k)y)
+  : ucomp [ 2 1 2 ] a (ucomp [ 2 1 2 ] b c) =>
+    ucomp [ 2 1 2 ] (ucomp [ 2 1 2 ] a b) c
+
+coh assoc₂-r C (x(f(a)g(b)h(c)k)y)
+  : ucomp [ 2 1 2 ] (ucomp [ 2 1 2 ] a b) c => 
+    ucomp [ 2 1 2 ] a (ucomp [ 2 1 2 ] b c)
+
+let susp-concat₁ {C : Cat} {u :: C} {v :: C}
+  {x₀ :: C | u => v} {x₁ :: C | u => v} {x₂ :: C | u => v}
+  {x₀₁ :: x₀ => x₁} {x₁₂ :: x₁ => x₂}
+  {y₀ :: C | u => v} {y₁ :: C | u => v} {y₂ :: C | u => v}
+  {y₀₁ :: y₀ => y₁} {y₁₂ :: y₁ => y₂}
+  {f₀ :: x₀ => y₀} {f₁ :: x₁ => y₁} {f₂ :: x₂ => y₂}
+  (f₀₁ :: ucomp [ 2 1 2 ] f₀ y₀₁ => ucomp [ 2 1 2 ] x₀₁ f₁)
+  (f₁₂ :: ucomp [ 2 1 2 ] f₁ y₁₂ => ucomp [ 2 1 2 ] x₁₂ f₂)
+  : [ Arr (C | u => v) | susp-concat₀ x₀₁ x₁₂ => susp-concat₀ y₀₁ y₁₂ ] 
+  = cyl f₀ f₂
+      (ucomp [ 3 2 3 2 3 2 3 2 3 ]
+        (assoc₂-l f₀ y₀₁ y₁₂)
+        (ucomp [ 3 1 2 ] f₀₁ y₁₂)
+        (assoc₂-r x₀₁ f₁ y₁₂)
+        (ucomp [ 2 1 3 ] x₀₁ f₁₂)
+        (assoc₂-l x₀₁ x₁₂ f₂))
+
+
+#
+#  Canonical 1-Cylinder Composite
+#
+
+let canon₁ {C : Cat}
+    {x :: Arr C} {y :: Arr C} {z :: Arr C}
+    (f :: x => y) (g :: y => z)
+  : [ x => z ]
+  = cyl (comp (base f) (base g))
+        (comp (lid f) (lid g))
+        (comp (assoc-r (base f) (base g) (core z))
+        (comp (ucomp [ 1 0 2 ] (base f) (core g))
+        (comp (assoc-l (base f) (core y) (lid g))
+        (comp (ucomp [ 2 0 1 ] (core f) (lid g))
+              (assoc-r (core x) (lid f) (lid g))))))
+
+#
+#  Result will be the lift of the following 5
+#  suspended cylinders:
+#
+
+coh assoc-cyl-core C (x(f(a)g)y(h)z(k)w) :
+  ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] (ucomp [ 2 0 1 ] a h) k) (assoc-r g h k) =>
+  ucomp [ 2 1 2 ] (assoc-r f h k) (ucomp [ 2 0 1 ] a (comp h k))
+
+let cyl₁ {C : Cat}
+    {x :: Arr C} {y :: Arr C}
+    {z :: Arr C} 
+    (f :: x => y) (g :: x => y) (a :: f => g)
+    (h :: y => z)
+  : [ Arr (C | base x => lid z) |
+        (cyl (comp (comp (base f) (base h)) (core z))
+             (comp (base f) (comp (base h) (core z)))
+             (assoc-r (base f) (base h) (core z))) =>
+        (cyl (comp (comp (base g) (base h)) (core z))
+             (comp (base g) (comp (base h) (core z)))
+             (assoc-r (base g) (base h) (core z))) ] 
+  = cyl (ucomp [ 2 0 1 ] (ucomp [ ((())()) ] (base a) (base h)) (core z))
+        (ucomp [ 2 0 1 ] (base a) (comp (base h) (core z)))
+        (assoc-cyl-core (base a) (base h) (core z))
+
+#
+#  cyl₂
+#
+
+coh ichg C (x(f(a)g)y(h(b)k)z) :
+  ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] a h) (ucomp [ 1 0 2 ] g b) =>
+  ucomp [ 2 1 2 ] (ucomp [ 1 0 2 ] f b) (ucomp [ 2 0 1 ] a k)
+
+let cyl₂ {C : Cat}
+    {x :: Arr C} {y :: Arr C}
+    {z :: Arr C} 
+    (f :: x => y) (g :: x => y) (a :: f => g)
+    (h :: y => z)
+  : [ Arr (C | base x => lid z) |
+      cyl (comp (base f) (comp (base h) (core z)))
+          (comp (base f) (comp (core y) (lid h)))
+          (ucomp [ 1 0 2 ] (base f) (core h)) =>
+      cyl (comp (base g) (comp (base h) (core z)))
+          (comp (base g) (comp (core y) (lid h)))
+          (ucomp [ 1 0 2 ] (base g) (core h)) ]
+  = cyl (ucomp [ 2 0 1 ] (base a) (comp (base h) (core z)))
+        (ucomp [ 2 0 1 ] (base a) (comp (core y) (lid h)))
+        (ichg (base a) (core h))
+
+#
+#  cyl₃
+#
+
+coh assoc-cyl₃-core C (x(f(a)g)y(h)z(k)w) :
+  ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] a (comp h k)) (assoc-l g h k) =>
+  ucomp [ 2 1 2 ] (assoc-l f h k) (ucomp [ 2 0 1 ] (ucomp [ 2 0 1 ] a h) k)
+
+let cyl₃ {C : Cat}
+    {x :: Arr C} {y :: Arr C}
+    {z :: Arr C} 
+    (f :: x => y) (g :: x => y) (a :: f => g)
+    (h :: y => z)
+  : [ Arr (C | base x => lid z) |
+      cyl (comp (base f) (comp (core y) (lid h)))
+          (comp (comp (base f) (core y)) (lid h))
+          (assoc-l (base f) (core y) (lid h)) =>
+      cyl (comp (base g) (comp (core y) (lid h)))
+          (comp (comp (base g) (core y)) (lid h))
+          (assoc-l (base g) (core y) (lid h))
+    ]
+  = cyl (ucomp [ 2 0 1 ] (base a) (comp (core y) (lid h)))
+        (ucomp [ 2 0 1 ] (ucomp [ 2 0 1 ] (base a) (core y)) (lid h))
+        (assoc-cyl₃-core (base a) (core y) (lid h))
+  
+#
+# cyl₄₁
+#
+
+coh cyl₄₁-ichg C (x(f(a)g(b)h)y(k)z) :
+  (ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] a k)
+                   (ucomp [ 2 0 1 ] b k)) => 
+  (ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] a b) k)
+
+let cyl₄₁ {C : Cat}
+    {x :: Arr C} {y :: Arr C}
+    {z :: Arr C} 
+    (f :: x => y) (g :: x => y) (a :: f => g)
+    (h :: y => z)
+  : [ Arr (C | base x => lid z
+             | comp (comp (base f) (core y)) (lid h) => 
+               comp (comp (core x) (lid g)) (lid h)) ]
+  = cyl (ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] (ucomp [ 2 0 1 ] (base a) (core y)) (lid h))
+                         (ucomp [ 2 0 1 ] (core g) (lid h)))
+        (ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] (base a) (core y)) (core g)) (lid h))
+        (cyl₄₁-ichg (ucomp [ 2 0 1 ] (base a) (core y)) (core g) (lid h))
+  
+#
+# cyl₄₂
+#
+
+let cyl₄₂ {C : Cat}
+    {x :: Arr C} {y :: Arr C}
+    {z :: Arr C} 
+    (f :: x => y) (g :: x => y) (a :: f => g)
+    (h :: y => z)
+  : [ Arr (C | base x => lid z
+             | comp (comp (base f) (core y)) (lid h) => 
+               comp (comp (core x) (lid g)) (lid h)) ]
+  = cyl (ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] (base a) (core y)) (core g)) (lid h))
+        (ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] (core f) (ucomp [ 1 0 2 ] (core x) (lid a))) (lid h))
+        (ucomp [ 3 0 1 ] (core a) (lid h))
+
+#
+# cyl₄₃
+#
+
+coh cyl₄₃-ichg C (x(f(a)g(b)h)y(k)z) :
+  (ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] a b) k) => 
+  (ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] a k)
+                   (ucomp [ 2 0 1 ] b k)) 
+
+let cyl₄₃ {C : Cat}
+    {x :: Arr C} {y :: Arr C}
+    {z :: Arr C} 
+    (f :: x => y) (g :: x => y) (a :: f => g)
+    (h :: y => z)
+  : [ Arr (C | base x => lid z
+             | comp (comp (base f) (core y)) (lid h) => 
+               comp (comp (core x) (lid g)) (lid h)) ]
+  = cyl (ucomp [ 2 0 1 ] (ucomp [ 2 1 2 ] (core f) (ucomp [ 1 0 2 ] (core x) (lid a))) (lid h))
+        (ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] (core f) (lid h))
+                         (ucomp [ 2 0 1 ] (ucomp [ 1 0 2 ] (core x) (lid a)) (lid h)))
+        (cyl₄₃-ichg (core f) (ucomp [ 1 0 2 ] (core x) (lid a)) (lid h))
+
+
+#
+# cyl₄
+#
+
+let cyl₄ {C : Cat}
+    {x :: Arr C} {y :: Arr C}
+    {z :: Arr C} 
+    (f :: x => y) (g :: x => y) (a :: f => g)
+    (h :: y => z)
+  : [ Arr (C | base x => lid z) |
+      cyl (comp (comp (base f) (core y)) (lid h))
+          (comp (comp (core x) (lid f)) (lid h))
+          (ucomp [ 2 0 1 ] (core f) (lid h)) =>
+      cyl (comp (comp (base g) (core y)) (lid h))
+          (comp (comp (core x) (lid g)) (lid h))
+          (ucomp [ 2 0 1 ] (core g) (lid h))
+    ] 
+  = cyl (ucomp [ 2 0 1 ] (ucomp [ 2 0 1 ] (base a) (core y)) (lid h))
+        (ucomp [ 2 0 1 ] (ucomp [ 1 0 2 ] (core x) (lid a)) (lid h))
+        (ucomp [ 3 2 3 2 3 ]
+           (cyl₄₁-ichg (ucomp [ 2 0 1 ] (base a) (core y)) (core g) (lid h))
+           (ucomp [ 3 0 1 ] (core a) (lid h))
+           (cyl₄₃-ichg (core f) (ucomp [ 1 0 2 ] (core x) (lid a)) (lid h)))
+
+#
+# cyl₅
+#
+
+coh assoc-cyl₅-core C (x(f)y(h(a)k)z(g)w) :
+  ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] (ucomp [ 1 0 2 ] f a) g) (assoc-r f k g) =>
+  ucomp [ 2 1 2 ] (assoc-r f h g) (ucomp [ 1 0 2 ] f (ucomp [ 2 0 1 ] a g))
+
+let cyl₅ {C : Cat}
+    {x :: Arr C} {y :: Arr C}
+    {z :: Arr C} 
+    (f :: x => y) (g :: x => y) (a :: f => g)
+    (h :: y => z)
+  : [ Arr (C | base x => lid z) |
+       cyl (comp (comp (core x) (lid f)) (lid h))
+           (comp (core x) (comp (lid f) (lid h)))
+           (assoc-r (core x) (lid f) (lid h)) =>
+       cyl (comp (comp (core x) (lid g)) (lid h))
+           (comp (core x) (comp (lid g) (lid h)))
+           (assoc-r (core x) (lid g) (lid h)) ]
+  = cyl (ucomp [ 2 0 1 ] (ucomp [ 1 0 2 ] (core x) (lid a)) (lid h))
+        (ucomp [ 1 0 2 ] (core x) (ucomp [ 2 0 1 ] (lid a) (lid h)))
+        (assoc-cyl₅-core (core x) (lid a) (lid h))
+
+#
+#  2-dimensional canonical cylinder
+#
+
+let canon₂ {C : Cat}
+    {x :: Arr C} {y :: Arr C}
+    {z :: Arr C} 
+    (f :: x => y) (g :: x => y) (a :: f => g)
+    (h :: y => z)
+  : [ canon₁ f h => canon₁ g h ]
+  = cyl (ucomp [ 2 0 1 ] (base a) (base h))
+        (ucomp [ 2 0 1 ] (lid a) (lid h))
+        (core (susp-concat₁ (core (cyl₁ f g a h))
+        (core (susp-concat₁ (core (cyl₂ f g a h))
+        (core (susp-concat₁ (core (cyl₃ f g a h))
+        (core (susp-concat₁ (core (cyl₄ f g a h))
+                            (core (cyl₅ f g a h))))))))))
+
+

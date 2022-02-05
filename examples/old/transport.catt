@@ -1,0 +1,64 @@
+#
+#  transport.catt - some transport examples
+#
+
+import base
+
+coh whisk_mid
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+    (w : *) (i : z -> w)
+            (j : z -> w) (b : i -> j)
+  : comp3(f,h,i) -> comp3(g,h,j)            
+
+coh smash_mid
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+  : comp(f,g) -> comp3(f,id(y),g)
+
+coh smash_mid_inv
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+  : comp3(f,id(y),g) -> comp(f,g)
+
+coh expand
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+            (k : y -> z) (b : h -> k)
+  : vert3(smash_mid_inv(f,h),horiz(a,b),smash_mid(g,k)) ->
+    whisk_mid(a,id(y),b)
+
+coh dist_in
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+    (u : *) (i : w -> u)
+  : comp3(f,comp(g,h),i) ->
+    comp(comp(f,g),comp(h,i))
+
+coh dist_out
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+    (u : *) (i : w -> u)
+  : comp(comp(f,g),comp(h,i)) -> 
+    comp3(f,comp(g,h),i) 
+
+coh distribute
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+    (w : *) (i : z -> w)
+    (u : *) (j : w -> u)
+            (k : w -> u) (b : j -> k)
+  : vert3(dist_out(f,h,i,j),whisk_mid(a,comp(h,i),b),dist_in(g,h,i,k)) -> 
+    horiz(whisk_r(a,h),whisk_l(i,b))
