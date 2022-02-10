@@ -41,3 +41,16 @@ open Catt__Expr;;
 ```
 
 will give access to the expression syntax and routines.
+
+# Examples
+
+The example folder contains some `catt` files that can be typechecked by the tool. To typecheck all the examples the following commands can be run:
+
+```
+catt examples/example_4_1.catt -su
+catt examples/example_4_2.catt -su
+catt examples/example_4_3_catt.catt
+catt examples/example_4_3_cattsu.catt -su
+catt examples/example_4_4.catt -su
+```
+In these commands the `-su` flag turns on strict normalisation.

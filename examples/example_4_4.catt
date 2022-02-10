@@ -1,0 +1,583 @@
+############################################
+#
+#  The Syllepsis
+#
+############################################
+
+#
+#  Identities
+#
+
+coh id (x : *)
+  : x -> x
+
+coh id1 (x : *) (y : *) (f : x -> y)
+  : f -> f
+
+coh id2 (x : *)
+        (y : *) (f : x -> y)
+                (g : x -> y) (a : f -> g)
+  : a -> a
+
+#
+#  1d compositions
+#
+
+coh comp110 (x : *)
+            (y : *) (f : x -> y)
+            (z : *) (g : y -> z)
+  : x -> z
+
+#
+#  2d compositions
+#
+
+coh comp221 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+                    (h : x -> y) (b : g -> h)
+  : f -> h
+
+coh comp22211
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+  : f -> i
+
+coh comp2222111
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+            (j : x -> y) (d : i -> j)
+  : f -> j
+
+coh comp220 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+            (z : *) (h : y -> z)
+                    (k : y -> z) (b : h -> k)
+  : comp110(f,h) -> comp110(g,k)
+
+coh comp210 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+            (z : *) (h : y -> z)
+  : comp110(f,h) -> comp110(g,h)
+
+coh comp120 (x : *)
+            (y : *) (f : x -> y)
+            (z : *) (g : y -> z)
+                    (h : y -> z) (a : g -> h)
+  : comp110(f,g) -> comp110(f,h)
+
+#
+#  3d Compositions
+#
+
+coh comp330 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+                                 (b : f -> g) (m : a -> b)
+            (z : *) (h : y -> z)
+                    (k : y -> z) (c : h -> k)
+                                 (d : h -> k) (n : c -> d)
+  : comp220(a,c) -> comp220(b,d)
+
+coh comp331 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+                                 (b : f -> g) (m : a -> b)
+                    (h : x -> y) (c : g -> h)
+                                 (d : g -> h) (n : c -> d)
+  : comp221(a,c) -> comp221(b,d)
+
+coh comp332 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+                                 (b : f -> g) (m : a -> b)
+                                 (c : f -> g) (n : b -> c)
+  : a -> c
+
+coh comp321 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+                                 (b : f -> g) (m : a -> b)
+                    (h : x -> y) (c : g -> h)
+  : comp221(a,c) -> comp221(b,c)
+
+coh comp32211
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (b : f -> g) (m : a -> b)
+            (h : x -> y) (c : g -> h)
+            (i : x -> y) (d : h -> i)
+  : comp22211(a,c,d) -> comp22211(b,c,d)
+
+coh comp23211
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+                         (c : g -> h) (m : b -> c)
+            (i : x -> y) (d : h -> i)
+  : comp22211(a,b,d) -> comp22211(a,c,d)
+
+coh comp2322111
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+                         (c : g -> h) (m : b -> c)
+            (i : x -> y) (d : h -> i)
+            (j : x -> y) (e : i -> j)
+  : comp2222111(a,b,d,e) -> comp2222111(a,c,d,e)
+
+coh comp33322
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (b : f -> g) (m : a -> b)
+                         (c : f -> g) (n : b -> c)
+                         (d : f -> g) (o : c -> d)
+  : a -> d
+
+coh comp231 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+                    (h : x -> y) (c : g -> h)
+                                 (d : g -> h) (n : c -> d)
+  : comp221(a,c) -> comp221(a,d)
+
+coh comp310 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+                                 (b : f -> g) (m : a -> b)
+            (z : *) (h : y -> z)
+  : comp210(a,h) -> comp210(b,h)
+
+coh comp130 (x : *)
+            (y : *) (f : x -> y)
+            (z : *) (h : y -> z)
+                    (k : y -> z) (c : h -> k)
+                                 (d : h -> k) (n : c -> d)
+  : comp120(f,c) -> comp120(f,d)
+
+
+coh comp230
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+            (k : y -> z) (c : h -> k)
+                         (d : h -> k) (n : c -> d)
+  : comp220(a,c) -> comp220(a,d)
+
+coh comp320
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (b : f -> g) (m : a -> b)
+    (z : *) (h : y -> z)
+            (k : y -> z) (c : h -> k)
+  : comp220(a,c) -> comp220(b,c)
+
+coh assoc3
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (b : f -> g) (m : a -> b)
+                         (c : f -> g) (n : b -> c)
+                         (d : f -> g) (o : c -> d)
+  : comp332(comp332(m,n),o) ->
+    comp332(m,comp332(n,o))
+
+coh assoc3inv
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (b : f -> g) (m : a -> b)
+                         (c : f -> g) (n : b -> c)
+                         (d : f -> g) (o : c -> d)
+  : comp332(m,comp332(n,o)) ->
+    comp332(comp332(m,n),o)
+
+#
+#  4d compositions
+#
+
+coh comp140
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (h : y -> z)
+            (k : y -> z) (c : h -> k)
+                         (d : h -> k) (n : c -> d)
+                                      (m : c -> d) (q : n -> m)
+  : comp130(f,n) -> comp130(f,m)
+
+coh comp432
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (b : f -> g) (m : a -> b)
+                                      (o : a -> b) (q : m -> o)
+                         (c : f -> g) (n : b -> c)
+  : comp332(m,n) -> comp332(o,n)
+
+coh comp342 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+                                 (b : f -> g) (m : a -> b)
+                                 (c : f -> g) (n : b -> c)
+                                              (o : b -> c) (q : n -> o)
+  : comp332(m,n) -> comp332(m,o)
+
+coh comp443 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+                                 (b : f -> g) (m : a -> b)
+                                              (n : a -> b) (p : m -> n)
+                                              (o : a -> b) (q : n -> o)
+  : m -> o
+
+coh comp340 (x : *)
+            (y : *) (f : x -> y)
+                    (g : x -> y) (a : f -> g)
+                                 (b : f -> g) (m : a -> b)
+            (z : *) (h : y -> z)
+                    (i : y -> z) (c : h -> i)
+                                 (d : h -> i) (n : c -> d)
+                                              (o : c -> d) (p : n -> o)
+  : comp330(m,n) -> comp330(m,o)
+
+coh comp44433
+  (x : *)
+  (y : *) (f : x -> y)
+          (g : x -> y) (a : f -> g)
+                       (b : f -> g) (b0 : a -> b)
+                                    (b1 : a -> b) (t1 : b0 -> b1)
+                                    (b2 : a -> b) (t2 : b1 -> b2)
+                                    (b3 : a -> b) (t3 : b2 -> b3)
+  : b0 -> b3
+
+coh comp444443333
+  (x : *)
+  (y : *) (f : x -> y)
+          (g : x -> y) (a : f -> g)
+                       (b : f -> g) (b0 : a -> b)
+                                    (b1 : a -> b) (t1 : b0 -> b1)
+                                    (b2 : a -> b) (t2 : b1 -> b2)
+                                    (b3 : a -> b) (t3 : b2 -> b3)
+                                    (b4 : a -> b) (t4 : b3 -> b4)
+                                    (b5 : a -> b) (t5 : b4 -> b5)
+  : b0 -> b5
+
+#
+#  Simple coherences
+#
+
+coh unitl (x : *)
+          (y : *) (f : x -> y)
+  : f -> comp110(id(x),f)
+
+coh unitr (x : *)
+          (y : *) (f : x -> y)
+  : comp110(id(x), f) -> f
+
+coh assoc_r
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+  : comp110(comp110(f,g),h) -> comp110(f,comp110(g,h))
+
+coh assoc_l
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+    (w : *) (h : z -> w)
+  : comp110(f,comp110(g,h)) -> comp110(comp110(f,g),h)
+
+
+#
+#  Eckmann-Hilton coherence 3-cell
+#
+
+coh swap3
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+            (k : y -> z) (b : h -> k)
+  : comp221(comp210(a,h),comp120(g,b)) ->
+    comp221(comp120(f,b),comp210(a,k))
+
+coh swap3inv
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+            (k : y -> z) (b : h -> k)
+  : comp221(comp120(f,b),comp210(a,k)) ->
+    comp221(comp210(a,h),comp120(g,b))
+
+#
+#  Suspended Eckman-Hilton coherence 4-cell
+#
+
+coh swap4
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+            (z : u -> v) (h : y -> z)
+                         (k : y -> z) (b : h -> k)
+  : comp332(comp321(a,h),comp231(g,b)) ->
+    comp332(comp231(f,b),comp321(a,k))
+
+coh swap4inv
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+            (z : u -> v) (h : y -> z)
+                         (k : y -> z) (b : h -> k)
+  : comp332(comp231(f,b),comp321(a,k)) ->
+    comp332(comp321(a,h),comp231(g,b))
+
+#
+#  Left vertical coherence
+#
+
+let step1l
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp332(comp321(comp310(a,s),comp120(y,h)),comp231(comp210(g,s),comp130(y,b))),swap3(g,k)) ->
+    comp332(comp321(comp310(a,s),comp120(y,h)),comp332(comp231(comp210(g,s),comp130(y,b)),swap3(g,k)))
+  = assoc3(comp321(comp310(a,s),comp120(y,h)),comp231(comp210(g,s),comp130(y,b)),swap3(g,k))
+
+coh step2lcoh
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (g : x -> y)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp231(comp210(g,s),comp130(y,b)),swap3(g,k)) ->
+    comp332(swap3(g,h),comp321(comp130(x,b),comp210(g,t)))
+
+let step2l
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp321(comp310(a,s),comp120(y,h)),comp332(comp231(comp210(g,s),comp130(y,b)),swap3(g,k))) ->
+    comp332(comp321(comp310(a,s),comp120(y,h)),comp332(swap3(g,h),comp321(comp130(x,b),comp210(g,t))))
+  = comp342(comp321(comp310(a,s),comp120(y,h)),step2lcoh(g,b))
+
+let step3l
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp321(comp310(a,s),comp120(y,h)),comp332(swap3(g,h),comp321(comp130(x,b),comp210(g,t)))) ->
+    comp332(comp332(comp321(comp310(a,s),comp120(y,h)),swap3(g,h)),comp321(comp130(x,b),comp210(g,t)))
+  = assoc3inv(comp321(comp310(a,s),comp120(y,h)),swap3(g,h),comp321(comp130(x,b),comp210(g,t)))
+
+coh step4lcoh
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+  : comp332(comp321(comp310(a,s),comp120(y,h)),swap3(g,h)) ->
+    comp332(swap3(f,h),comp231(comp120(x,h),comp310(a,t)))
+
+let step4l
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp332(comp321(comp310(a,s),comp120(y,h)),swap3(g,h)),comp321(comp130(x,b),comp210(g,t))) ->
+    comp332(comp332(swap3(f,h),comp231(comp120(x,h),comp310(a,t))),comp321(comp130(x,b),comp210(g,t)))
+  = comp432(step4lcoh(a,h),comp321(comp130(x,b),comp210(g,t)))
+
+let step5l
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp332(swap3(f,h),comp231(comp120(x,h),comp310(a,t))),comp321(comp130(x,b),comp210(g,t))) ->
+    comp332(swap3(f,h),comp332(comp231(comp120(x,h),comp310(a,t)),comp321(comp130(x,b),comp210(g,t))))
+  = assoc3(swap3(f,h),comp231(comp120(x,h),comp310(a,t)),comp321(comp130(x,b),comp210(g,t)))
+
+let vert_left
+  (u : *)
+  (v : *) (x : u -> v)
+          (y : u -> v) (f : x -> y)
+                       (g : x -> y) (a : f -> g)
+  (w : *) (s : v -> w)
+          (t : v -> w) (h : s -> t)
+                       (k : s -> t) (b : h -> k)
+  : comp332(comp332(comp321(comp310(a,s),comp120(y,h)),comp231(comp210(g,s),comp130(y,b))),swap3(g,k)) ->
+    comp332(swap3(f,h),comp332(comp231(comp120(x,h),comp310(a,t)),comp321(comp130(x,b),comp210(g,t))))
+  = comp444443333(
+      step1l(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step2l(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step3l(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step4l(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step5l(u,v,x,y,f,g,a,w,s,t,h,k,b)
+    )
+
+#
+#  Right vertical coherence
+#
+
+let step1r
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp332(comp231(comp210(f,s),comp130(y,b)),comp321(comp310(a,s),comp120(y,k))),swap3(g,k)) ->
+    comp332(comp231(comp210(f,s),comp130(y,b)),comp332(comp321(comp310(a,s),comp120(y,k)),swap3(g,k)))
+  = assoc3(comp231(comp210(f,s),comp130(y,b)),comp321(comp310(a,s),comp120(y,k)),swap3(g,k))
+
+coh step2rcoh
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (k : s -> t)
+  : comp332(comp321(comp310(a,s),comp120(y,k)),swap3(g,k)) ->
+    comp332(swap3(f,k),comp231(comp120(x,k),comp310(a,t)))
+
+let step2r
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp231(comp210(f,s),comp130(y,b)),comp332(comp321(comp310(a,s),comp120(y,k)),swap3(g,k))) ->
+    comp332(comp231(comp210(f,s),comp130(y,b)),comp332(swap3(f,k),comp231(comp120(x,k),comp310(a,t))))
+  = comp342(comp231(comp210(f,s),comp130(y,b)),step2rcoh(a,k))
+
+let step3r
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp231(comp210(f,s),comp130(y,b)),comp332(swap3(f,k),comp231(comp120(x,k),comp310(a,t)))) ->
+    comp332(comp332(comp231(comp210(f,s),comp130(y,b)),swap3(f,k)),comp231(comp120(x,k),comp310(a,t)))
+  = assoc3inv(comp231(comp210(f,s),comp130(y,b)),swap3(f,k),comp231(comp120(x,k),comp310(a,t)))
+
+coh step4rcoh
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp231(comp210(f,s),comp130(y,b)),swap3(f,k)) ->
+    comp332(swap3(f,h),comp321(comp130(x,b),comp210(f,t)))
+
+let step4r
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp332(comp231(comp210(f,s),comp130(y,b)),swap3(f,k)),comp231(comp120(x,k),comp310(a,t))) ->
+    comp332(comp332(swap3(f,h),comp321(comp130(x,b),comp210(f,t))),comp231(comp120(x,k),comp310(a,t)))
+  = comp432(step4rcoh(f,b),comp231(comp120(x,k),comp310(a,t)))
+
+let step5r
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp332(swap3(f,h),comp321(comp130(x,b),comp210(f,t))),comp231(comp120(x,k),comp310(a,t))) ->
+    comp332(swap3(f,h),comp332(comp321(comp130(x,b),comp210(f,t)),comp231(comp120(x,k),comp310(a,t))))
+  = assoc3(swap3(f,h),comp321(comp130(x,b),comp210(f,t)),comp231(comp120(x,k),comp310(a,t)))
+
+let vert_right
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp332(comp332(comp231(comp210(f,s),comp130(y,b)),comp321(comp310(a,s),comp120(y,k))),swap3(g,k)) ->
+    comp332(swap3(f,h),comp332(comp321(comp130(x,b),comp210(f,t)),comp231(comp120(x,k),comp310(a,t))))
+  = comp444443333(
+      step1r(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step2r(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step3r(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step4r(u,v,x,y,f,g,a,w,s,t,h,k,b),
+      step5r(u,v,x,y,f,g,a,w,s,t,h,k,b)
+    )
+
+#
+#  The Syllepsis
+#
+
+coh five_cell
+    (u : *)
+    (v : *) (x : u -> v)
+            (y : u -> v) (f : x -> y)
+                         (g : x -> y) (a : f -> g)
+    (w : *) (s : v -> w)
+            (t : v -> w) (h : s -> t)
+                         (k : s -> t) (b : h -> k)
+  : comp443(comp432(swap4(comp310(a,s),comp130(y,b)),swap3(g,k)),vert_right(u,v,x,y,f,g,a,w,s,t,h,k,b)) ->
+    comp443(vert_left(u,v,x,y,f,g,a,w,s,t,h,k,b),comp342(swap3(f,h),swap4inv(comp130(x,b),comp310(a,t))))
+
+let syllepsis
+    (x : *)
+    (a : id1(id(x)) -> id1(id(x)))
+    (b : id1(id(x)) -> id1(id(x)))
+  : swap4(a,b) -> swap4inv(b,a)
+  = five_cell(a,b)
+
+
+normalize
+    (x : *)
+    (a : id1(id(x)) -> id1(id(x)))
+    (b : id1(id(x)) -> id1(id(x)))
+  | syllepsis(x,a,b)

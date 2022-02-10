@@ -1,0 +1,20 @@
+
+# 1 composition
+coh comp (x : *) (y : *) (f : x -> y) (z : *) (g : y -> z) : x -> z
+
+# identities
+coh id (x : *) : x -> x
+
+coh id2 (x : *) (y : *) (f : x -> y) : f -> f
+
+# left unitor
+coh unitl (x : *) (y : *) (f : x -> y) : comp(id(x),f) -> f
+
+# Normalise
+normalize (x : *) (y : *) (f : x -> y)
+  | unitl(f)
+
+# Demonstrate example
+eqnf (x : *) (y : *) (f : x -> y)
+  | unitl(f)
+  | id2(f)
