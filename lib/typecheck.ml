@@ -139,11 +139,11 @@ type typing_error = [
 let pp_error ppf e =
   match e with
   | `NameNotInScope nm -> Fmt.pf ppf "Name not in scope: %s" nm
-  | `TypeMismatch msg -> Fmt.pf ppf "%s" msg  
+  | `TypeMismatch msg -> Fmt.pf ppf "%s" msg
   | `PastingError msg -> Fmt.pf ppf "Error while checking pasting context: %s" msg
-  | `FullnessError msg -> Fmt.pf ppf "Fullness error: %s" msg 
+  | `FullnessError msg -> Fmt.pf ppf "Fullness error: %s" msg
   | `IcityMismatch (_, _) -> Fmt.pf ppf "Icity mismatch"
-  | `BadCohQuot msg -> Fmt.pf ppf "%s" msg 
+  | `BadCohQuot msg -> Fmt.pf ppf "%s" msg
   | `NotImplemented f -> Fmt.pf ppf "Feature not implemented: %s" f
   | `InternalError -> Fmt.pf ppf "Internal Error"
 
@@ -369,11 +369,11 @@ and check_coh gma g c s t =
 
               if (not (Set.is_subset pd_src_vars ~of_:tot_src_vars)) then
                 let msg = Fmt.str "@[<v>Non-full source:@,pd: @[%a@]@,src: @[%a@]@,"
-                    (pp_tele pp_expr) g pp_expr s in 
+                    (pp_tele pp_expr) g pp_expr s in
                 Error (`FullnessError msg)
               else if (not (Set.is_subset pd_tgt_vars ~of_:tot_tgt_vars)) then
                 let msg = Fmt.str "@[<v>Non-full target:@,pd: @[%a@]@,tgt: @[%a@]@,"
-                    (pp_tele pp_expr) g pp_expr t in 
+                    (pp_tele pp_expr) g pp_expr t in
                 Error (`FullnessError msg)
               else Ok (tl,cn,pd,c',s',t')
 
@@ -480,17 +480,17 @@ let rec check_defs gma defs =
   | [] -> Ok gma
   | (TermDef (id,tl,ty,tm))::ds ->
     log_msg "----------------";
-    log_msg (Fmt.str "Checking definition: %s" id); 
+    log_msg (Fmt.str "Checking definition: %s" id);
     let (abs_ty,abs_tm) = E.abstract_tele_with_type tl ty tm in
     let* ty_tm = check gma abs_ty TypV in
     let ty_val = eval gma.top gma.loc ty_tm in
     let* tm_tm = check gma abs_tm ty_val in
     let tm_val = eval gma.top gma.loc tm_tm in
-    log_msg (Fmt.str "Checking complete for %s" id); 
-    (* let tm_nf = term_to_expr Emp (quote (gma.lvl) tm_val false) in
-     * let ty_nf = term_to_expr Emp (quote (gma.lvl) ty_val false) in *)
-    (* pr "Type: @[%a@]@," pp_expr ty_nf; *)
-    (* pr "Term: @[%a@]@," pp_expr tm_nf; *)
+    log_msg (Fmt.str "Checking complete for %s" id);
+    let tm_nf = term_to_expr Emp (quote false (gma.lvl) tm_val) in
+    let ty_nf = term_to_expr Emp (quote false (gma.lvl) ty_val) in
+    pr "Type: @[%a@]@," pp_expr ty_nf;
+    pr "Term: @[%a@]@," pp_expr tm_nf;
     check_defs (define gma id tm_val ty_val) ds
   | (CohDef (id,g,c,s,t))::ds ->
     log_msg "----------------";
@@ -513,12 +513,12 @@ let rec check_defs gma defs =
         let tm_nf = term_to_expr (names gma') (quote true (gma'.lvl) tm_val) in
         log_val "Normal form" tm_nf pp_expr;
         Ok ()
-      ) in 
+      ) in
     check_defs gma ds
 
 
 let run_tc m =
-  match m with 
+  match m with
   | Ok _ ->
     Fmt.pr "@[<v>----------------@,Success!@,@,@]"
   | Error err ->

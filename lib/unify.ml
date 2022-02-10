@@ -137,8 +137,8 @@ let rec unify stgy top l t u =
   | (CatV , CatV) -> ()
 
   | (LamV (_,_,a) , LamV (_,_,a')) -> unify stgy top (l+1) (a $$ varV l) (a' $$ varV l)
-  | (t' , LamV(_,i,a')) -> unify stgy top (l+1) (appV t' (varV l) i) (a' $$ varV l)
-  | (LamV (_,i,a) , t') -> unify stgy top (l+1) (a $$ varV l) (appV t' (varV l) i)
+  | (t' , LamV(_,i,a')) -> unify stgy top (l+1) (fst (appV t' (varV l) i)) (a' $$ varV l)
+  | (LamV (_,i,a) , t') -> unify stgy top (l+1) (a $$ varV l) (fst (appV t' (varV l) i))
 
   | (PiV (_,ict,a,b) , PiV (_,ict',a',b')) when Poly.(=) ict ict' ->
     unify stgy top l a a' ;

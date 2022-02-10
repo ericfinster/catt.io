@@ -85,7 +85,7 @@ let rec pp_value ppf v =
     pf ppf "@[coh [ %s @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] @[%a] ]@]" cn
       (pp_pd string) (map_pd pd ~f:fst)
       pp_value c pp_value s pp_value t pp_spine sp
-      
+
 and pp_spine ppf sp =
   match sp with
   | EmpSp -> ()
@@ -96,3 +96,19 @@ and pp_spine ppf sp =
 
 let pp_top_env = hovbox (pp_suite (parens (pair ~sep:(any " : ") string pp_value)))
 let pp_loc_env = hovbox (pp_suite ~sep:comma pp_value)
+
+let rec sp_to_suite sp =
+  let open Base.Result.Monad_infix in
+  match sp with
+  | EmpSp -> Ok (Emp)
+  | AppSp (s,v,i) -> sp_to_suite s >>= fun s' -> Ok (Ext(s', (v,i)))
+
+let rec suite_to_sp s =
+  match s with
+  | Emp -> EmpSp
+  | Ext(s, (v,i)) -> AppSp (suite_to_sp s,v,i)
+
+let rec map_sp sp ~f =
+  match sp with
+  | EmpSp -> EmpSp
+  | AppSp (s,v,i) -> AppSp (map_sp s ~f, f v, i)

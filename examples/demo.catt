@@ -12,7 +12,7 @@ coh comp {C : Cat}
     {y :: C} (f :: x => y)
     {z :: C} (g :: y => z)
   : x => z
-  
+
 coh assoc {C : Cat}
     {x :: C}
     {y :: C} (f :: x => y)
@@ -24,7 +24,7 @@ coh assoc {C : Cat}
 # coh assoc_fail C (x(f)y(g)z(h)w(k)s)
 #   : comp f (comp g h) =>
 #     comp (comp f g) h
-  
+
 coh unit_l {C : Cat}
     {x :: C}
     {y :: C} (f :: x => y)
@@ -41,7 +41,7 @@ coh horiz {C : Cat}
              {g :: x => y} (a :: f => g)
     {z :: C} {h :: y => z}
        	     {k :: y => z} (b :: h => k)
-  : comp f h => comp g k 
+  : comp f h => comp g k
 
 coh vert {C : Cat}
     {x :: C}
@@ -65,12 +65,12 @@ let twice {C : Cat} {x :: C} (f :: x => x) : [ x => x ]
 
 let precomp {C : Cat} {x :: C} {y :: C} {z :: C} (f :: x => y)
   : [ y => z ] -> [ x => z ]
-  = comp f 
+  = comp f
 
 let postcomp {C : Cat} {x :: C} {y :: C} {z :: C} (g :: y => z)
   : [ x => y ] -> [ x => z ]
   = \f. comp f g
-  
+
 #
 #  Unbiased composites
 #
@@ -103,3 +103,9 @@ coh assoc_abr C (x(f)y(g)z(h)w)
 coh ichg C (x(f(a)g(b)h)y(i(c)j(d)k)z)
   : ucomp [ 2 0 2 ] (ucomp [ 2 1 2 ] a b) (ucomp [ 2 1 2 ] c d) =>
     ucomp [ 2 1 2 ] (ucomp [ 2 0 2 ] a c) (ucomp [ 2 0 2 ] b d)
+
+coh disc C (x(f)y) : x => y
+
+let test {C : Cat}
+    {x :: C}
+    {y :: C} (f :: x => y) : [ x => y ] = disc f

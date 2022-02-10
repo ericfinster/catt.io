@@ -10,6 +10,7 @@ open Meta
 open Value
 open Suite
 open Syntax
+open Pd
 
 (*****************************************************************************)
 (*                                 Evaluation                                *)
@@ -30,7 +31,7 @@ let rec eval top loc tm =
         raise (Eval_error (str "Unknown id during eval: %s" nm))
     ))
   | LamT (nm,ict,u) -> LamV (nm, ict, Closure (top,loc,u))
-  | AppT (u,v,ict) -> appV (eval top loc u) (eval top loc v) ict
+  | AppT (u,v,ict) -> fst (appV (eval top loc u) (eval top loc v) ict)
   | PiT (nm,ict,u,v) -> PiV (nm, ict, eval top loc u, Closure (top,loc,v))
   | ObjT c -> ObjV (eval top loc c)
   | HomT (c,s,t) ->
@@ -68,25 +69,127 @@ and ($$) c v =
 
 and appV t u ict =
   match t with
-  | FlexV (m,sp) -> FlexV (m,AppSp(sp,u,ict))
-  | RigidV (i,sp) -> RigidV (i,AppSp(sp,u,ict))
-  | TopV (nm,sp,tv) -> TopV (nm,AppSp(sp,u,ict),appV tv u ict)
-  | LamV (_,_,cl) -> cl $$ u
-  | UCompV (ucd,cohv,sp) -> UCompV (ucd,appV cohv u ict,AppSp(sp,u,ict))
+  | FlexV (m,sp) -> (FlexV (m,AppSp(sp,u,ict)), false)
+  | RigidV (i,sp) -> (RigidV (i,AppSp(sp,u,ict)), false)
+  | TopV (nm,sp,tv) ->
+     let (x, b) = appV tv u ict in
+     if b then (x, true) else (TopV (nm,AppSp(sp,u,ict), x), false)
+  | LamV (_,_,cl) -> (cl $$ u, true)
+  | UCompV (ucd,cohv,sp) ->
+     let (x, b) = appV cohv u ict in
+     if b then (x, true) else (UCompV (ucd,x ,AppSp(sp,u,ict)), false)
   | CohV (cn,pd,c,s,t,sp) ->
-    CohV (cn,pd,c,s,t,AppSp(sp,u,ict))
+     let sp' = AppSp(sp,u,ict) in
+     (match cohReduction cn pd c s t sp' u with
+      | Error _ -> (CohV (cn,pd,c,s,t,sp'),true)
+      | Ok y -> (y, false))
   | _ -> raise (Eval_error (Fmt.str "malformed application: %a" pp_value t))
+
+and applySubstitution k v sub =
+  let t = quote true k v in
+  eval Emp sub t
+
+(* This must be somewhere already *)
+and alt a b =
+  match a with
+  | Error x -> (match b with
+                | Ok y -> Ok y
+                | Error y -> Error (Printf.sprintf "%s | %s" x y))
+  | Ok x -> Ok x
+
+and alt_list xs =
+  match xs with
+  | [] -> Error ""
+  | (x :: xs) -> alt x (alt_list xs)
+
+and cohReduction cn pd c s t sp' u =
+  let* sp_list = sp_to_suite sp' in
+  let k = length sp_list in
+  if k = pd_length pd + 1
+  then alt_list [
+           disc_removal pd c s t u;
+           endo_coherence_removal cn pd k c s t sp_list
+         ]
+  else Error "Not applied enough arguments yet"
+
+and dim_ty ty =
+    match ty with
+    | HomV (c,_,_) -> dim_ty c + 1
+    | _ -> 0
+
+and unfold v =
+    match force_meta v with
+    | TopV (_,_,x) -> unfold x
+    | UCompV (_,cohv,_) -> cohv
+    | y -> y
+
+and construct_disc_type n =
+  if n = 0 then RigidV (0, EmpSp) else HomV(construct_disc_type (n-1), RigidV (2*n - 1, EmpSp), RigidV (2*n,EmpSp) )
+
+and disc_removal pd c s t u =
+  if not (is_disc pd) then Error "Not disc"
+  else
+    if is_same 0 (HomV(c,s,t)) (construct_disc_type (dim_pd pd)) then Ok u
+    else Error "Disc is not unbiased"
+
+(* Can this somehow bu merged with unify? *)
+and is_same l a b =
+  match (unfold a, unfold b) with
+  | (TypV , TypV) -> true
+  | (CatV , CatV) -> true
+  | (LamV (_,_,a) , LamV (_,_,a')) -> is_same (l + 1) (a $$ varV l) (a' $$ varV l)
+  | (PiV (_,_,a,b), PiV (_,_,a',b')) -> is_same l a a' && is_same (l+1) (b $$ varV l) (b' $$ varV l)
+  | (RigidV(i,sp), RigidV (i',sp')) when i = i' -> is_same_sp l sp sp'
+  | (FlexV(m,sp), FlexV(m',sp')) when m = m' -> is_same_sp l sp sp'
+  | (ObjV c, ObjV c') -> is_same l c c'
+  | (HomV (c,s,t), HomV (c',s',t')) -> is_same l c c' && is_same l s s' && is_same l t t'
+  | (ArrV c, ArrV c') -> is_same l c c'
+  | (CohV (_,pd,c,s,t,sp), CohV (_,pd',c',s',t',sp')) when Pd.shape_eq pd pd' ->
+     is_same l (HomV(c,s,t)) (HomV(c',s',t')) && is_same_sp l sp sp'
+  | _ -> a = b
+
+and is_same_sp l sp sp' =
+  match (sp, sp') with
+  | (EmpSp,EmpSp) -> true
+  | (AppSp (s,u,_), AppSp (s', u', _)) -> is_same_sp l s s' && is_same l u u'
+  | _ -> false
+
+and endo_coherence_removal cn pd k c s t sp_list =
+  (* Can't open syntax here: Must be a way to fix this *)
+  let fresh_pd pd =
+    let nm_lvl l = Fmt.str "x%d" l in
+    Pd.map_pd_lf_nd_lvl pd
+      ~lf:(fun lvl _ -> (nm_lvl lvl,Expl))
+      ~nd:(fun lvl _ -> (nm_lvl lvl,Impl)) in
+  let rec type_to_suite ty =
+    match ty with
+    | HomV(a,b,c) -> Ext(Ext(type_to_suite a, (b,Impl)), (c,Impl))
+    | _ -> Emp in
+  if not (is_same 0 s t) then Error "Not an endo coherence"
+  else
+    let dim = dim_ty c in
+    let new_pd = fresh_pd (unit_disc_pd dim) in
+    let coh_ty = construct_disc_type dim in
+    let coh_ty_tm = RigidV(2*dim + 1,EmpSp) in
+    if is_disc pd && c = coh_ty && s = coh_ty_tm then Error "Already identity"
+    else
+    let args_not_subbed = Ext(type_to_suite c, (s, Expl)) in
+    let sp_list_no_icit = map_suite sp_list ~f:fst in
+    let args_subbed = map_suite args_not_subbed ~f:(fun (v,i) -> (applySubstitution k v (sp_list_no_icit), i)) in
+    let args_final = suite_to_sp (append (singleton (first sp_list)) args_subbed) in
+    Ok (runSpV (CohV (cn,new_pd,coh_ty,coh_ty_tm,coh_ty_tm,EmpSp)) args_final)
+
 
 
 and appLocV loc v =
   match loc with
   | Emp -> v
-  | Ext (loc',u) -> appV (appLocV loc' v) u Expl
+  | Ext (loc',u) -> fst (appV (appLocV loc' v) u Expl)
 
 and runSpV v sp =
   match sp with
   | EmpSp -> v
-  | AppSp (sp',u,ict) -> appV (runSpV v sp') u ict
+  | AppSp (sp',u,ict) -> fst (appV (runSpV v sp') u ict)
 
 and force_meta v =
   match v with
@@ -221,7 +324,7 @@ module ValuePdUtil = PdUtil(ValuePdSyntax)
 let string_pd_to_value_tele (c : string) (pd : string Pd.pd) : value tele =
   ValuePdUtil.string_pd_to_tele c pd
 
-
+(*
 (*****************************************************************************)
 (*                              Value Cylinders                              *)
 (*****************************************************************************)
@@ -256,4 +359,4 @@ module ValueCylinderSyntax = struct
   let arr v = ArrV v
 
 end
-
+ *)
