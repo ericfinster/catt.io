@@ -1,0 +1,27 @@
+# Identities
+coh id (x : *) : x -> x
+
+coh id2 (x : *) (y : *) (f : x -> y) : f -> f
+
+# 1 Composite
+coh comp (x : *) (y : *) (f : x -> y) (z : *) (g : y -> z) : x -> z
+
+# Associator
+coh assoc (x : *)
+    	  (y : *) (f : x -> y)
+	  (z : *) (g : y -> z)
+	  (w : *) (h : z -> w)
+	  : comp(comp(f,g),h) -> comp(f,comp(g,h))
+
+# Normalise
+normalize (x : *)
+    	  (y : *) (f : x -> y)
+	  (z : *) (g : y -> z)
+  | assoc(f,id(y),g)
+
+# Demonstrate example
+eqnf (x : *)
+     (y : *) (f : x -> y)
+     (z : *) (g : y -> z)
+ | assoc(f,id(y),g)
+ | id2(comp(f,g))

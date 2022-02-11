@@ -1,0 +1,353 @@
+#
+#  eh.catt - Eckmann-Hilton
+#
+
+coh id (x : *) : x -> x
+
+coh id2
+    (x : *)
+    (y : *) (f : x -> y)
+  : f -> f
+  
+coh comp
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+  : x -> z
+
+coh unit_r
+    (x : *)
+    (y : *) (f : x -> y)
+  : comp(f,id(y)) -> f
+
+coh unit_r_inv
+    (x : *)
+    (y : *) (f : x -> y)
+  : f -> comp(f,id(y)) 
+
+coh unit_l
+    (x : *)
+    (y : *) (f : x -> y)
+  : comp(id(x),f) -> f
+
+coh unit_l_inv
+    (x : *)
+    (y : *) (f : x -> y)
+  : f -> comp(id(x),f) 
+
+coh vert
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+  : f -> h
+
+coh vert3
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+  : f -> i
+
+coh vert4
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+            (j : x -> y) (d : i -> j)
+  : f -> j
+
+coh vert5
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+            (j : x -> y) (d : i -> j)
+            (k : x -> y) (e : j -> k)
+  : f -> k
+
+coh whisk_r
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+  : comp(f,h) -> comp(g,h)
+
+coh whisk_r_unit_r
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+  : a -> vert3(unit_r_inv(f),whisk_r(a,id(y)),unit_r(g)) 
+
+coh whisk_r_unit_r_inv
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+  : vert3(unit_r_inv(f),whisk_r(a,id(y)),unit_r(g)) -> a 
+
+coh whisk_l
+    (x : *)
+    (y : *) (f : x -> y)
+    (z : *) (g : y -> z)
+            (h : y -> z) (a : g -> h)
+  : comp(f,g) -> comp(f,h)
+
+coh whisk_l_unit_l
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+  : a -> vert3(unit_l_inv(f),whisk_l(id(x),a),unit_l(g)) 
+
+coh whisk_l_unit_l_inv
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+  : vert3(unit_l_inv(f),whisk_l(id(x),a),unit_l(g)) -> a
+
+coh swap
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+    (z : *) (h : y -> z)
+            (k : y -> z) (b : h -> k)
+  : vert(whisk_r(a,h),whisk_l(g,b)) ->
+    vert(whisk_l(f,b),whisk_r(a,k))
+
+coh unit_lr_cancel
+    (x : *)
+  : vert(unit_r(id(x)),unit_l_inv(id(x))) -> id2(comp(id(x),id(x)))
+
+coh unit_lr_insert
+    (x : *)
+  : id2(comp(id(x),id(x))) -> vert(unit_l(id(x)),unit_r_inv(id(x)))
+
+coh vert_cong
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (c : f -> g) (A : a -> c)
+            (h : x -> y) (b : g -> h)
+                         (d : g -> h) (B : b -> d)
+  : vert(a,b) -> vert(c,d)
+
+coh vert_redistrib
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+            (j : x -> y) (d : i -> j)
+            (k : x -> y) (e : j -> k)
+            (l : x -> y) (m : k -> l)
+  : vert(vert3(a,b,c),vert3(d,e,m)) ->
+    vert5(a,b,vert(c,d),e,m)
+
+coh vert_redistrib_inv
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+            (j : x -> y) (d : i -> j)
+            (k : x -> y) (e : j -> k)
+            (l : x -> y) (m : k -> l)
+  : vert5(a,b,vert(c,d),e,m) ->
+    vert(vert3(a,b,c),vert3(d,e,m))
+
+coh vert5_cong_mid
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c0 : h -> i)
+                         (c1 : h -> i) (A : c0 -> c1)
+            (j : x -> y) (d : i -> j)
+            (k : x -> y) (e : j -> k)
+  : vert5(a,b,c0,d,e) -> vert5(a,b,c1,d,e)
+
+coh vert5_unit_mid
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+            (j : x -> y) (d : i -> j)
+  : vert5(a,b,id2(h),c,d) -> vert4(a,b,c,d)
+
+coh vert5_unit_mid_inv
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+            (j : x -> y) (d : i -> j)
+  : vert4(a,b,c,d) -> vert5(a,b,id2(h),c,d) 
+
+coh vert_redistrib2
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+            (j : x -> y) (d : i -> j)
+  : vert4(a,b,c,d) -> vert3(a,vert(b,c),d)
+
+coh vert_redistrib2_inv
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+            (h : x -> y) (b : g -> h)
+            (i : x -> y) (c : h -> i)
+            (j : x -> y) (d : i -> j)
+  : vert3(a,vert(b,c),d) -> vert4(a,b,c,d) 
+
+coh vert3_cong3
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a0 : f -> g)
+                         (a1 : f -> g) (A : a0 -> a1)
+            (h : x -> y) (b0 : g -> h)
+                         (b1 : g -> h) (B : b0 -> b1)
+            (i : x -> y) (c0 : h -> i)
+                         (c1 : h -> i) (C : c0 -> c1)
+  : vert3(a0,b0,c0) -> vert3(a1,b1,c1)
+
+coh unit_l_is_unit_r
+    (x : *)
+  : unit_l(id(x)) -> unit_r(id(x))
+  
+coh unit_r_inv_is_univ_l_inv
+    (x : *)
+  : unit_r_inv(id(x)) -> unit_l_inv(id(x))
+
+coh 3vert
+    (x : *)
+    (y : *) (f : x -> y)
+            (g : x -> y) (a : f -> g)
+                         (b : f -> g) (A : a -> b)
+                         (c : f -> g) (B : b -> c)
+  : a -> c
+  
+section (x : *) (a : id(x) -> id(x)) (b : id(x) -> id(x)) where
+
+  let step1 : vert(a,b) ->
+              vert(vert3(unit_r_inv(id(x)),whisk_r(a,id(x)),unit_r(id(x))),vert3(unit_l_inv(id(x)),whisk_l(id(x),b),unit_l(id(x))))
+            = vert_cong(whisk_r_unit_r(a),whisk_l_unit_l(b))
+
+  let step2 : vert(vert3(unit_r_inv(id(x)),whisk_r(a,id(x)),unit_r(id(x))),vert3(unit_l_inv(id(x)),whisk_l(id(x),b),unit_l(id(x)))) ->
+              vert5(unit_r_inv(id(x)),whisk_r(a,id(x)),vert(unit_r(id(x)),unit_l_inv(id(x))),whisk_l(id(x),b),unit_l(id(x)))
+            = vert_redistrib(
+                unit_r_inv(id(x)),
+                whisk_r(a,id(x)),
+                unit_r(id(x)),
+                unit_l_inv(id(x)),
+                whisk_l(id(x),b),
+                unit_l(id(x))
+              )
+
+  let step3 : vert5(unit_r_inv(id(x)),whisk_r(a,id(x)),vert(unit_r(id(x)),unit_l_inv(id(x))),whisk_l(id(x),b),unit_l(id(x))) ->
+              vert5(unit_r_inv(id(x)),whisk_r(a,id(x)),id2(comp(id(x),id(x))),whisk_l(id(x),b),unit_l(id(x)))
+            = vert5_cong_mid(
+                unit_r_inv(id(x)),
+                whisk_r(a,id(x)),
+                unit_lr_cancel(x),
+                whisk_l(id(x),b),
+                unit_l(id(x))
+              )
+
+  let step4 : vert5(unit_r_inv(id(x)),whisk_r(a,id(x)),id2(comp(id(x),id(x))),whisk_l(id(x),b),unit_l(id(x))) ->
+              vert4(unit_r_inv(id(x)),whisk_r(a,id(x)),whisk_l(id(x),b),unit_l(id(x))) 
+            = vert5_unit_mid(
+                unit_r_inv(id(x)),
+                whisk_r(a,id(x)),
+                whisk_l(id(x),b),
+                unit_l(id(x))
+              )
+
+  let step5 : vert4(unit_r_inv(id(x)),whisk_r(a,id(x)),whisk_l(id(x),b),unit_l(id(x))) -> 
+              vert3(unit_r_inv(id(x)),vert(whisk_r(a,id(x)),whisk_l(id(x),b)),unit_l(id(x)))
+            = vert_redistrib2(
+                unit_r_inv(id(x)),
+                whisk_r(a,id(x)),
+                whisk_l(id(x),b),
+                unit_l(id(x))
+              )
+
+  let step6 : vert3(unit_r_inv(id(x)),vert(whisk_r(a,id(x)),whisk_l(id(x),b)),unit_l(id(x))) ->
+              vert3(unit_l_inv(id(x)),vert(whisk_l(id(x),b),whisk_r(a,id(x))),unit_r(id(x)))
+            = vert3_cong3(
+                unit_r_inv_is_univ_l_inv(x),
+                swap(a,b),
+                unit_l_is_unit_r(x)
+              ) 
+
+  let step7 : vert3(unit_l_inv(id(x)),vert(whisk_l(id(x),b),whisk_r(a,id(x))),unit_r(id(x))) ->
+              vert4(unit_l_inv(id(x)),whisk_l(id(x),b),whisk_r(a,id(x)),unit_r(id(x)))
+            = vert_redistrib2_inv(
+                unit_l_inv(id(x)),
+                whisk_l(id(x),b),
+                whisk_r(a,id(x)),
+                unit_r(id(x))
+              )
+
+  let step8 : vert4(unit_l_inv(id(x)),whisk_l(id(x),b),whisk_r(a,id(x)),unit_r(id(x))) ->
+              vert5(unit_l_inv(id(x)),whisk_l(id(x),b),id2(comp(id(x),id(x))),whisk_r(a,id(x)),unit_r(id(x)))
+            = vert5_unit_mid_inv(
+                unit_l_inv(id(x)),
+                whisk_l(id(x),b),
+                whisk_r(a,id(x)),
+                unit_r(id(x))
+              )
+
+  let step9 : vert5(unit_l_inv(id(x)),whisk_l(id(x),b),id2(comp(id(x),id(x))),whisk_r(a,id(x)),unit_r(id(x))) ->
+              vert5(unit_l_inv(id(x)),whisk_l(id(x),b),vert(unit_l(id(x)),unit_r_inv(id(x))),whisk_r(a,id(x)),unit_r(id(x)))
+            = vert5_cong_mid(
+                unit_l_inv(id(x)),
+                whisk_l(id(x),b),
+                unit_lr_insert(x),
+                whisk_r(a,id(x)),
+                unit_r(id(x))
+              )
+
+  let step10 : vert5(unit_l_inv(id(x)),whisk_l(id(x),b),vert(unit_l(id(x)),unit_r_inv(id(x))),whisk_r(a,id(x)),unit_r(id(x))) ->
+               vert(vert3(unit_l_inv(id(x)),whisk_l(id(x),b),unit_l(id(x))),vert3(unit_r_inv(id(x)),whisk_r(a,id(x)),unit_r(id(x))))
+            = vert_redistrib_inv(
+                unit_l_inv(id(x)),
+                whisk_l(id(x),b),
+                unit_l(id(x)),
+                unit_r_inv(id(x)),
+                whisk_r(a,id(x)),
+                unit_r(id(x))
+              )
+
+  let step11 : vert(vert3(unit_l_inv(id(x)),whisk_l(id(x),b),unit_l(id(x))),vert3(unit_r_inv(id(x)),whisk_r(a,id(x)),unit_r(id(x)))) ->
+               vert(b,a)
+             = vert_cong(whisk_l_unit_l_inv(b),whisk_r_unit_r_inv(a))
+               
+  let eh : vert(a,b) -> vert(b,a)
+         = 3vert(step1(),
+           3vert(step2(),
+           3vert(step3(),
+           3vert(step4(),
+           3vert(step5(),
+           3vert(step6(),
+           3vert(step7(),
+           3vert(step8(),
+           3vert(step9(),
+           3vert(step10(),step11()))))))))))
+
+end
+
+#
+#  These terms indeed have the same normal form in CattSu
+#
+
+eqnf (x : *) (a : id(x) -> id(x)) (b : id(x) -> id(x))
+  | eh(x,a,b)
+  | swap(a,b)
+
+normalize (x : *) (a : id(x) -> id(x)) (b : id(x) -> id(x))
+  | eh(x,a,b)
