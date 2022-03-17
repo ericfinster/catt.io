@@ -406,7 +406,7 @@ let fold_pd_with_type pd init f =
     | Br (x,brs) ->
       let ct = if (is_empty brs)
         then LocMaxCell d
-        else SrcCell d in 
+        else SrcCell d in
       let b' = f x ct b in
       fold_pd_with_type_brs true d brs b'
 
@@ -508,6 +508,52 @@ let rec join_pd d pd =
 
 let blank pd = map_pd pd ~f:(fun _ -> ())
 let subst pd sub = map_pd pd ~f:(fun id -> Suite.assoc id sub)
+
+let pd_with_lvl pd = map_pd_lvls pd 1 ~f:(fun _ n _ _ -> n)
+
+(*****************************************************************************)
+(*                      Insertion operations                                 *)
+(*****************************************************************************)
+
+let rec loc_max_bh pd =
+  match pd with
+  | Br (x , Emp) -> Error x
+  | Br (_ , Ext (Emp , (_ , p))) ->
+     (match loc_max_bh p with
+      | Error x -> Error x
+      | Ok xs -> Ok (map_suite xs ~f:(fun (x,xs) -> (x, Ext (xs,0)))))
+  | Br (_ , brs) ->
+     let rs = map_with_lvl brs ~f:(fun i (_,p) ->
+                  match loc_max_bh p with
+                  | Error x -> Ext (Emp, (x,Ext (Emp, i)))
+                  | Ok xs -> map_suite xs ~f:(fun (x,xs) -> (x, Ext (xs,i)))) in
+     Ok (join rs)
+
+
+
+let rec insertion pd path pd2 =
+  let replace l xs l2 =
+    match xs with
+    | Emp -> (l2, Emp)
+    | Ext (ys, (_,y)) -> (l, Ext (ys, (l2,y))) in
+  match (pd, pd2, path) with
+  | (Br (l, brs), Br (l2,brs2), Ext (Emp, n)) ->
+     let (xs, ys) = split_suite (n + 1) brs in
+     let* (_, xsd) = drop xs in
+     let (l', xsr) = replace l xsd l2 in
+     Ok (Br (l', append (append xsr brs2) ys))
+  | (Br (l, brs), Br (l2, Ext (Emp, (l3, p2))), Ext(ns, n)) ->
+     let (xs, ys) = split_suite (n + 1) brs in
+     let* ((_,br), xsd) = drop xs in
+     let (l', xsr) = replace l xsd l2 in
+     let* pdr = insertion br ns p2 in
+     Ok (Br (l', append (Ext (xsr, (l3, pdr))) ys))
+  | (_,_,_) -> Error "Insertion failed"
+
+let rec get_all_paths pd =
+  match pd with
+  | Br (_, brs) ->
+     fold_left (map_with_lvl brs ~f:(fun i (_,p) -> append (singleton (singleton (i + 1))) (map_suite (get_all_paths p) ~f:(fun xs -> Ext (xs, i))))) (singleton (singleton 0)) append
 
 (*****************************************************************************)
 (*                                  Examples                                 *)

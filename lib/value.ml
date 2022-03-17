@@ -9,6 +9,7 @@ open Fmt
 open Term
 open Suite
 open Syntax
+open Base
 
 (*****************************************************************************)
 (*                              Type Definitions                             *)
@@ -112,3 +113,33 @@ let rec map_sp sp ~f =
   match sp with
   | EmpSp -> EmpSp
   | AppSp (s,v,i) -> AppSp (map_sp s ~f, f v, i)
+
+(*****************************************************************************)
+(*                         Value Syntax Implmentations                       *)
+(*****************************************************************************)
+
+module ValuePdSyntax = struct
+
+  type s = value
+
+  let cat = CatV
+  let obj c = ObjV c
+  let hom c s t = HomV (c,s,t)
+
+  let match_hom e =
+    match e with
+    | HomV (c,s,t) -> Some (c,s,t)
+    | _ -> None
+
+  let match_obj e =
+    match e with
+    | ObjV c -> Some c
+    | _ -> None
+
+  let lift _ t = t
+  let var _ l _ = RigidV (l,EmpSp)
+
+  let pp_dbg = pp_value
+end
+
+module ValuePdUtil = PdUtil(ValuePdSyntax)

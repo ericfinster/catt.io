@@ -107,6 +107,7 @@ and cohReduction cn pd c s t sp' u =
   let k = length sp_list in
   if k = pd_length pd + 1
   then alt_list [
+           insertion_reduction cn pd k c s t sp_list;
            disc_removal pd c s t u;
            endo_coherence_removal cn pd k c s t sp_list
          ]
@@ -168,7 +169,7 @@ and endo_coherence_removal cn pd k c s t sp_list =
   if not (is_same 0 s t) then Error "Not an endo coherence"
   else
     let dim = dim_ty c in
-    let new_pd = fresh_pd (unit_disc_pd dim) in
+    let new_pd = ValuePdUtil.fresh_pd (unit_disc_pd dim) in
     let coh_ty = construct_disc_type dim in
     let coh_ty_tm = RigidV(2*dim + 1,EmpSp) in
     if is_disc pd && c = coh_ty && s = coh_ty_tm then Error "Already identity"
@@ -179,7 +180,26 @@ and endo_coherence_removal cn pd k c s t sp_list =
     let args_final = suite_to_sp (append (singleton (first sp_list)) args_subbed) in
     Ok (runSpV (CohV (cn,new_pd,coh_ty,coh_ty_tm,coh_ty_tm,EmpSp)) args_final)
 
+and insertion_reduction cn pd k c s t sp_list =
+  let rec get_redex (xs : ((name * icit * value) * mvar suite) suite) =
+    match xs with
+    | Emp -> Error "No redex found"
+    | Ext (xs, ((_,_,x), redex_addr)) ->
+       match (unfold v) with
+       | CohV (cn', pd', c', s', t', sp') ->
+          let* args_inner = sp_to_suite sp' in
+          let pda = map_pd_lvls pd' 1 ~f:(fun _ n _ (x,y) -> (x, y, fst (nth n args_inner))) in
+          if false then Ok (pda, redex_addr) else get_redex xs
+       | _ -> get_redex xs in
 
+
+  let pd_with_args = map_pd_lvls pd 1 ~f:(fun _ n _ (x,y) -> (x, y, fst (nth n sp_list))) in
+
+  match loc_max_bh pd_with_args with
+  | Error _ -> Error "Pd is linear"
+  | Ok xs ->
+     let* _ = get_redex xs in
+     Error "TODO"
 
 and appLocV loc v =
   match loc with

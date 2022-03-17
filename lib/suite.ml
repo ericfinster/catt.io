@@ -226,6 +226,20 @@ let rev s =
     | Ext (s',x) -> go s' (Ext (acc,x))
   in go s Emp
 
+let drop s =
+  match s with
+  | Emp -> Error "Nothing to drop"
+  | Ext (xs, x) -> Ok (x, xs)
+
+let split_suite n s =
+  let rec go n s =
+    match s with
+    | Emp -> (Emp,Emp,n)
+    | Ext(xs,x) ->
+       let (a, b, m) = go n xs in
+       if m = 0 then (a, Ext(b,x),m) else (Ext(a,x),b,m - 1) in
+  let (a, b, _) = go n s in (a, b)
+
 (*****************************************************************************)
 (*                                   Zipper                                  *)
 (*****************************************************************************)
