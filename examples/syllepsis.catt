@@ -1,0 +1,402 @@
+############################################
+#
+#  syllepsis.catt - the syllepsis
+#
+############################################
+
+############################################
+#
+#  prelude.catt - some basic coherences
+#
+############################################
+
+#
+#  Identities
+#
+
+coh id C (x) : x => x
+
+coh id1 C (x(f)y)
+  : f => f
+
+coh id2 C (x(f(a)g)y)
+  : a => a
+
+#
+#  1d compositions
+#
+
+coh comp110 C (x(f)y(g)z)
+  : x => z
+
+#
+#  2d compositions
+#
+
+coh comp221 C (x(f(a)g(b)h)y)
+  : f => h
+
+coh comp22211 C (x(f(a)g(b)h(c)i)y)
+  : f => i
+
+coh comp2222111 C (x(f(a)g(b)h(c)i(d)j)y)
+  : f => j
+
+coh comp220 C (x(f(a)g)y(h(b)k)z)
+  : comp110 f h => comp110 g k
+
+coh comp210 C (x(f(a)g)y(h)z)
+  : comp110 f h => comp110 g h
+
+coh comp120 C (x(f)y(g(a)h)z)
+  : comp110 f g => comp110 f h
+
+#
+#  3d Compositions
+#
+
+coh comp330 C (x(f(a(m)b)g)y(h(c(n)d)k)z)
+  : comp220 a c => comp220 b d
+
+coh comp331 C (x(f(a(m)b)g(c(n)d)h)y)
+  : comp221 a c => comp221 b d
+
+coh comp332 C (x(f(a(m)b(n)c)g)y)
+  : a => c
+
+coh comp321 C (x(f(a(m)b)g(c)h)y)
+  : comp221 a c => comp221 b c
+
+coh comp32211 C (x(f(a(m)b)g(c)h(d)i)y)
+  : comp22211 a c d => comp22211 b c d
+
+coh comp23211 C (x(f(a)g(b(m)c)h(d)i)y)
+  : comp22211 a b d => comp22211 a c d
+
+coh comp2322111 C (x(f(a)g(b(m)c)h(d)i(e)j)y)
+  : comp2222111 a b d e => comp2222111 a c d e
+
+coh comp33322 C (x(f(a(m)b(n)c(o)d)g)y)
+  : a => d
+
+coh comp231 C (x(f(a)g(c(n)d)h)y)
+  : comp221 a c => comp221 a d
+
+coh comp310 C (x(f(a(m)b)g)y(h)z)
+  : comp210 a h => comp210 b h
+
+coh comp130 C (x(f)y(h(c(n)d)k)z)
+  : comp120 f c => comp120 f d
+
+
+coh comp230 C (x(f(a)g)y(h(c(n)d)k)z)
+  : comp220 a c => comp220 a d
+
+coh comp320 C (x(f(a(m)b)g)y(h(c)k)z)
+  : comp220 a c => comp220 b c
+
+coh assoc3 C (x(f(a(m)b(n)c(o)d)g)y)
+  : comp332 (comp332 m n) o =>
+    comp332 m (comp332 n o)
+
+coh assoc3inv C (x(f(a(m)b(n)c(o)d)g)y)
+  : comp332 m (comp332 n o) =>
+    comp332 (comp332 m n) o
+
+#
+#  4d compositions
+#
+
+coh comp140 C (x(f)y(h(c(n(q)m)d)k)z)
+  : comp130 f n => comp130 f m
+
+coh comp432 C (x(f(a(m(q)o)b(n)c)g)y)
+  : comp332 m n => comp332 o n
+
+coh comp342 C (x(f(a(m)b(n(q)o)c)g)y)
+  : comp332 m n => comp332 m o
+
+coh comp443 C (x(f(a(m(p)n(q)o)b)g)y)
+  : m => o
+
+coh comp340 C (x(f(a(m)b)g)y(h(c(n(p)o)d)i)z)
+  : comp330 m n => comp330 m o
+
+coh comp44433 C (x(f(a(b0(t1)b1(t2)b2(t3)b3)b)g)y)
+  : b0 => b3
+
+coh comp444443333 C (x(f(a(b0(t1)b1(t2)b2(t3)b3(t4)b4(t5)b5)b)g)y)
+  : b0 => b5
+
+#
+#  Simple coherences
+#
+
+coh unitl C (x(f)y)
+  : f => comp110 (id x) f
+
+coh unitr C (x(f)y)
+  : comp110 (id x) f => f
+
+coh assoc_r C (x(f)y(g)z(h)w)
+  : comp110 (comp110 f g) h => comp110 f (comp110 g h)
+
+coh assoc_l C (x(f)y(g)z(h)w)
+  : comp110 f (comp110 g h) => comp110 (comp110 f g) h
+
+
+#
+#  Eckman-Hilton coherence 3-cell
+#
+
+coh swap3 C (x(f(a)g)y(h(b)k)z)
+  : comp221 (comp210 a h) (comp120 g b) =>
+    comp221 (comp120 f b) (comp210 a k)
+
+coh swap3inv C (x(f(a)g)y(h(b)k)z)
+  : comp221 (comp120 f b) (comp210 a k) =>
+    comp221 (comp210 a h) (comp120 g b)
+
+#
+#  Suspended Eckman-Hilton coherence 4-cell
+#
+
+coh swap4 C (u(x(f(a)g)y(h(b)k)z)v)
+  : comp332 (comp321 a h) (comp231 g b) =>
+    comp332 (comp231 f b) (comp321 a k)
+
+coh swap4inv C (u(x(f(a)g)y(h(b)k)z)v)
+  : comp332 (comp231 f b) (comp321 a k) =>
+    comp332 (comp321 a h) (comp231 g b)
+
+#
+#  Left vertical coherence
+#
+
+let step1l {C : Cat}
+    {u :: C}
+    {v :: C} {x :: u => v}
+             {y :: u => v} {f :: x => y}
+                           {g :: x => y} (a :: f => g)
+    {w :: C} {s :: v => w}
+             {t :: v => w} {h :: s => t}
+                           {k :: s => t} (b :: h => k)
+  : [ comp332 (comp332 (comp321 (comp310 a s) (comp120 y h)) (comp231 (comp210 g s) (comp130 y b))) (swap3 g k) =>
+    comp332 (comp321(comp310 a s) (comp120 y h)) (comp332 (comp231 (comp210 g s) (comp130 y b)) (swap3 g k)) ]
+  = assoc3 (comp321(comp310 a s) (comp120 y h)) (comp231 (comp210 g s) (comp130 y b)) (swap3 g k)
+
+coh step2lcoh C (u(x(g)y)v(s(h(b)k)t)w)
+  : comp332 (comp231 (comp210 g s) (comp130 y b)) (swap3 g k) =>
+    comp332 (swap3 g h) (comp321 (comp130 x b) (comp210 g t))
+
+let step2l {C : Cat}
+    {u :: C}
+    {v :: C} {x :: u => v}
+             {y :: u => v} {f :: x => y}
+                           {g :: x => y} (a :: f => g)
+    {w :: C} {s :: v => w}
+             {t :: v => w} {h :: s => t}
+                           {k :: s => t} (b :: h => k)
+  : [ comp332 (comp321 (comp310 a s) (comp120 y h)) (comp332 (comp231 (comp210 g s) (comp130 y b)) (swap3 g k)) =>
+    comp332 (comp321 (comp310 a s) (comp120 y h)) (comp332 (swap3 g h) (comp321(comp130 x b) (comp210 g t))) ]
+  = comp342 (comp321 (comp310 a s) (comp120 y h)) (step2lcoh g b)
+
+let step3l {C : Cat}
+    {u :: C}
+    {v :: C} {x :: u => v}
+             {y :: u => v} {f :: x => y}
+                           {g :: x => y} (a :: f => g)
+    {w :: C} {s :: v => w}
+             {t :: v => w} {h :: s => t}
+                           {k :: s => t} (b :: h => k)
+  : [ comp332 (comp321 (comp310 a s) (comp120 y h)) (comp332 (swap3 g h) (comp321 (comp130 x b) (comp210 g t))) =>
+    comp332 (comp332 (comp321 (comp310 a s) (comp120 y h)) (swap3 g h)) (comp321 (comp130 x b) (comp210 g t)) ]
+  = assoc3inv (comp321 (comp310 a s) (comp120 y h)) (swap3 g h) (comp321 (comp130 x b) (comp210 g t))
+
+coh step4lcoh C (u(x(f(a)g)y)v(s(h)t)w)
+  : comp332 (comp321 (comp310 a s) (comp120 y h)) (swap3 g h) =>
+    comp332 (swap3 f h) (comp231 (comp120 x h) (comp310 a t))
+
+let step4l {C : Cat}
+    {u :: C}
+    {v :: C} {x :: u => v}
+             {y :: u => v} {f :: x => y}
+                           {g :: x => y} (a :: f => g)
+    {w :: C} {s :: v => w}
+             {t :: v => w} {h :: s => t}
+                           {k :: s => t} (b :: h => k)
+  : [ comp332 (comp332 (comp321 (comp310 a s) (comp120 y h)) (swap3 g h)) (comp321 (comp130 x b) (comp210 g t)) =>
+    comp332 (comp332 (swap3 f h) (comp231 (comp120 x h) (comp310 a t))) (comp321 (comp130 x b) (comp210 g t)) ]
+  = comp432 (step4lcoh a h) (comp321 (comp130 x b) (comp210 g t))
+
+let step5l {C : Cat}
+    {u :: C}
+    {v :: C} {x :: u => v}
+             {y :: u => v} {f :: x => y}
+                           {g :: x => y} (a :: f => g)
+    {w :: C} {s :: v => w}
+             {t :: v => w} {h :: s => t}
+                           {k :: s => t} (b :: h => k)
+  : [ comp332 (comp332 (swap3 f h) (comp231 (comp120 x h) (comp310 a t))) (comp321 (comp130 x b) (comp210 g t)) =>
+    comp332 (swap3 f h) (comp332 (comp231 (comp120 x h) (comp310 a t)) (comp321 (comp130 x b) (comp210 g t))) ]
+  = assoc3 (swap3 f h) (comp231 (comp120 x h) (comp310 a t)) (comp321 (comp130 x b) (comp210 g t))
+
+let vert_left {C : Cat}
+    {u :: C}
+    {v :: C} {x :: u => v}
+             {y :: u => v} {f :: x => y}
+                           {g :: x => y} (a :: f => g)
+    {w :: C} {s :: v => w}
+             {t :: v => w} {h :: s => t}
+                           {k :: s => t} (b :: h => k)
+  : [ comp332 (comp332 (comp321 (comp310 a s) (comp120 y h)) (comp231 (comp210 g s) (comp130 y b))) (swap3 g k) =>
+    comp332 (swap3 f h) (comp332 (comp231 (comp120 x h) (comp310 a t)) (comp321 (comp130 x b) (comp210 g t))) ]
+  = comp444443333 (step1l a b) (step2l a b) (step3l a b) (step4l a b) (step5l a b)
+
+#
+#  Right vertical coherence
+#
+
+let step1r {C : Cat}
+    {u :: C}
+    {v :: C} {x :: u => v}
+             {y :: u => v} {f :: x => y}
+                           {g :: x => y} (a :: f => g)
+    {w :: C} {s :: v => w}
+             {t :: v => w} {h :: s => t}
+                           {k :: s => t} (b :: h => k)
+  : [ comp332 (comp332 (comp231 (comp210 f s) (comp130 y b)) (comp321 (comp310 a s) (comp120 y k))) (swap3 g k) =>
+    comp332 (comp231 (comp210 f s) (comp130 y b)) (comp332 (comp321 (comp310 a s) (comp120 y k)) (swap3 g k)) ]
+  = assoc3 (comp231 (comp210 f s) (comp130 y b)) (comp321 (comp310 a s) (comp120 y k)) (swap3 g k)
+
+coh step2rcoh C (u(x(f(a)g)y)v(s(k)t)w)
+  : comp332 (comp321 (comp310 a s) (comp120 y k)) (swap3 g k) =>
+    comp332 (swap3 f k) (comp231 (comp120 x k) (comp310 a t))
+
+let step2r {C : Cat}
+    {u :: C}
+    {v :: C} {x :: u => v}
+             {y :: u => v} {f :: x => y}
+                           {g :: x => y} (a :: f => g)
+    {w :: C} {s :: v => w}
+             {t :: v => w} {h :: s => t}
+                           {k :: s => t} (b :: h => k)
+  : [ comp332 (comp231 (comp210 f s) (comp130 y b)) (comp332 (comp321 (comp310 a s) (comp120 y k)) (swap3 g k)) =>
+    comp332 (comp231 (comp210 f s) (comp130 y b)) (comp332 (swap3 f k) (comp231 (comp120 x k) (comp310 a t))) ]
+  = comp342 (comp231 (comp210 f s) (comp130 y b)) (step2rcoh a k)
+
+let step3r {C : Cat}
+    {u :: C}
+    {v :: C} {x :: u => v}
+             {y :: u => v} {f :: x => y}
+                           {g :: x => y} (a :: f => g)
+    {w :: C} {s :: v => w}
+             {t :: v => w} {h :: s => t}
+                           {k :: s => t} (b :: h => k)
+  : [ comp332 (comp231 (comp210 f s) (comp130 y b)) (comp332 (swap3 f k) (comp231 (comp120 x k) (comp310 a t))) =>
+    comp332 (comp332 (comp231 (comp210 f s) (comp130 y b)) (swap3 f k)) (comp231 (comp120 x k) (comp310 a t)) ]
+  = assoc3inv (comp231(comp210 f s) (comp130 y b)) (swap3 f k) (comp231 (comp120 x k) (comp310 a t))
+
+coh step4rcoh C (u(x(f)y)v(s(h(b)k)t)w)
+  : comp332 (comp231 (comp210 f s) (comp130 y b)) (swap3 f k) =>
+    comp332 (swap3 f h) (comp321 (comp130 x b) (comp210 f t))
+
+let step4r {C : Cat}
+    {u :: C}
+    {v :: C} {x :: u => v}
+             {y :: u => v} {f :: x => y}
+                           {g :: x => y} (a :: f => g)
+    {w :: C} {s :: v => w}
+             {t :: v => w} {h :: s => t}
+                           {k :: s => t} (b :: h => k)
+  : [ comp332 (comp332 (comp231 (comp210 f s) (comp130 y b)) (swap3 f k)) (comp231 (comp120 x k) (comp310 a t)) =>
+    comp332 (comp332 (swap3 f h) (comp321 (comp130 x b) (comp210 f t))) (comp231 (comp120 x k) (comp310 a t)) ]
+  = comp432 (step4rcoh f b) (comp231 (comp120 x k) (comp310 a t))
+
+let step5r {C : Cat}
+    {u :: C}
+    {v :: C} {x :: u => v}
+             {y :: u => v} {f :: x => y}
+                           {g :: x => y} (a :: f => g)
+    {w :: C} {s :: v => w}
+             {t :: v => w} {h :: s => t}
+                           {k :: s => t} (b :: h => k)
+  : [ comp332 (comp332 (swap3 f h) (comp321 (comp130 x b) (comp210 f t))) (comp231 (comp120 x k) (comp310 a t)) =>
+    comp332 (swap3 f h) (comp332 (comp321 (comp130 x b) (comp210 f t)) (comp231 (comp120 x k) (comp310 a t))) ]
+  = assoc3 (swap3 f h) (comp321 (comp130 x b) (comp210 f t)) (comp231 (comp120 x k) (comp310 a t))
+
+let vert_right {C : Cat}
+    {u :: C}
+    {v :: C} {x :: u => v}
+             {y :: u => v} {f :: x => y}
+                           {g :: x => y} (a :: f => g)
+    {w :: C} {s :: v => w}
+             {t :: v => w} {h :: s => t}
+                           {k :: s => t} (b :: h => k)
+  : [ comp332 (comp332 (comp231 (comp210 f s) (comp130 y b)) (comp321 (comp310 a s) (comp120 y k))) (swap3 g k) =>
+    comp332 (swap3 f h) (comp332 (comp321 (comp130 x b) (comp210 f t)) (comp231 (comp120 x k) (comp310 a t))) ]
+  = comp444443333 (step1r a b) (step2r a b) (step3r a b) (step4r a b) (step5r a b)
+
+#
+#  The Syllepsis
+#
+
+coh five_cell {C : Cat}
+    {u :: C}
+    {v :: C} {x :: u => v}
+             {y :: u => v} {f :: x => y}
+                           {g :: x => y} (a :: f => g)
+    {w :: C} {s :: v => w}
+             {t :: v => w} {h :: s => t}
+                           {k :: s => t} (b :: h => k)
+  : ucomp [ 4 3 4 ] (comp432 (swap4 (comp310 a s) (comp130 y b)) (swap3 g k)) (vert_right a b) =>
+    comp443 (vert_left a b) (comp342 (swap3 f h) (swap4inv (comp130 x b) (comp310 a t)))
+
+normalize {C : Cat}
+    {u :: C} (a :: id1 (id u) => id1 (id u))
+
+
+                            (b :: id1 (id u) => id1 (id u))
+    | swap4 (comp310 a (id u)) (comp130 (id u) b)
+
+normalize {C : Cat}
+    {u :: C} (a :: id1 (id u) => id1 (id u))
+
+
+                            (b :: id1 (id u) => id1 (id u))
+    | swap4 a b
+
+normalize {C : Cat}
+    {u :: C} (a :: id1 (id u) => id1 (id u))
+
+
+                            (b :: id1 (id u) => id1 (id u))
+    | swap4 (comp310 a (id u)) (comp130 (id u) b)
+
+normalize {C : Cat}
+    {u :: C} (a :: id1 (id u) => id1 (id u))
+
+
+                            (b :: id1 (id u) => id1 (id u))
+    | swap4 a b
+
+normalize {C : Cat}
+    {u :: C} (a :: id1 (id u) => id1 (id u))
+
+
+                            (b :: id1 (id u) => id1 (id u))
+    | comp443 (vert_left a b) (comp342 (swap3 (id1 (id u)) (id1 (id u))) (swap4inv (comp130 (id u) b) (comp310 a (id u))))
+
+normalize {C : Cat}
+    {u :: C} (a :: id1 (id u) => id1 (id u))
+
+
+                            (b :: id1 (id u) => id1 (id u))
+    | swap4inv b a
+
+let syllepsis {C : Cat}
+    {x :: C}
+    (a :: id1(id x) => id1(id x))
+    (b :: id1(id x) => id1(id x))
+    : [ swap4 a b => swap4inv b a ]
+  = five_cell a b

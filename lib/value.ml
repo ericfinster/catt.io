@@ -87,13 +87,15 @@ let rec pp_value ppf v =
       (pp_pd string) (map_pd pd ~f:fst)
       pp_value c pp_value s pp_value t pp_spine sp
 
-and pp_spine ppf sp =
+and pp_spine_gen ?sep:(sep=Fmt.sp) ppf sp =
   match sp with
   | EmpSp -> ()
   | AppSp (sp',v,Expl) ->
-    pf ppf "%a %a" pp_spine sp' pp_value v
+    pf ppf "%a%a(%a)" (pp_spine_gen ~sep:sep) sp' sep () pp_value v
   | AppSp (sp',v,Impl) ->
-    pf ppf "%a {%a}" pp_spine sp' pp_value v
+     pf ppf "%a%a{%a}" (pp_spine_gen ~sep:sep) sp' sep () pp_value v
+
+and pp_spine ppf sp = pp_spine_gen ~sep:Fmt.sp ppf sp
 
 let pp_top_env = hovbox (pp_suite (parens (pair ~sep:(any " : ") string pp_value)))
 let pp_loc_env = hovbox (pp_suite ~sep:comma pp_value)

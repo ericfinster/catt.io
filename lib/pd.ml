@@ -29,6 +29,11 @@ let rec is_disc pd =
   | Br (_,Ext(Emp,(_,pd'))) -> is_disc pd'
   | _ -> false
 
+let rec linear_height pd =
+  match pd with
+  | Br (_,Ext(Emp,(_,pd'))) -> 1 + linear_height pd'
+  | _ -> 0
+
 let rec pd_length pd =
   match pd with
   | Br (_,brs) ->
@@ -58,12 +63,14 @@ let rec truncate dir d pd =
       )
     else Br (a, map_suite brs ~f:(fun (l,b) -> (l,truncate dir (d-1) b)))
 
-let boundary pd =
-  let d = dim_pd pd in
+let boundary' pd d =
   let r = range 0 (d-1) in
   map_suite r
     ~f:(fun i -> (truncate true i pd,
                   truncate false i pd))
+
+let boundary pd =
+  boundary' pd (dim_pd pd)
 
 let rec append_leaves pd lvs =
   match pd with
@@ -596,6 +603,11 @@ let horiz2 = Br ("x", Emp
                                         |> ("g", Br ("a", Emp))))
                       |> ("z", Br ("h", Emp
                                         |> ("k", Br ("b", Emp)))))
+
+let whisk_r = Br ("x", Emp
+                       |> ("y", Br ("f", Emp
+                                         |> ("g", Br ("a", Emp))))
+                       |> ("z", Br ("h", Emp)))
 
 let ichg = Br ("x", Emp
                     |> ("y", Br ("f", Emp

@@ -62,6 +62,9 @@ let map_with_lvl s ~f =
       (Ext (r,f l x),l+1)
   in fst (go s)
 
+let rec build_from_lvl ~f k =
+  if k > 0 then Ext (build_from_lvl ~f (k - 1), f (k-1)) else Emp
+
 let rec filter s f =
   match s with
   | Emp -> Emp

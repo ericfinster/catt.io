@@ -68,7 +68,7 @@ let log_msg ?idt:(i=0) (s : string) =
 
 let log_val ?idt:(i=0) (s : string) (a : 'a) (pp : 'a Fmt.t) =
   let indt = String.make i ' ' in
-  Fmt.pr "@[<v>%s: @[%a@]@,@]" (indt ^ s) pp a
+  Fmt.pr "@[<v>%s: @[%a@]@,@]@," (indt ^ s) pp a
 
 (*****************************************************************************)
 (*                                 Telescopes                                *)
@@ -112,6 +112,11 @@ end
 
 module PdUtil(P : PdSyntax) = struct
   include P
+
+  let rec dim_ty c =
+    match match_hom c with
+    | None -> 0
+    | Some (c,_,_) -> dim_ty c + 1
 
   let rec match_homs (c : s) : (s * s sph) =
     match match_hom c with
@@ -317,35 +322,42 @@ module CohUtil(C : CohSyntax) = struct
     fold_left args t
       (fun t' (arg,ict) -> app t' arg ict)
 
-  let rec ucomp_ty (cn : nm_ict) (pd : nm_ict pd) : s sph =
-    let bdry = boundary (args_pd pd) in
-    let ct' = var (pd_length pd + 1) 0 (fst cn) in
-    map_suite bdry ~f:(fun (s,t) -> (ucomp_app ct' s, ucomp_app ct' t))
-
   (* Unbiased composition coherence *)
-  and ucomp_coh (cn : nm_ict) (pd : nm_ict pd) : s =
-    if (is_disc pd) then
+  let rec ucomp_coh' (cn : nm_ict) (pd : nm_ict pd) (d : int) : s =
+    if (is_disc pd) && d = dim_pd pd then
       disc_coh cn pd
     else
-      let ct' = var (pd_length pd + 1) 0 (fst cn) in
-      match ucomp_ty cn pd with
-      | Emp -> failwith "empty sphere in ucomp"
-      | Ext (sph',(src,tgt)) ->
-        coh cn pd (sph_to_cat ct' sph') src tgt
+      match (match_hom (ucomp_ty' cn pd d)) with
+      | None -> failwith "empty sphere in ucomp"
+      | Some (ty,src,tgt) ->
+         coh cn pd ty src tgt
+
+  (* Unbiased Type *)
+  and ucomp_ty' (cn : nm_ict) (pd : nm_ict pd) (d : int) : s =
+    let bdry = boundary' (args_pd pd) d in
+    let ct' = var (pd_length pd + 1) 0 (fst cn) in
+    let sph = map_with_lvl bdry ~f:(fun n (s,t) -> (ucomp_app' ct' s n, ucomp_app' ct' t n)) in
+    sph_to_cat ct' sph
 
   (* Applied unbiased composite *)
-  and ucomp_app : s -> s pd -> s = fun ct pd ->
-    if (is_disc pd) then
+  and ucomp_app' : s -> s pd -> int -> s = fun ct pd d ->
+    if (is_disc pd) && d = dim_pd pd then
       head (labels pd)
     else
-      let uc_coh = ucomp_coh ("C",Impl) (fresh_pd pd) in
+      let uc_coh = ucomp_coh' ("C",Impl) (fresh_pd pd) d in
       app_args uc_coh (pd_args ct pd)
 
-  let ucomp_with_type : s -> s pd -> s disc = fun ct pd ->
-    let bdry = boundary pd in
-    let suite_sph = map_suite bdry
-        ~f:(fun (s,t) -> (ucomp_app ct s, ucomp_app ct t)) in
-    (suite_sph , ucomp_app ct pd)
+  let ucomp_coh cn pd = ucomp_coh' cn pd (dim_pd pd)
+  let ucomp_ty cn pd = ucomp_ty' cn pd (dim_pd pd)
+  let ucomp_app cn pd = ucomp_app' cn pd (dim_pd pd)
+
+  let ucomp_with_type' : s -> s pd -> int -> s disc = fun ct pd d ->
+    let bdry = boundary' pd d in
+    let suite_sph = map_with_lvl bdry
+        ~f:(fun n (s,t) -> (ucomp_app' ct s n, ucomp_app' ct t n)) in
+    (suite_sph , ucomp_app' ct pd d)
+
+  let ucomp_with_type ct pd = ucomp_with_type' ct pd (dim_pd pd)
 
   let whisker : s -> s disc -> int -> s disc -> s disc =
     fun ct left i right ->
