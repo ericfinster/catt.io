@@ -510,14 +510,14 @@ let rec check_defs gma defs =
     check_defs (define gma id coh_tm coh_ty) ds
   | (Normalize (tl,tm))::ds ->
     log_msg "----------------";
-    log_msg (Fmt.str "Normalizing: @[%a@]" pp_expr_with_impl tm);
+    log_msg (Fmt.str "Normalizing: @[%a@]" pp_expr tm);
     let* _ = with_tele gma tl (fun gma' _ _ ->
         log_msg "Start term";
         let* (tm',_) = infer gma' tm in
         log_val "Term?" tm' (pp_term_gen ~si:true);
         let tm_val = eval gma'.top gma'.loc tm' in
         let tm_nf = term_to_expr (names gma') (quote true (gma'.lvl) tm_val) in
-        log_val "Normal form" tm_nf pp_expr_with_impl;
+        log_val "Normal form" tm_nf (pp_expr_gen ~tpd:ExprPdUtil.tele_to_name_icit ~si:false ~fh:false ~pc:true);
         Ok ()
       ) in
     check_defs gma ds

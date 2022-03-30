@@ -260,6 +260,11 @@ module PdUtil(P : PdSyntax) = struct
     Result.bind (tele_to_pd_fold tl f)
       ~f:(fun ((cn,_),pd) -> Ok (cn,pd))
 
+  let tele_to_name_icit (tl : s tele) : (name * (name pd), string) Result.t =
+    let f nm ict _ _ _ = if Poly.(=) ict Impl then "i" ^ nm else nm in
+    Result.bind (tele_to_pd_fold tl f)
+      ~f:(fun ((cn,_),pd) -> Ok (cn,pd))
+
   let tele_to_idx_pd (tl : s tele) : (idx pd,string) Result.t =
     let f _ _ k l _ = lvl_to_idx k l in
     Result.bind (tele_to_pd_fold tl f)

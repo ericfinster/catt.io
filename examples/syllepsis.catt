@@ -352,51 +352,14 @@ coh five_cell {C : Cat}
   : ucomp [ 4 3 4 ] (comp432 (swap4 (comp310 a s) (comp130 y b)) (swap3 g k)) (vert_right a b) =>
     comp443 (vert_left a b) (comp342 (swap3 f h) (swap4inv (comp130 x b) (comp310 a t)))
 
-normalize {C : Cat}
-    {u :: C} (a :: id1 (id u) => id1 (id u))
-
-
-                            (b :: id1 (id u) => id1 (id u))
-    | swap4 (comp310 a (id u)) (comp130 (id u) b)
-
-normalize {C : Cat}
-    {u :: C} (a :: id1 (id u) => id1 (id u))
-
-
-                            (b :: id1 (id u) => id1 (id u))
-    | swap4 a b
-
-normalize {C : Cat}
-    {u :: C} (a :: id1 (id u) => id1 (id u))
-
-
-                            (b :: id1 (id u) => id1 (id u))
-    | swap4 (comp310 a (id u)) (comp130 (id u) b)
-
-normalize {C : Cat}
-    {u :: C} (a :: id1 (id u) => id1 (id u))
-
-
-                            (b :: id1 (id u) => id1 (id u))
-    | swap4 a b
-
-normalize {C : Cat}
-    {u :: C} (a :: id1 (id u) => id1 (id u))
-
-
-                            (b :: id1 (id u) => id1 (id u))
-    | comp443 (vert_left a b) (comp342 (swap3 (id1 (id u)) (id1 (id u))) (swap4inv (comp130 (id u) b) (comp310 a (id u))))
-
-normalize {C : Cat}
-    {u :: C} (a :: id1 (id u) => id1 (id u))
-
-
-                            (b :: id1 (id u) => id1 (id u))
-    | swap4inv b a
-
 let syllepsis {C : Cat}
     {x :: C}
     (a :: id1(id x) => id1(id x))
     (b :: id1(id x) => id1(id x))
     : [ swap4 a b => swap4inv b a ]
   = five_cell a b
+
+normalize {C : Cat}
+    {x :: C}
+    (a :: id1(id x) => id1(id x))
+    (b :: id1(id x) => id1(id x)) | syllepsis a b
