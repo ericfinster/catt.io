@@ -34,3 +34,8 @@ let eh {C : Cat}
   (b :: id x => id x)
   : [ vert a b => vert b a ]
   = swap3 a b
+
+normalize {C : Cat}
+  {x :: C}
+  (a :: id x => id x)
+  (b :: id x => id x) | eh a b

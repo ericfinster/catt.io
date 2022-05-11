@@ -81,6 +81,7 @@ module Make (R : ReductionScheme) = struct
        UCompV (ucd, appV cohv u ict ,AppSp(sp,u,ict))
     | CohV (cn,pd,c,s,t,sp) ->
        let sp' = AppSp(sp,u,ict) in
+       (* log_val "To reduce" (CohV (cn,pd,c,s,t,sp)) pp_value; *)
        cohReduction cn pd c s t sp' (CohV (cn,pd,c,s,t,sp'))
     | _ -> raise (Eval_error (Fmt.str "malformed application: %a" pp_value t))
 
@@ -97,7 +98,13 @@ module Make (R : ReductionScheme) = struct
   and cohReduction cn pd c s t sp' fallback =
     match (cohReduction' cn pd c s t sp') with
     | Ok v -> v
-    | Error _ -> fallback
+    | Error x -> fallback
+
+  and unfold v =
+      match force_meta v with
+      | TopV (_,_,x) -> unfold x
+      | UCompV (_,cohv,_) -> unfold cohv
+      | y -> y
 
   and cohReduction' cn pd c s t sp' =
     let* sp_list = sp_to_suite sp' in
@@ -106,8 +113,8 @@ module Make (R : ReductionScheme) = struct
     then
       let* v = alt_list (R.reductions cn pd k c s t sp_list) in
       (* log_val "Reduced" (CohV (cn,pd,c,s,t,sp')) pp_value; *)
-      (* log_val "To" v pp_value; *)
-      match v with
+      (* log_val "To" (unfold v) pp_value; *)
+      match unfold v with
       | CohV(cn',pd',c',s',t', fsp) -> Ok (cohReduction cn' pd' c' s' t' fsp v)
       | _ -> Ok v
     else Error "Not applied enough arguments yet"

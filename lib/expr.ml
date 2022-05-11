@@ -239,3 +239,10 @@ let expr_str_ucomp (c : string) (pd : string pd) : expr =
 
 let expr_ucomp (pd : 'a pd) : expr =
   ExprUtil.gen_ucomp pd
+
+let rec expr_syntax_size (e : expr) : int =
+  match e with
+  | AppE(e1,e2,Impl) -> expr_syntax_size e1
+  | AppE(e1,e2,Expl) -> expr_syntax_size e1 + expr_syntax_size e2
+  | CohE(_,_,e1,e2) -> 1 + expr_syntax_size e1 + expr_syntax_size e2
+  | _ -> 0

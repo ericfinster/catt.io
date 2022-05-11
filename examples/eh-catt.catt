@@ -1,0 +1,273 @@
+#
+#  eh.catt - Eckmann-Hilton
+#
+
+coh id C (x) : x => x
+
+coh id2 C (x(f)y) : f => f
+
+coh comp C (x(f)y(g)z) : x => z
+
+coh unit_r C (x(f)y) : comp f (id y) => f
+
+coh unit_r_inv C (x(f)y) : f => comp f (id y)
+
+coh unit_l C (x(f)y) : comp (id x) f => f
+
+coh unit_l_inv C (x(f)y) : f => comp (id x) f
+
+coh whisk_r C (x(f(a)g)y(h)z) : comp f h => comp g h
+
+coh whisk_r_unit_r C (x(f(a)g)y)
+  : a => ucomp [ 2 1 2 1 2 ] (unit_r_inv f) (whisk_r a (id y)) (unit_r g)
+
+coh whisk_r_unit_r_inv C (x(f(a)g)y)
+  : ucomp [ 2 1 2 1 2 ] (unit_r_inv f) (whisk_r a (id y)) (unit_r g) => a
+
+coh whisk_l C (x(f)y(g(a)h)z)
+  : comp f g => comp f h
+
+coh whisk_l_unit_l C (x(f(a)g)y)
+  : a => ucomp [ 2 1 2 1 2 ] (unit_l_inv f) (whisk_l (id x) a) (unit_l g)
+
+coh whisk_l_unit_l_inv C (x(f(a)g)y)
+  : ucomp [ 2 1 2 1 2 ] (unit_l_inv f) (whisk_l (id x) a) (unit_l g) => a
+
+coh swap C (x(f(a)g)y(h(b)k)z)
+  : ucomp [ 2 1 2 ] (whisk_r a h) (whisk_l g b) =>
+    ucomp [ 2 1 2 ] (whisk_l f b) (whisk_r a k)
+
+coh unit_lr_cancel C (x)
+  : ucomp [ 2 1 2 ] (unit_r (id x)) (unit_l_inv (id x)) => id2 (comp (id x) (id x))
+
+coh unit_lr_insert C (x)
+  : id2 (comp (id x) (id x)) => ucomp [ 2 1 2 ] (unit_l (id x)) (unit_r_inv (id x))
+
+coh vert_redistrib C (x(f(a)g(b)h(c)i(d)j(e)k(m)l)y)
+  : ucomp [2 1 2] (ucomp[ 2 1 2 1 2 ] a b c) (ucomp [ 2 1 2 1 2 ] d e m) =>
+    ucomp [ 2 1 2 1 2 1 2 1 2 ] a b (ucomp [ 2 1 2 ] c d) e m
+
+coh vert_redistrib_inv C (x(f(a)g(b)h(c)i(d)j(e)k(m)l)y)
+  : ucomp [ 2 1 2 1 2 1 2 1 2 ] a b (ucomp [ 2 1 2 ] c d) e m =>
+    ucomp [2 1 2] (ucomp[ 2 1 2 1 2 ] a b c) (ucomp [ 2 1 2 1 2 ] d e m)
+
+coh vert5_unit_mid C (x(f(a)g(b)h(c)i(d)j)y)
+  : ucomp [ 2 1 2 1 2 1 2 1 2 ] a b (id2 h) c d => ucomp [ 2 1 2 1 2 1 2 ] a b c d
+
+coh vert5_unit_mid_inv C (x(f(a)g(b)h(c)i(d)j)y)
+  : ucomp [ 2 1 2 1 2 1 2 ] a b c d => ucomp [ 2 1 2 1 2 1 2 1 2 ] a b (id2 h) c d
+
+coh vert_redistrib2 C (x(f(a)g(b)h(c)i(d)j)y)
+  : ucomp [ 2 1 2 1 2 1 2 ] a b c d => ucomp [ 2 1 2 1 2 ] a (ucomp [ 2 1 2 ] b c) d
+
+coh vert_redistrib2_inv C (x(f(a)g(b)h(c)i(d)j)y)
+  : ucomp [ 2 1 2 1 2 ] a (ucomp [ 2 1 2 ] b c) d => ucomp [ 2 1 2 1 2 1 2 ] a b c d
+
+coh unit_l_is_unit_r C (x)
+  : unit_l (id x) => unit_r (id x)
+
+coh unit_r_inv_is_univ_l_inv C (x)
+  : unit_r_inv (id x) => unit_l_inv (id x)
+
+let step1 {C : Cat}
+    	  {x :: C} (a :: id x => id x) (b :: id x => id x)
+    : [ ucomp [ 2 1 2 ] a b
+      	=>
+	ucomp [ 2 1 2 ] (ucomp [ 2 1 2 1 2 ] (unit_r_inv (id x))
+	      	      	      	      	     (whisk_r a (id x))
+					     (unit_r (id x)))
+			(ucomp [ 2 1 2 1 2 ] (unit_l_inv (id x))
+					     (whisk_l (id x) b)
+					     (unit_l (id x))) ]
+    = ucomp [ 3 1 3 ] (whisk_r_unit_r a) (whisk_l_unit_l b)
+
+let step2 {C : Cat}
+    	  {x :: C} (a :: id x => id x) (b :: id x => id x)
+    : [ ucomp [ 2 1 2 ] (ucomp [ 2 1 2 1 2 ] (unit_r_inv (id x))
+	      	      	      	      	     (whisk_r a (id x))
+					     (unit_r (id x)))
+			(ucomp [ 2 1 2 1 2 ] (unit_l_inv (id x))
+					     (whisk_l (id x) b)
+					     (unit_l (id x)))
+        =>
+        ucomp [ 2 1 2 1 2 1 2 1 2 ] (unit_r_inv (id x))
+	      	      	      	    (whisk_r a (id x))
+				    (ucomp [ 2 1 2 ] (unit_r (id x)) (unit_l_inv (id x)))
+			            (whisk_l (id x) b)
+				    (unit_l (id x)) ]
+            = vert_redistrib (unit_r_inv (id x))
+	      	      	     (whisk_r a (id x))
+			     (unit_r (id x))
+			     (unit_l_inv (id x))
+			     (whisk_l (id x) b)
+			     (unit_l (id x))
+
+let step3 {C : Cat}
+    	  {x :: C} (a :: id x => id x) (b :: id x => id x)
+    : [ ucomp [ 2 1 2 1 2 1 2 1 2 ] (unit_r_inv (id x))
+	      	      	      	    (whisk_r a (id x))
+				    (ucomp [ 2 1 2 ] (unit_r (id x)) (unit_l_inv (id x)))
+			            (whisk_l (id x) b)
+				    (unit_l (id x))
+        =>
+	ucomp [ 2 1 2 1 2 1 2 1 2 ] (unit_r_inv (id x))
+	      	      	      	    (whisk_r a (id x))
+				    (id2 (comp (id x) (id x)))
+			            (whisk_l (id x) b)
+				    (unit_l (id x)) ]
+
+    = ucomp [ 2 1 2 1 3 1 2 1 2 ] (unit_r_inv (id x))
+	      	      	      	  (whisk_r a (id x))
+				  (unit_lr_cancel x)
+			          (whisk_l (id x) b)
+				  (unit_l (id x))
+
+let step4 {C : Cat}
+    	  {x :: C} (a :: id x => id x) (b :: id x => id x)
+    : [ ucomp [ 2 1 2 1 2 1 2 1 2 ] (unit_r_inv (id x))
+	      	      	      	    (whisk_r a (id x))
+				    (id2 (comp (id x) (id x)))
+			            (whisk_l (id x) b)
+				    (unit_l (id x))
+	=>
+	ucomp [ 2 1 2 1 2 1 2 ] (unit_r_inv (id x))
+	      	      	      	    (whisk_r a (id x))
+			            (whisk_l (id x) b)
+				    (unit_l (id x)) ]
+    = vert5_unit_mid (unit_r_inv (id x))
+	      	      	      	    (whisk_r a (id x))
+			            (whisk_l (id x) b)
+				    (unit_l (id x))
+
+let step5 {C : Cat}
+    	  {x :: C} (a :: id x => id x) (b :: id x => id x)
+    : [ ucomp [ 2 1 2 1 2 1 2 ] (unit_r_inv (id x))
+	      	      	      	    (whisk_r a (id x))
+			            (whisk_l (id x) b)
+				    (unit_l (id x))
+	=>
+	ucomp [ 2 1 2 1 2 ] (unit_r_inv (id x))
+	      	      	    (ucomp [ 2 1 2 ] (whisk_r a (id x)) (whisk_l (id x) b))
+			    (unit_l (id x)) ]
+    = vert_redistrib2 (unit_r_inv (id x))
+	      	      	      	    (whisk_r a (id x))
+			            (whisk_l (id x) b)
+				    (unit_l (id x))
+
+let step6 {C : Cat}
+    	  {x :: C} (a :: id x => id x) (b :: id x => id x)
+    : [ ucomp [ 2 1 2 1 2 ] (unit_r_inv (id x))
+	      	      	    (ucomp [ 2 1 2 ] (whisk_r a (id x)) (whisk_l (id x) b))
+			    (unit_l (id x))
+	=>
+	ucomp [ 2 1 2 1 2 ] (unit_l_inv (id x))
+	      	      	    (ucomp [ 2 1 2 ] (whisk_l (id x) b) (whisk_r a (id x)))
+			    (unit_r (id x)) ]
+    = ucomp [ 3 1 3 1 3 ] (unit_r_inv_is_univ_l_inv x)
+                      	  (swap a b)
+                  	  (unit_l_is_unit_r x)
+
+let step7 {C : Cat}
+    	  {x :: C} (a :: id x => id x) (b :: id x => id x)
+    : [ ucomp [ 2 1 2 1 2 ] (unit_l_inv (id x))
+	      	      	    (ucomp [ 2 1 2 ] (whisk_l (id x) b) (whisk_r a (id x)))
+			    (unit_r (id x))
+	=>
+	ucomp [ 2 1 2 1 2 1 2 ] (unit_l_inv (id x))
+	      	      	      	(whisk_l (id x) b)
+				(whisk_r a (id x))
+				    (unit_r (id x)) ]
+    = vert_redistrib2_inv (unit_l_inv (id x))
+      			  (whisk_l (id x) b)
+			  (whisk_r a (id x))
+				    (unit_r (id x))
+
+let step8 {C : Cat}
+    	  {x :: C} (a :: id x => id x) (b :: id x => id x)
+    : [ ucomp [ 2 1 2 1 2 1 2 ] (unit_l_inv (id x))
+	      	      	      	    (whisk_l (id x) b)
+			            (whisk_r a (id x))
+				    (unit_r (id x))
+	=>
+	ucomp [ 2 1 2 1 2 1 2 1 2 ] (unit_l_inv (id x))
+	      	      	      	    (whisk_l (id x) b)
+				    (id2 (comp (id x) (id x)))
+			            (whisk_r a (id x))
+				    (unit_r (id x)) ]
+    = vert5_unit_mid_inv (unit_l_inv (id x))
+	      	      	      	    (whisk_l (id x) b)
+			            (whisk_r a (id x))
+				    (unit_r (id x))
+
+let step9 {C : Cat}
+    	  {x :: C} (a :: id x => id x) (b :: id x => id x)
+    : [ ucomp [ 2 1 2 1 2 1 2 1 2 ] (unit_l_inv (id x))
+	      	      	      	    (whisk_l (id x) b)
+				    (id2 (comp (id x) (id x)))
+			            (whisk_r a (id x))
+				    (unit_r (id x))
+        =>
+	ucomp [ 2 1 2 1 2 1 2 1 2 ] (unit_l_inv (id x))
+	      	      	      	    (whisk_l (id x) b)
+				    (ucomp [ 2 1 2 ] (unit_l (id x)) (unit_r_inv (id x)))
+			            (whisk_r a (id x))
+				    (unit_r (id x)) ]
+
+    = ucomp [ 2 1 2 1 3 1 2 1 2 ] (unit_l_inv (id x))
+	      	      	      	  (whisk_l (id x) b)
+				  (unit_lr_insert x)
+			          (whisk_r a (id x))
+				  (unit_r (id x))
+
+let step10 {C : Cat}
+    	  {x :: C} (a :: id x => id x) (b :: id x => id x)
+    : [ ucomp [ 2 1 2 1 2 1 2 1 2 ] (unit_l_inv (id x))
+	      	      	      	    (whisk_l (id x) b)
+				    (ucomp [ 2 1 2 ] (unit_l (id x)) (unit_r_inv (id x)))
+			            (whisk_r a (id x))
+				    (unit_r (id x))
+        =>
+        ucomp [ 2 1 2 ] (ucomp [ 2 1 2 1 2 ] (unit_l_inv (id x))
+	      	      	      	      	     (whisk_l (id x) b)
+					     (unit_l (id x)))
+			(ucomp [ 2 1 2 1 2 ] (unit_r_inv (id x))
+					     (whisk_r a (id x))
+					     (unit_r (id x))) ]
+            = vert_redistrib_inv (unit_l_inv (id x))
+	      	      	     (whisk_l (id x) b)
+			     (unit_l (id x))
+			     (unit_r_inv (id x))
+			     (whisk_r a (id x))
+			     (unit_r (id x))
+
+let step11 {C : Cat}
+    	  {x :: C} (a :: id x => id x) (b :: id x => id x)
+    : [ ucomp [ 2 1 2 ] (ucomp [ 2 1 2 1 2 ] (unit_l_inv (id x))
+	      	      	      	      	     (whisk_l (id x) b)
+					     (unit_l (id x)))
+			(ucomp [ 2 1 2 1 2 ] (unit_r_inv (id x))
+					     (whisk_r a (id x))
+					     (unit_r (id x)))
+      	=>
+	ucomp [ 2 1 2 ] b a ]
+    = ucomp [ 3 1 3 ] (whisk_l_unit_l_inv b) (whisk_r_unit_r_inv a)
+
+let eh  {C : Cat}
+    	  {x :: C} (a :: id x => id x) (b :: id x => id x)
+    : [ ucomp [ 2 1 2 ] a b => ucomp [ 2 1 2 ] b a ]
+    = ucomp [ 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 2 3 ] (step1 a b)
+      	      	      	      	      	      	      	  (step2 a b)
+							  (step3 a b)
+							  (step4 a b)
+							  (step5 a b)
+							  (step6 a b)
+							  (step7 a b)
+							  (step8 a b)
+							  (step9 a b)
+							  (step10 a b)
+							  (step11 a b)
+
+normalize {C : Cat}
+    	  {x :: C} (a :: id x => id x) (b :: id x => id x) | eh a b
+
+a b

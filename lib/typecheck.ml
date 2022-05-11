@@ -160,7 +160,7 @@ let rec check gma expr typ =
     (* pr "e: %a@," pp_expr e; *)
     (* pr "exp: %a@," pp_term (quote false gma.lvl expected); *)
     let* (e',inferred) = insert gma (infer gma e) in
-    try unify OneShot gma.top gma.lvl expected inferred ; Ok e'
+    try unify UnfoldAll gma.top gma.lvl expected inferred ; Ok e'
     with Unify_error msg ->
       pr "Unification error: %s\n" msg;
       (* I guess the unification error will have more information .... *)
@@ -519,9 +519,11 @@ let rec check_defs gma defs =
         let (tops,tm_nf_top) = top_levelify Emp tm_nf in
         let tm_expr = term_to_expr (names gma') tm_nf_top in
         let top_expr = map_suite tops ~f:(fun (x,nm) -> (nm, term_to_expr (names gma') x)) in
-        log_val "Original Normal Form" (term_to_expr (names gma') tm_nf) (pp_expr_gen ~tpd:ExprPdUtil.tele_to_name_icit ~si:false ~pc:true ~fh:false);
+        let orig_nf = term_to_expr (names gma') tm_nf in
+        log_val "Original Normal Form" orig_nf (pp_expr_gen ~tpd:ExprPdUtil.tele_to_name_icit ~si:false ~pc:true ~fh:false);
         let _ = map_suite top_expr ~f:(fun (nm,x) -> log_msg (Fmt.str "%s: %a" nm pp_expr x); ()) in
         log_val "Normal form" tm_expr pp_expr;
+        log_val "Size" (expr_syntax_size orig_nf) int;
         Ok ()
       ) in
     check_defs gma ds
