@@ -494,6 +494,12 @@ let rec comp_seq s =
 
 let whisk m i n = comp_seq [m;i;n]
 
+let rec pd_to_seq (pd : 'a pd) =
+  let r p = List.map (fun n -> n + 1) (pd_to_seq p) in
+  match pd with
+  | Br(_,Emp) -> [0]
+  | Br(_,Ext(xs,(_,x))) -> fold_right xs (r x) (fun (_,b) cs -> List.append (r b) (0 :: cs))
+
 (*****************************************************************************)
 (*                      Substitution of Pasting Diagrams                     *)
 (*****************************************************************************)

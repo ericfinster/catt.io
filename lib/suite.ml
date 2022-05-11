@@ -171,12 +171,14 @@ let last s =
   | Emp -> raise Lookup_error
   | Ext (_,x) -> x
 
-let rec assoc k s =
+let rec assoc_with_comp : ('a -> 'a -> bool) -> 'a -> ('a * 'b) suite -> 'b = fun comp k s ->
   match s with
   | Emp -> raise Lookup_error
   | Ext (s',(k',v)) ->
-    if (Poly.(=) k k') then v
-    else assoc k s'
+    if (comp k k') then v
+    else assoc_with_comp comp k s'
+
+let assoc (k : 'a) (s : ('a * 'b) suite) = assoc_with_comp (fun a b -> Poly.(=) a b) k s
 
 let assoc_with_idx k s =
   let rec go i k s =

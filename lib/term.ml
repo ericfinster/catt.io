@@ -137,7 +137,7 @@ let is_pi_tm tm =
   | _ -> false
 
 let rec pp_term_gen ?si:(si=false) ppf tm =
-  let ppt = pp_term_gen ~si:si in 
+  let ppt = pp_term_gen ~si:si in
   match tm with
   | VarT i -> int ppf i
   | TopT nm -> string ppf nm
@@ -227,8 +227,8 @@ let rec free_vars k tm =
 (*****************************************************************************)
 
 let rec simple_sub (k : lvl) (tm : term) (sub : term option suite) : term =
-  let ss u = simple_sub k u sub in 
-  match tm with 
+  let ss u = simple_sub k u sub in
+  match tm with
   | VarT i when i >= k ->
     begin match db_get (i - k) sub with
       | Some t -> t
@@ -237,12 +237,12 @@ let rec simple_sub (k : lvl) (tm : term) (sub : term option suite) : term =
   | VarT i -> VarT i
   | TopT nm -> TopT nm
   | LamT (nm,ict,bdy) ->
-    let bdy' = simple_sub (k+1) bdy sub in 
+    let bdy' = simple_sub (k+1) bdy sub in
     LamT (nm,ict,bdy')
   | AppT (u,v,ict) ->
     AppT (ss u, ss v, ict)
   | PiT (nm,ict,a,b) ->
-    let b' = simple_sub (k+1) b sub in 
+    let b' = simple_sub (k+1) b sub in
     PiT (nm,ict,ss a,b')
   | ObjT c -> ObjT (ss c)
   | HomT (c,s,t) ->
@@ -281,31 +281,31 @@ module TermPdSyntax = struct
   let lift i t = db_lift_by 0 i t
   let var k l _ = VarT (lvl_to_idx k l)
 
-  let pp_dbg = pp_term 
+  let pp_dbg = pp_term
 
   let strengthen (src: bool) (dim : int) (pd : 'a pd) : term -> term =
-    
+
     let bpd = Pd.truncate src dim pd in
     let blvl = pd_length bpd in
-    
+
     (* log_msg "-------------------";
      * log_msg "strengthening ...";
      * log_val "pd" pd Pd.pp_tr;
      * log_val "bpd" bpd Pd.pp_tr;
      * log_val "blvl" blvl Fmt.int; *)
-    
+
     let sub = Pd.fold_pd_with_type pd (Ext (Emp, Some (VarT blvl)) , blvl - 1)
         (fun _ ty (s,i) ->
-           let incld = (Ext (s,Some (VarT i)),i-1) in 
+           let incld = (Ext (s,Some (VarT i)),i-1) in
            let excld = (Ext (s,None),i) in
            match ty with
            | SrcCell d ->
-             if src then 
+             if src then
                (if (d > dim) then excld else incld)
              else
                (if (d < dim) then incld else excld)
            | TgtCell d ->
-             if src then 
+             if src then
                (if (d < dim) then incld else excld)
              else
                (if (d > dim) then excld else incld)
@@ -313,13 +313,13 @@ module TermPdSyntax = struct
              if (d < dim) then incld else excld
            | LocMaxCell d ->
              if (d <= dim) then incld else excld
-        ) in 
+        ) in
 
     (* log_val "sub" (fst sub) (pp_suite (Fmt.option ~none:(any "*") pp_term));
      * log_msg "-------------------"; *)
-      
+
     fun tm -> simple_sub 0 tm (fst sub)
-  
+
 end
 
 module TermPdUtil = PdUtil(TermPdSyntax)
@@ -357,7 +357,7 @@ module TermSyntax = struct
   include TermCylSyntax
   let lam nm ict bdy = LamT (nm,ict,bdy)
   let pi nm ict dom cod = PiT (nm,ict,dom,cod)
-  let pp_s = pp_term 
+  let pp_s = pp_term
 end
 
 module TermUtil = struct
@@ -372,5 +372,43 @@ let term_str_ucomp (c : string) (pd : string pd) : term =
 let term_ucomp (pd : 'a pd) : term =
   TermUtil.gen_ucomp pd
 
+let rec strip_names_tm t =
+  match t with
+  | LamT (nm,ict,t) -> LamT ("",ict,strip_names_tm t)
+  | PiT (nm,ict,u,v) -> PiT ("",ict,strip_names_tm u, strip_names_tm v)
+  | ObjT t -> ObjT (strip_names_tm t)
+  | HomT (c,s,t) -> HomT (strip_names_tm c, strip_names_tm s, strip_names_tm t)
+  | AppT (u,v,ict) -> AppT (strip_names_tm u, strip_names_tm v, ict)
+  | CohT ((_,ict),pd,c,s,t) -> CohT (("",ict),map_pd pd ~f:(fun (_,ict) -> ("",ict)), strip_names_tm c, strip_names_tm s, strip_names_tm t)
+  | s -> s
+
+let alpha_equiv s t = Poly.(=) (strip_names_tm s) (strip_names_tm t)
+
+let rec top_levelify' top name t =
+  let tl = top_levelify' top name in
+  match t with
+  | LamT (nm,ict,t) -> LamT (nm,ict,tl t)
+  | AppT (u,v,ict) -> AppT (tl u, tl v, ict)
+  | PiT(nm,ict,u,v) -> PiT (nm,ict,tl u,tl v)
+  | ObjT c -> ObjT (tl c)
+  | HomT (c,s,t) -> HomT(tl c, tl s, tl t)
+  | CohT((cn,ict),pd,c,s,t) ->
+     if alpha_equiv (CohT((cn,ict),pd,c,s,t)) (TermUtil.ucomp_coh (cn,ict) pd)
+     then UCompT (UnitPd (map_pd pd ~f:(fun _ -> ())))
+     else let t' = CohT((cn,ict),pd,tl c, tl s, tl t) in
+          (try TopT (assoc_with_comp alpha_equiv t' (! top))
+          with Lookup_error ->
+            let new_name = Fmt.str "def%d" (! name) in
+            name := ! name + 1;
+            top := Ext (! top, (t',new_name));
+            TopT new_name)
+
+  | s -> s
 
 
+
+
+let top_levelify top v =
+  let top_ref : ((term * name) suite) ref = ref top in
+  let next_name : int ref = ref 0 in
+  (!top_ref,top_levelify' top_ref next_name v)

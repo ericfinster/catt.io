@@ -491,10 +491,10 @@ let rec check_defs gma defs =
     let* tm_tm = check gma abs_tm ty_val in
     let tm_val = eval gma.top gma.loc tm_tm in
     log_msg (Fmt.str "Checking complete for %s" id);
-    let tm_nf = term_to_expr Emp (quote false (gma.lvl) tm_val) in
-    let ty_nf = term_to_expr Emp (quote false (gma.lvl) ty_val) in
+    let tm_nf = term_to_expr Emp (quote true (gma.lvl) tm_val) in
+    let ty_nf = term_to_expr Emp (quote true (gma.lvl) ty_val) in
     pr "Type: @[%a@]@," (pp_expr_gen ~tpd:ExprPdUtil.tele_to_name_pd ~si:false ~pc:true ~fh:true) ty_nf;
-    pr "Term: @[%a@]@," pp_expr tm_nf;
+    pr "Term: @[%a@]@," (pp_expr_gen ~tpd:ExprPdUtil.tele_to_name_icit ~si:false ~pc:true ~fh:false) tm_nf;
     check_defs (define gma id tm_val ty_val) ds
   | (CohDef (id,g,c,s,t))::ds ->
     log_msg "----------------";
@@ -512,12 +512,16 @@ let rec check_defs gma defs =
     log_msg "----------------";
     log_msg (Fmt.str "Normalizing: @[%a@]" pp_expr tm);
     let* _ = with_tele gma tl (fun gma' _ _ ->
-        log_msg "Start term";
         let* (tm',_) = infer gma' tm in
-        log_val "Term?" tm' (pp_term_gen ~si:true);
         let tm_val = eval gma'.top gma'.loc tm' in
-        let tm_nf = term_to_expr (names gma') (quote true (gma'.lvl) tm_val) in
-        log_val "Normal form" tm_nf (pp_expr_gen ~tpd:ExprPdUtil.tele_to_name_icit ~si:false ~fh:false ~pc:true);
+        let tm_val_fix = fixup_impl tm_val in
+        let tm_nf = quote true (gma'.lvl) tm_val_fix in
+        let (tops,tm_nf_top) = top_levelify Emp tm_nf in
+        let tm_expr = term_to_expr (names gma') tm_nf_top in
+        let top_expr = map_suite tops ~f:(fun (x,nm) -> (nm, term_to_expr (names gma') x)) in
+        log_val "Original Normal Form" (term_to_expr (names gma') tm_nf) (pp_expr_gen ~tpd:ExprPdUtil.tele_to_name_icit ~si:false ~pc:true ~fh:false);
+        let _ = map_suite top_expr ~f:(fun (nm,x) -> log_msg (Fmt.str "%s: %a" nm pp_expr x); ()) in
+        log_val "Normal form" tm_expr pp_expr;
         Ok ()
       ) in
     check_defs gma ds

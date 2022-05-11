@@ -116,6 +116,26 @@ let rec map_sp sp ~f =
   | EmpSp -> EmpSp
   | AppSp (s,v,i) -> AppSp (map_sp s ~f, f v, i)
 
+let rec fixup_impl v =
+  match v with
+  | FlexV (m, sp) -> FlexV (m, fixup_sp_impl sp)
+  | RigidV (i, sp) -> RigidV (i, fixup_sp_impl sp)
+  | TopV(nm,sp,v) -> TopV(nm,fixup_sp_impl sp, fixup_impl v)
+  | ObjV c -> ObjV (fixup_impl c)
+  | HomV (c,s,t) -> HomV (fixup_impl c, fixup_impl s, fixup_impl t)
+  | UCompV (uc,v,sp) -> UCompV (uc,fixup_impl v, fixup_sp_impl sp)
+  | CohV ((cn,x),pd,c,s,t,sp) ->
+     let pd' = map_pd_lf_nd pd ~lf:(fun (x,_) -> (x,Expl)) ~nd:(fun (x,_) -> (x,Impl)) in
+     (match (let* sp_suite = sp_to_suite sp in Ok (zip (map_suite ~f:fst sp_suite) (append (Ext(Emp,Impl)) (map_suite ~f:snd (labels pd'))))) with
+     | Error _ -> CohV ((cn,x),pd,fixup_impl c, fixup_impl s, fixup_impl t, fixup_sp_impl sp)
+     | Ok xs -> CohV ((cn,Impl),pd',fixup_impl c, fixup_impl s, fixup_impl t, fixup_sp_impl (suite_to_sp xs)))
+  | v -> v
+
+and fixup_sp_impl sp =
+  match sp with
+  | EmpSp -> EmpSp
+  | AppSp (sp',v,ict) -> AppSp (fixup_sp_impl sp', fixup_impl v, ict)
+
 (*****************************************************************************)
 (*                         Value Syntax Implmentations                       *)
 (*****************************************************************************)
