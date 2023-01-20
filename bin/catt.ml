@@ -11,8 +11,8 @@ open Catt.Io
 open Catt.Reduction
 
 module W = Catt.Typecheck.Make(Weak)
-module SU = Catt.Typecheck.Make(StrictUnit)
-module SUA = Catt.Typecheck.Make(StrictUnitAssoc)
+module SU = Catt.Typecheck.Make(StrictUnit.Rec)
+module SUA = Catt.Typecheck.Make(StrictUnitAssoc.Rec)
 
 (*****************************************************************************)
 (*                                  Options                                  *)
@@ -24,8 +24,8 @@ let strict_su = ref false
 let strict_sua = ref false
 
 let spec_list = [
-    ("-su", Arg.Set strict_su, "Enable strictly unital normalisation") ;
-    ("-sua", Arg.Set strict_sua, "Enable strictly unital and associative normalisation")
+    ("--su", Arg.Set strict_su, "Enable strictly unital normalisation");
+    ("--sua", Arg.Set strict_sua, "Enable strictly unital and associative normalisation")
   ]
 
 (*****************************************************************************)

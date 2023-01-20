@@ -268,8 +268,8 @@ and infer gma expr =
     let coh_ty = eval gma.top gma.loc
         (tele_to_pi tl (ObjT (HomT (ct,st,tt)))) in
     let ty_nf = term_to_expr Emp (quote false gma.lvl coh_ty) in
-    pr "@[<v>Coherence: @[%a@]@,inferred to have type: @[%a@]@,@]"
-      pp_expr_with_impl (CohE (g,c,s,t)) pp_expr_with_impl ty_nf;
+    (* pr "@[<v>Coherence: @[%a@]@,inferred to have type: @[%a@]@,@]" *)
+    (*   pp_expr_with_impl (CohE (g,c,s,t)) pp_expr_with_impl ty_nf; *)
     Ok (CohT (cn,pd,ct,st,tt) , coh_ty)
 
   | ArrE c ->

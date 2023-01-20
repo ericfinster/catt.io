@@ -4,18 +4,21 @@ open Syntax
 open Pd
 open Suite
 
-module type Settings = sig
-  val only_prune : bool
-end
-
-
 module Weak : ReductionScheme = struct
   let reductions cn pd k c s t sp = []
 end
 
-module MakeStrict(S : Settings) = struct
-  module rec Strict : ReductionScheme = struct
-    open Eval.Make(Strict)
+module type Settings = sig
+  val endo : bool
+  val dr : bool
+  val insert_id : bool
+  val insert_comp : bool
+end
+
+module Strict(R : Settings) = struct
+
+  module rec Rec : ReductionScheme = struct
+    open Eval.Make(Rec)
 
     let var n = RigidV(n,EmpSp)
 
@@ -37,8 +40,8 @@ module MakeStrict(S : Settings) = struct
 
       let rec takeN n pd =
         match pd with
-        | Br(l,Emp) -> Br (l,Emp)
-        | Br(l,(Ext(brs,(l2,p)))) -> if n > 0 then add_branch (takeN (n-1) (Br(l,brs))) (l2,p) else Br(l2,Emp) in
+      | Br(l,Emp) -> Br (l,Emp)
+      | Br(l,(Ext(brs,(l2,p)))) -> if n > 0 then add_branch (takeN (n-1) (Br(l,brs))) (l2,p) else Br(l2,Emp) in
 
       match pd2 with
       | Br (_,brs) -> takeN (length brs) (ValuePdUtil.args_pd (connect_pd pd1 pd2))
@@ -49,7 +52,7 @@ module MakeStrict(S : Settings) = struct
     let rec unfold v =
       match force_meta v with
       | TopV (_,_,x) -> unfold x
-      | UCompV (_,cohv,_) -> unfold cohv
+      | UCompV (_,cohv,_) -> cohv
       | y -> y
 
     (* Can this somehow bu merged with unify? *)
@@ -129,10 +132,10 @@ module MakeStrict(S : Settings) = struct
            (* log_val "args_not_subbed" (map_suite args_not_subbed ~f:fst) (pp_suite ~sep:Fmt.semi pp_value); *)
            let sp_list_no_icit = map_suite sp_list ~f:fst in
            (* log_val "sp_list_no_icit" sp_list_no_icit (pp_suite ~sep:Fmt.semi pp_value); *)
-           let args_subbed = map_suite args_not_subbed ~f:(fun (v,i) -> (applySubstitution k v (sp_list_no_icit), i)) in
-           let args_final = suite_to_sp (append (singleton (first sp_list)) args_subbed) in
-           (* log_msg ~idt:2 "Completed ecr"; *)
-           Ok (CohV (cn,new_pd,coh_ty,coh_ty_tm,coh_ty_tm,args_final)))
+          let args_subbed = map_suite args_not_subbed ~f:(fun (v,i) -> (applySubstitution k v (sp_list_no_icit), i)) in
+          let args_final = suite_to_sp (append (singleton (first sp_list)) args_subbed) in
+          (* log_msg ~idt:2 "Completed ecr"; *)
+          Ok (CohV (cn,new_pd,coh_ty,coh_ty_tm,coh_ty_tm,args_final)))
 
     let rec sub_from_sph sph =
       match sph with
@@ -177,7 +180,7 @@ module MakeStrict(S : Settings) = struct
         | Ext (xs, ((_,_,x), redex_addr)) ->
            match (unfold x) with
            | CohV (cn', pd', c', s', t', sp') ->
-              if not ((is_same 0 (HomV (c', s', t')) (ValueCohUtil.ucomp_ty cn' pd') && not S.only_prune) || (is_disc pd' && is_same k c' (ValueCohUtil.ucomp_ty cn' pd') && is_same 0 s' (var (2*(dim_pd pd') + 1)) && is_same 0 s' t')) then get_redex xs else
+              if not ((R.insert_comp && is_same 0 (HomV (c', s', t')) (ValueCohUtil.ucomp_ty cn' pd')) || (R.insert_id && is_disc pd' && is_same k c' (ValueCohUtil.ucomp_ty cn' pd') && is_same 0 s' (var (2*(dim_pd pd') + 1)) && is_same 0 s' t')) then get_redex xs else
                 if linear_height pd' < length redex_addr - 1 then get_redex xs else
                   let* args_inner = sp_to_suite sp' in
                   let pda = map_pd_lvls pd' 1 ~f:(fun _ n _ (x,y) -> (x, y, fst (nth n args_inner))) in
@@ -216,26 +219,25 @@ module MakeStrict(S : Settings) = struct
                    follow_on_sp
            ))
 
-    let reductions cn pd k c s t sp = [
-        (fun _ -> disc_removal cn pd k c s t sp);
-        (fun _ -> endo_coherence_removal cn pd k c s t sp);
-        (fun _ -> insertion_reduction cn pd k c s t sp)
-      ]
+    let maybe_list b x = if b then [ x ] else []
+
+    let reductions cn pd k c s t sp =
+        List.append (maybe_list R.dr (fun _ -> disc_removal cn pd k c s t sp))
+        (List.append (maybe_list R.endo (fun _ -> endo_coherence_removal cn pd k c s t sp))
+        (maybe_list (R.insert_id || R.insert_comp) (fun _ -> insertion_reduction cn pd k c s t sp)))
   end
 end
 
-module SettingsUA : Settings = struct
-  let only_prune = false
-end
+module StrictUnitAssoc = (Strict(struct
+                             let endo = true
+                             let dr = true
+                             let insert_id = true
+                             let insert_comp = true
+                            end))
 
-module SUA = MakeStrict(SettingsUA)
-
-module StrictUnitAssoc = SUA.Strict
-
-module SettingsU : Settings = struct
-  let only_prune = true
-end
-
-module SU = MakeStrict(SettingsU)
-
-module StrictUnit = SU.Strict
+module StrictUnit = (Strict(struct
+                             let endo = true
+                             let dr = true
+                             let insert_id = true
+                             let insert_comp = false
+                           end))
