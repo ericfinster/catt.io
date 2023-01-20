@@ -176,7 +176,7 @@ module Make (R : ReductionScheme) = struct
     | (TopV (nm,sp,tv) , TopV (nm',sp',tv')) when isOneShot stgy  ->
        if (Poly.(=) nm nm') then
          (try unifySp UnfoldNone top l sp sp'
-          with Unify_error _ -> log_msg "caught"; unify UnfoldAll top l tv tv')
+          with Unify_error _ -> unify UnfoldAll top l tv tv')
        else unify UnfoldAll top l tv tv'
 
     | (TopV (_,_,_) , _) when isUnfoldNone stgy  ->
@@ -208,8 +208,7 @@ module Make (R : ReductionScheme) = struct
     | (UCompV (uc,cohv,sp), UCompV (uc',cohv',sp')) when isOneShot stgy ->
        if (Poly.(=) (ucmp_pd uc) (ucmp_pd uc')) then
          (try unifySp UnfoldNone top l sp sp'
-          with Unify_error _ -> log_msg "caught" ;
-                                unify UnfoldAll top l cohv cohv')
+          with Unify_error _ -> unify UnfoldAll top l cohv cohv')
        else unify UnfoldAll top l cohv cohv'
 
     | (UCompV (_,_,_), _) when isUnfoldNone stgy ->
