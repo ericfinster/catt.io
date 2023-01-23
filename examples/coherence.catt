@@ -1,0 +1,34 @@
+coh id C (x) : x => x
+
+coh id1 C (x(f)y) : f => f
+
+coh comp C (x(f)y(g)z) : x => z
+
+coh vert C (x(f(a)g(b)h)z) : f => h
+
+coh horiz C (x(f(a)g)y(h(b)i)z) : comp f h => comp g i
+
+coh unitor-l C (x(f)y) : comp (id x) f => f
+
+coh unitor-r C (x(f)y) : comp f (id y) => f
+
+coh assoc C (w(f)x(g)y(h)z) : comp (comp f g) h => comp f (comp g h)
+
+coh triangle C (x(f)y(g)z) : vert (assoc f (id y) g) (horiz (id1 f) (unitor-l g))
+    	       		   => horiz (unitor-r f) (id1 g)
+
+normalize {C : Cat} {x :: C} {y :: C} (f :: x => y) {z :: C} (g :: y => z)
+  | triangle f g
+
+coh pentagon C (v(f)w(g)x(h)y(i)z) : vert (assoc (comp f g) h i)
+    	       			     	  (assoc f g (comp h i))
+				   => vert (horiz (assoc f g h) (id1 i))
+				      	   (vert (assoc f (comp g h) i)
+					   	 (horiz (id1 f) (assoc g h i)))
+
+normalize {C : Cat} {v :: C}
+	       	    {w :: C} (f :: v => w)
+		    {x :: C} (g :: w => x)
+	       	    {y :: C} (h :: x => y)
+		    {z :: C} (i :: y => z)
+  | pentagon f g h i

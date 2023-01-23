@@ -1,27 +1,27 @@
-coh id C (x) : x => x # def0
+coh id C (x) : x => x
 
-coh id1 C (x(f)y) : f => f # def1
+coh id1 C (x(f)y) : f => f
 
 coh swap2 C (x(f(a)g)y(h(b)k)z) :
   ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] a h)
   	   	  (ucomp [ 1 0 2 ] g b)
   =>
   ucomp [ 2 1 2 ] (ucomp [ 1 0 2 ] f b)
-  	      	  (ucomp [ 2 0 1 ] a k) # def3
+  	      	  (ucomp [ 2 0 1 ] a k)
 
 coh swap3 C (u(x(f(a)g)y(h(b)k)z)v) :
   ucomp [ 3 2 3 ] (ucomp [ 2 1 3 ] f b)
   	      	  (ucomp [ 3 1 2 ] a k)
   =>
   ucomp [ 3 2 3 ] (ucomp [ 3 1 2 ] a h)
-  	      	  (ucomp [ 2 1 3 ] g b) # def2
+  	      	  (ucomp [ 2 1 3 ] g b)
 
 coh swap3inv C (u(x(f(a)g)y(h(b)k)z)v) :
   ucomp [ 3 2 3 ] (ucomp [ 3 1 2 ] a h)
   	      	  (ucomp [ 2 1 3 ] g b)
   =>
   ucomp [ 3 2 3 ] (ucomp [ 2 1 3 ] f b)
-  	      	  (ucomp [ 3 1 2 ] a k) # def6
+  	      	  (ucomp [ 3 1 2 ] a k)
 
 coh swap2natleft C (u(x(f(a)g)y)v(s(h)t)w) :
   ucomp [ 3 2 3 ] (ucomp [ 3 1 2 ] (ucomp [ 3 0 1 ] a s)
@@ -30,7 +30,7 @@ coh swap2natleft C (u(x(f(a)g)y)v(s(h)t)w) :
   =>
   ucomp [ 3 2 3 ] (swap2 f h)
   	      	  (ucomp [ 2 1 3 ] (ucomp [ 1 0 2 ] x h)
-		  	       	   (ucomp [ 3 0 1 ] a t)) # def4
+		  	       	   (ucomp [ 3 0 1 ] a t))
 
 coh swap2natright C (u(x(g)y)v(s(h(b)k)t)w) :
   ucomp [ 3 2 3 ] (ucomp [ 2 1 3 ] (ucomp [ 2 0 1 ] g s)
@@ -39,7 +39,7 @@ coh swap2natright C (u(x(g)y)v(s(h(b)k)t)w) :
   =>
   ucomp [ 3 2 3 ] (swap2 g h)
   	      	  (ucomp [ 3 1 2 ] (ucomp [ 1 0 3 ] x b)
-		  	       	   (ucomp [ 2 0 1 ] g t)) # def5
+		  	       	   (ucomp [ 2 0 1 ] g t))
 
 coh sylcoh C (u(x(f(a)g)y)v(s(h(b)k)t)w) :
   ucomp [ 4 3 4 3 4 ] (ucomp [ 4 2 3 ] (swap3inv (ucomp [ 3 0 1 ] a s)
