@@ -38,7 +38,7 @@ type expr =
 type defn =
   | TermDef of name * expr tele * expr * expr
   | CohDef of name * expr tele * expr * expr * expr
-  | Normalize of expr tele * expr 
+  | Normalize of expr tele * expr
 
 (*****************************************************************************)
 (*                         Pretty Printing Raw Syntax                        *)
@@ -119,7 +119,7 @@ let rec pp_expr_gen ?tpd:(tpd = tele_to_pd_dummy)
       pf ppf "@[%a@] =>@;@[%a@]" ppe s ppe t
 
   | UCompE (UnitPd pd) ->
-    pf ppf "ucomp [ %a ]" pp_tr pd
+    pf ppf "comp%a" (list int) (pd_to_seq pd)
   | UCompE (DimSeq ds) ->
     pf ppf "ucomp [ %a ]" (list int) ds
   | CohE (g,c,s,t) ->
@@ -168,7 +168,7 @@ module ExprPdSyntax = struct
   let lift _ t = t
   let var _ _ nm = VarE nm
   let strengthen _ _ _ e = e
-    
+
   let pp_dbg = pp_expr_dummy
 
 end
@@ -239,3 +239,10 @@ let expr_str_ucomp (c : string) (pd : string pd) : expr =
 
 let expr_ucomp (pd : 'a pd) : expr =
   ExprUtil.gen_ucomp pd
+
+let rec expr_syntax_size (e : expr) : int =
+  match e with
+  | AppE(e1,e2,Impl) -> expr_syntax_size e1
+  | AppE(e1,e2,Expl) -> expr_syntax_size e1 + expr_syntax_size e2
+  | CohE(_,_,e1,e2) -> 1 + expr_syntax_size e1 + expr_syntax_size e2
+  | _ -> 0

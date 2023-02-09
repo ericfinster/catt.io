@@ -71,8 +71,7 @@ let rec parse_all files =
   | [] -> []
   | f::fs ->
     let dds = parse_all fs in
-    print_string "-----------------";
-    print_cut ();
-    printf "Processing input file: %s\n" f;
+    Fmt.pr "-----------------@,";
+    Fmt.pr "Processing input file: %s@," f;
     let ds = parse_file f in
     List.append ds dds

@@ -4,6 +4,9 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+open Scheme
+
+module Make(R : ReductionScheme) = struct
 open Fmt
 
 open Base
@@ -12,8 +15,8 @@ open Expr
 open Term
 open Value
 open Meta
-open Eval
-open Unify
+open Eval.Make(R)
+open Unify.Make(R)
 open Syntax
 
 (* Monadic bind for errors in scope *)
@@ -139,35 +142,37 @@ type typing_error = [
 let pp_error ppf e =
   match e with
   | `NameNotInScope nm -> Fmt.pf ppf "Name not in scope: %s" nm
-  | `TypeMismatch msg -> Fmt.pf ppf "%s" msg  
+  | `TypeMismatch msg -> Fmt.pf ppf "%s" msg
   | `PastingError msg -> Fmt.pf ppf "Error while checking pasting context: %s" msg
-  | `FullnessError msg -> Fmt.pf ppf "Fullness error: %s" msg 
+  | `FullnessError msg -> Fmt.pf ppf "Fullness error: %s" msg
   | `IcityMismatch (_, _) -> Fmt.pf ppf "Icity mismatch"
-  | `BadCohQuot msg -> Fmt.pf ppf "%s" msg 
+  | `BadCohQuot msg -> Fmt.pf ppf "%s" msg
   | `NotImplemented f -> Fmt.pf ppf "Feature not implemented: %s" f
   | `InternalError -> Fmt.pf ppf "Internal Error"
 
 let rec check gma expr typ =
-  (* let typ_tm = quote false gma.lvl typ in
-   * let typ_expr = term_to_expr (names gma) typ_tm in
-   * pr "Checking @[%a@] has type @[%a@]@," pp_expr_with_impl expr pp_expr_with_impl typ_expr ; *)
+  (* let typ_tm = quote false gma.lvl typ in *)
+  (* let typ_expr = term_to_expr (names gma) typ_tm in *)
+  (* pr "Checking @[%a@] has type @[%a@]@," pp_expr_with_impl expr pp_expr_with_impl typ_expr ; *)
 
   let switch e expected =
-    (* pr "switching mode@,";
-     * pr "e: %a@," pp_expr e;
-     * pr "exp: %a@," pp_term (quote gma.lvl expected false); *)
+    (* pr "switching mode@,"; *)
+    (* pr "e: %a@," pp_expr e; *)
+    (* pr "exp: %a@," pp_term (quote false gma.lvl expected); *)
     let* (e',inferred) = insert gma (infer gma e) in
-    try unify OneShot gma.top gma.lvl expected inferred ; Ok e'
-    with Unify_error _ ->
-      (* pr "Unification error: %s\n" msg; *)
+    try unify UnfoldAll gma.top gma.lvl expected inferred ; Ok e'
+    with Unify_error msg ->
+      pr "Unification error: %s\n" msg;
       (* I guess the unification error will have more information .... *)
       let nms = names gma in
       let inferred_nf = term_to_expr nms (quote false gma.lvl inferred) in
       let expected_nf = term_to_expr nms (quote false gma.lvl expected) in
-      let msg = String.concat [ str "@[<v>The expression: @,@, @[%a@]@,@,@]" pp_expr e;
-                                str "@[<v>has type: @,@,  @[%a@]@,@,@]" pp_expr inferred_nf;
-                                str "@[<v>but was expected to have type: @,@, @[%a@]@,@]"
-                                 pp_expr expected_nf ]
+      let does_equal = (Poly.(=) (quote true gma.lvl inferred) (quote true gma.lvl expected)) in
+      let msg = String.concat [ str "@[<v>The expression: @,@, @[%a@]@,@,@]" pp_expr_with_impl e;
+                                str "@[<v>has type: @,@,  @[%a@]@,@,@]" pp_expr_with_impl inferred_nf;
+                                str "@[<v>but was expected to have type: @,@, @[%a@]@,@]" pp_expr_with_impl expected_nf;
+                                str "@[<v>Do these have same normal form: %a]" Fmt.bool does_equal
+                                  ]
 
       in Error (`TypeMismatch msg)
   in
@@ -215,7 +220,6 @@ and infer gma expr =
       | Impl -> infer gma u
       | Expl -> insert' gma (infer gma u)
     in
-
     let* (a,b) = match force_meta ut with
       | PiV (_,ict',a,b) ->
         if (Poly.(<>) ict ict') then
@@ -263,9 +267,9 @@ and infer gma expr =
     let* (tl,cn,pd,ct,st,tt) = check_coh gma g c s t in
     let coh_ty = eval gma.top gma.loc
         (tele_to_pi tl (ObjT (HomT (ct,st,tt)))) in
-    (* let ty_nf = term_to_expr Emp (quote false gma.lvl coh_ty) in
-     * pr "@[<v>Coherence: @[%a@]@,inferred to have type: @[%a@]@,@]"
-     *   pp_expr_with_impl (CohE (g,c,s,t)) pp_expr_with_impl ty_nf; *)
+    let ty_nf = term_to_expr Emp (quote false gma.lvl coh_ty) in
+    (* pr "@[<v>Coherence: @[%a@]@,inferred to have type: @[%a@]@,@]" *)
+    (*   pp_expr_with_impl (CohE (g,c,s,t)) pp_expr_with_impl ty_nf; *)
     Ok (CohT (cn,pd,ct,st,tt) , coh_ty)
 
   | ArrE c ->
@@ -369,11 +373,11 @@ and check_coh gma g c s t =
 
               if (not (Set.is_subset pd_src_vars ~of_:tot_src_vars)) then
                 let msg = Fmt.str "@[<v>Non-full source:@,pd: @[%a@]@,src: @[%a@]@,"
-                    (pp_tele pp_expr) g pp_expr s in 
+                    (pp_tele pp_expr) g pp_expr s in
                 Error (`FullnessError msg)
               else if (not (Set.is_subset pd_tgt_vars ~of_:tot_tgt_vars)) then
                 let msg = Fmt.str "@[<v>Non-full target:@,pd: @[%a@]@,tgt: @[%a@]@,"
-                    (pp_tele pp_expr) g pp_expr t in 
+                    (pp_tele pp_expr) g pp_expr t in
                 Error (`FullnessError msg)
               else Ok (tl,cn,pd,c',s',t')
 
@@ -480,17 +484,17 @@ let rec check_defs gma defs =
   | [] -> Ok gma
   | (TermDef (id,tl,ty,tm))::ds ->
     log_msg "----------------";
-    log_msg (Fmt.str "Checking definition: %s" id); 
+    log_msg (Fmt.str "Checking definition: %s" id);
     let (abs_ty,abs_tm) = E.abstract_tele_with_type tl ty tm in
     let* ty_tm = check gma abs_ty TypV in
     let ty_val = eval gma.top gma.loc ty_tm in
     let* tm_tm = check gma abs_tm ty_val in
     let tm_val = eval gma.top gma.loc tm_tm in
-    log_msg (Fmt.str "Checking complete for %s" id); 
-    (* let tm_nf = term_to_expr Emp (quote (gma.lvl) tm_val false) in
-     * let ty_nf = term_to_expr Emp (quote (gma.lvl) ty_val false) in *)
-    (* pr "Type: @[%a@]@," pp_expr ty_nf; *)
-    (* pr "Term: @[%a@]@," pp_expr tm_nf; *)
+    log_msg (Fmt.str "Checking complete for %s" id);
+    let tm_nf = term_to_expr Emp (quote true (gma.lvl) tm_val) in
+    let ty_nf = term_to_expr Emp (quote true (gma.lvl) ty_val) in
+    pr "Type: @[%a@]@," (pp_expr_gen ~tpd:ExprPdUtil.tele_to_name_pd ~si:false ~pc:true ~fh:true) ty_nf;
+    pr "Term: @[%a@]@," (pp_expr_gen ~tpd:ExprPdUtil.tele_to_name_icit ~si:false ~pc:true ~fh:false) tm_nf;
     check_defs (define gma id tm_val ty_val) ds
   | (CohDef (id,g,c,s,t))::ds ->
     log_msg "----------------";
@@ -510,16 +514,25 @@ let rec check_defs gma defs =
     let* _ = with_tele gma tl (fun gma' _ _ ->
         let* (tm',_) = infer gma' tm in
         let tm_val = eval gma'.top gma'.loc tm' in
-        let tm_nf = term_to_expr (names gma') (quote true (gma'.lvl) tm_val) in
-        log_val "Normal form" tm_nf pp_expr;
+        let tm_val_fix = fixup_impl tm_val in
+        let tm_nf = quote true (gma'.lvl) tm_val_fix in
+        let (tops,tm_nf_top) = top_levelify Emp tm_nf in
+        let tm_expr = term_to_expr (names gma') tm_nf_top in
+        let top_expr = map_suite tops ~f:(fun (x,nm) -> (nm, term_to_expr (names gma') x)) in
+        let orig_nf = term_to_expr (names gma') tm_nf in
+        log_val "Original Normal Form" orig_nf (pp_expr_gen ~tpd:ExprPdUtil.tele_to_name_icit ~si:false ~pc:true ~fh:false);
+        let _ = map_suite top_expr ~f:(fun (nm,x) -> log_msg (Fmt.str "%s: %a" nm pp_expr x); ()) in
+        log_val "Normal form" tm_expr pp_expr;
+        log_val "Size" (expr_syntax_size orig_nf) int;
         Ok ()
-      ) in 
+      ) in
     check_defs gma ds
 
 
 let run_tc m =
-  match m with 
+  match m with
   | Ok _ ->
     Fmt.pr "@[<v>----------------@,Success!@,@,@]"
   | Error err ->
     Fmt.pr "@,Typing error: @,@,%a@,@," pp_error err
+end

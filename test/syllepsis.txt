@@ -1,0 +1,26 @@
+syllepsis: coh [ C (u(x(f(a)g)y)v(s(h(b)k)t)w) :
+             comp43434
+	       (comp423 (susp_swap (comp301 a s) (comp103 y b)) (swap g k))
+               (comp324 (comp213 (comp201 f s) (comp103 y b)) (def4 a k))
+               (comp423 (def5 f b) (comp213 (comp102 x k) (comp301 a t)))
+	     =>
+             comp43434
+               (comp324 (comp312 (comp301 a s) (comp102 y h)) (def5 g b))
+               (comp423 (def4 a h) (comp312 (comp103 x b) (comp201 g t)))
+               (comp324 (swap f h) (susp_swap_inv (comp103 x b) (comp301 a t)))]
+susp_swap: coh [ C (u(x(f(a)g)y(h(b)k)z)v) :
+           comp323 (comp312 a h) (comp213 g b) =>
+           comp323 (comp213 f b) (comp312 a k)]
+def5: coh [ C (u(x(g)y)v(s(h(b)k)t)w) :
+           comp323 (comp213 (comp201 g s) (comp103 y b)) (swap g k) =>
+           comp323 (swap g h) (comp312 (comp103 x b) (comp201 g t))]
+def4: coh [ C (u(x(f(a)g)y)v(s(h)t)w) :
+           comp323 (comp312 (comp301 a s) (comp102 y h)) (swap g h) =>
+           comp323 (swap f h) (comp213 (comp102 x h) (comp301 a t))]
+swap: coh [ C (x(f(a)g)y(h(b)k)z) :
+           comp212 (comp201 a h) (comp102 g b) =>
+           comp212 (comp102 f b) (comp201 a k)]
+susp_swap_inv: coh [ C (u(x(f(a)g)y(h(b)k)z)v) :
+           comp323 (comp213 f b) (comp312 a k) =>
+           comp323 (comp312 a h) (comp213 g b)]
+Normal form: def7 a b

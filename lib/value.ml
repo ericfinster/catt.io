@@ -9,6 +9,7 @@ open Fmt
 open Term
 open Suite
 open Syntax
+open Base
 
 (*****************************************************************************)
 (*                              Type Definitions                             *)
@@ -85,14 +86,82 @@ let rec pp_value ppf v =
     pf ppf "@[coh [ %s @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] @[%a] ]@]" cn
       (pp_pd string) (map_pd pd ~f:fst)
       pp_value c pp_value s pp_value t pp_spine sp
-      
-and pp_spine ppf sp =
+
+and pp_spine_gen ?sep:(sep=Fmt.sp) ppf sp =
   match sp with
   | EmpSp -> ()
   | AppSp (sp',v,Expl) ->
-    pf ppf "%a %a" pp_spine sp' pp_value v
+    pf ppf "%a%a(%a)" (pp_spine_gen ~sep:sep) sp' sep () pp_value v
   | AppSp (sp',v,Impl) ->
-    pf ppf "%a {%a}" pp_spine sp' pp_value v
+     pf ppf "%a%a{%a}" (pp_spine_gen ~sep:sep) sp' sep () pp_value v
+
+and pp_spine ppf sp = pp_spine_gen ~sep:Fmt.sp ppf sp
 
 let pp_top_env = hovbox (pp_suite (parens (pair ~sep:(any " : ") string pp_value)))
 let pp_loc_env = hovbox (pp_suite ~sep:comma pp_value)
+
+let rec sp_to_suite sp =
+  let open Base.Result.Monad_infix in
+  match sp with
+  | EmpSp -> Ok (Emp)
+  | AppSp (s,v,i) -> sp_to_suite s >>= fun s' -> Ok (Ext(s', (v,i)))
+
+let rec suite_to_sp s =
+  match s with
+  | Emp -> EmpSp
+  | Ext(s, (v,i)) -> AppSp (suite_to_sp s,v,i)
+
+let rec map_sp sp ~f =
+  match sp with
+  | EmpSp -> EmpSp
+  | AppSp (s,v,i) -> AppSp (map_sp s ~f, f v, i)
+
+let rec fixup_impl v =
+  match v with
+  | FlexV (m, sp) -> FlexV (m, fixup_sp_impl sp)
+  | RigidV (i, sp) -> RigidV (i, fixup_sp_impl sp)
+  | TopV(nm,sp,v) -> TopV(nm,fixup_sp_impl sp, fixup_impl v)
+  | ObjV c -> ObjV (fixup_impl c)
+  | HomV (c,s,t) -> HomV (fixup_impl c, fixup_impl s, fixup_impl t)
+  | UCompV (uc,v,sp) -> UCompV (uc,fixup_impl v, fixup_sp_impl sp)
+  | CohV ((cn,x),pd,c,s,t,sp) ->
+     let pd' = map_pd_lf_nd pd ~lf:(fun (x,_) -> (x,Expl)) ~nd:(fun (x,_) -> (x,Impl)) in
+     (match (let* sp_suite = sp_to_suite sp in Ok (zip (map_suite ~f:fst sp_suite) (append (Ext(Emp,Impl)) (map_suite ~f:snd (labels pd'))))) with
+     | Error _ -> CohV ((cn,x),pd,fixup_impl c, fixup_impl s, fixup_impl t, fixup_sp_impl sp)
+     | Ok xs -> CohV ((cn,Impl),pd',fixup_impl c, fixup_impl s, fixup_impl t, fixup_sp_impl (suite_to_sp xs)))
+  | v -> v
+
+and fixup_sp_impl sp =
+  match sp with
+  | EmpSp -> EmpSp
+  | AppSp (sp',v,ict) -> AppSp (fixup_sp_impl sp', fixup_impl v, ict)
+
+(*****************************************************************************)
+(*                         Value Syntax Implmentations                       *)
+(*****************************************************************************)
+
+module ValuePdSyntax = struct
+
+  type s = value
+
+  let cat = CatV
+  let obj c = ObjV c
+  let hom c s t = HomV (c,s,t)
+
+  let match_hom e =
+    match e with
+    | HomV (c,s,t) -> Some (c,s,t)
+    | _ -> None
+
+  let match_obj e =
+    match e with
+    | ObjV c -> Some c
+    | _ -> None
+
+  let lift _ t = t
+  let var _ l _ = RigidV (l,EmpSp)
+
+  let pp_dbg = pp_value
+end
+
+module ValuePdUtil = PdUtil(ValuePdSyntax)

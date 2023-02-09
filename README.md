@@ -24,20 +24,6 @@ dune build
 should build the project.  A top level Makefile is also provided for
 convenience.
 
-# Toplevel
+# Semistrictness
 
-If you have utop installed, you can launch an interactive session with
-the catt.io libraries loaded by running
-
-```
-dune utop lib
-```
-
-The catt.io library modules should then be available as Catt__*.  So,
-for example, in utop,
-
-```
-open Catt__Expr;;
-```
-
-will give access to the expression syntax and routines.
+Semistrictness can be turned on by using the `--su` or `--sua` flags for strict units or strict units and associators respectively.

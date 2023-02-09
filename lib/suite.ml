@@ -62,6 +62,9 @@ let map_with_lvl s ~f =
       (Ext (r,f l x),l+1)
   in fst (go s)
 
+let rec build_from_lvl ~f k =
+  if k > 0 then Ext (build_from_lvl ~f (k - 1), f (k-1)) else Emp
+
 let rec filter s f =
   match s with
   | Emp -> Emp
@@ -168,12 +171,14 @@ let last s =
   | Emp -> raise Lookup_error
   | Ext (_,x) -> x
 
-let rec assoc k s =
+let rec assoc_with_comp : ('a -> 'a -> bool) -> 'a -> ('a * 'b) suite -> 'b = fun comp k s ->
   match s with
   | Emp -> raise Lookup_error
   | Ext (s',(k',v)) ->
-    if (Poly.(=) k k') then v
-    else assoc k s'
+    if (comp k k') then v
+    else assoc_with_comp comp k s'
+
+let assoc (k : 'a) (s : ('a * 'b) suite) = assoc_with_comp (fun a b -> Poly.(=) a b) k s
 
 let assoc_with_idx k s =
   let rec go i k s =
@@ -225,6 +230,20 @@ let rev s =
     | Emp -> acc
     | Ext (s',x) -> go s' (Ext (acc,x))
   in go s Emp
+
+let drop s =
+  match s with
+  | Emp -> Error "Nothing to drop"
+  | Ext (xs, x) -> Ok (x, xs)
+
+let split_suite n s =
+  let rec go n s =
+    match s with
+    | Emp -> (Emp,Emp,n)
+    | Ext(xs,x) ->
+       let (a, b, m) = go n xs in
+       if m = 0 then (a, Ext(b,x),m) else (Ext(a,x),b,m - 1) in
+  let (a, b, _) = go n s in (a, b)
 
 (*****************************************************************************)
 (*                                   Zipper                                  *)
