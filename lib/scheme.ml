@@ -3,8 +3,7 @@ open Pd
 open Value
 open Suite
 
-type coh_reduction = (string * icit)
-                     -> (string * icit) pd
+type coh_reduction = (string * icit) pd
                      -> int
                      -> value
                      -> value
@@ -13,8 +12,7 @@ type coh_reduction = (string * icit)
                      -> (value, string) result
 
 module type ReductionScheme = sig
-  val reductions : (string * icit)
-                     -> (string * icit) pd
+  val reductions : (string * icit) pd
                      -> int
                      -> value
                      -> value

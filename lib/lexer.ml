@@ -36,7 +36,7 @@ let rec token buf =
   | "let"        -> LET
   | "coh"        -> COH
   | "ucomp"      -> UCOMP
-  | "normalize"  -> NORMALIZE 
+  | "normalize"  -> NORMALIZE
   | "->"         -> ARROW
   | "=>"         -> DBLARROW
   | "("          -> LPAR
@@ -57,6 +57,7 @@ let rec token buf =
   | "U"          -> TYPE
   | "Arr"        -> ARR
   | "Cat"        -> CAT
+  | "*"          -> STAR
 
   | ident -> IDENT (Sedlexing.Utf8.lexeme buf)
   | number -> INT (Base.Int.of_string (Sedlexing.Utf8.lexeme buf))

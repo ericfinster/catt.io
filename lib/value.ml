@@ -26,6 +26,7 @@ type value =
   | TypV
 
   (* Categories *)
+  | StarV
   | CatV
   | ObjV of value
   | HomV of value * value * value
@@ -33,7 +34,7 @@ type value =
 
   (* Coherences *)
   | UCompV of ucmp_desc * value * spine
-  | CohV of (name * icit) * (name * icit) pd * value * value * value * spine
+  | CohV of (name * icit) pd * value * value * value * spine
 
 and spine =
   | EmpSp
@@ -70,6 +71,7 @@ let rec pp_value ppf v =
       pp_value a pp_term bdy
   | TypV -> pf ppf "U"
 
+  | StarV -> pf ppf "*"
   | CatV -> pf ppf "Cat"
   | ObjV c ->
     pf ppf "[%a]" pp_value c
@@ -82,8 +84,8 @@ let rec pp_value ppf v =
     pf ppf "ucomp [ %a ] %a"
       pp_ucmp_desc uc pp_spine sp
 
-  | CohV ((cn,_),pd,c,s,t,sp) ->
-    pf ppf "@[coh [ %s @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] @[%a] ]@]" cn
+  | CohV (pd,c,s,t,sp) ->
+    pf ppf "@[coh [ %@[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] @[%a] ]@]"
       (pp_pd string) (map_pd pd ~f:fst)
       pp_value c pp_value s pp_value t pp_spine sp
 
@@ -124,11 +126,11 @@ let rec fixup_impl v =
   | ObjV c -> ObjV (fixup_impl c)
   | HomV (c,s,t) -> HomV (fixup_impl c, fixup_impl s, fixup_impl t)
   | UCompV (uc,v,sp) -> UCompV (uc,fixup_impl v, fixup_sp_impl sp)
-  | CohV ((cn,x),pd,c,s,t,sp) ->
+  | CohV (pd,c,s,t,sp) ->
      let pd' = map_pd_lf_nd pd ~lf:(fun (x,_) -> (x,Expl)) ~nd:(fun (x,_) -> (x,Impl)) in
      (match (let* sp_suite = sp_to_suite sp in Ok (zip (map_suite ~f:fst sp_suite) (append (Ext(Emp,Impl)) (map_suite ~f:snd (labels pd'))))) with
-     | Error _ -> CohV ((cn,x),pd,fixup_impl c, fixup_impl s, fixup_impl t, fixup_sp_impl sp)
-     | Ok xs -> CohV ((cn,Impl),pd',fixup_impl c, fixup_impl s, fixup_impl t, fixup_sp_impl (suite_to_sp xs)))
+     | Error _ -> CohV (pd,fixup_impl c, fixup_impl s, fixup_impl t, fixup_sp_impl sp)
+     | Ok xs -> CohV (pd',fixup_impl c, fixup_impl s, fixup_impl t, fixup_sp_impl (suite_to_sp xs)))
   | v -> v
 
 and fixup_sp_impl sp =
@@ -144,7 +146,7 @@ module ValuePdSyntax = struct
 
   type s = value
 
-  let cat = CatV
+  let star = StarV
   let obj c = ObjV c
   let hom c s t = HomV (c,s,t)
 

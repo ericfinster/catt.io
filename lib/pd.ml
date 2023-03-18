@@ -350,12 +350,12 @@ let map_pd_lvls (pd : 'a pd) (init : int)
 let map_pd_lf_nd_lvl pd ~lf ~nd =
   let f _ l is_lf x =
     if is_lf then lf l x else nd l x
-  in  map_pd_lvls pd 1 ~f:f
+  in  map_pd_lvls pd 0 ~f:f
 
 let map_pd_lf_nd pd ~lf ~nd =
   let f _ _ is_lf x =
     if is_lf then lf x else nd x
-  in  map_pd_lvls pd 1 ~f:f
+  in  map_pd_lvls pd 0 ~f:f
 
 (* Map over the pasting diagram with
    the boundary sphere of labels in context *)
@@ -522,7 +522,7 @@ let rec join_pd d pd =
 let blank pd = map_pd pd ~f:(fun _ -> ())
 let subst pd sub = map_pd pd ~f:(fun id -> Suite.assoc id sub)
 
-let pd_with_lvl pd = map_pd_lvls pd 1 ~f:(fun _ n _ _ -> n)
+let pd_with_lvl pd = map_pd_lvls pd 0 ~f:(fun _ n _ _ -> n)
 
 (*****************************************************************************)
 (*                      Insertion operations                                 *)

@@ -28,6 +28,7 @@ type term =
   | TypT
 
   (* Categories *)
+  | StarT
   | CatT
   | ObjT of term
   | ArrT of term
@@ -35,7 +36,7 @@ type term =
 
   (* Coherences *)
   | UCompT of ucmp_desc
-  | CohT of nm_ict * nm_ict pd * term * term * term
+  | CohT of nm_ict pd * term * term * term
 
 (*****************************************************************************)
 (*                              DeBrujin Lifting                             *)
@@ -59,10 +60,11 @@ let rec db_lift_by l k tm =
   | ObjT tm -> ObjT (lft tm)
   | HomT (c,s,t) -> HomT (lft c, lft s, lft t)
   | ArrT c -> ArrT (lft c)
+  | StarT -> StarT
   | CatT -> CatT
 
   | UCompT pd -> UCompT pd
-  | CohT (cnm,pd,c,s,t) -> CohT (cnm,pd,c,s,t)
+  | CohT (pd,c,s,t) -> CohT (pd,c,s,t)
 
 let db_lift l t = db_lift_by l 1 t
 
@@ -87,6 +89,7 @@ let rec term_to_expr nms tm =
   | InsMetaT _ -> HoleE
   | TypT -> TypE
 
+  | StarT -> StarE
   | CatT -> CatE
   | ArrT c -> ArrE (tte nms c)
   | ObjT c -> ObjE (tte nms c)
@@ -94,8 +97,8 @@ let rec term_to_expr nms tm =
     HomE (tte nms c, tte nms s, tte nms t)
 
   | UCompT pd -> UCompE pd
-  | CohT (cn,pd,c,s,t) ->
-    let g = ExprPdUtil.nm_ict_pd_to_tele cn pd in
+  | CohT (pd,c,s,t) ->
+    let g = ExprPdUtil.nm_ict_pd_to_tele pd in
     fold_accum_cont g nms
       (fun (nm,_,_) nms' -> ((),Ext (nms',nm)))
       (fun _ nms' ->
@@ -173,6 +176,7 @@ let rec pp_term_gen ?si:(si=false) ppf tm =
   | InsMetaT _ -> pf ppf "*_*"
   | TypT -> pf ppf "U"
 
+  | StarT -> pf ppf "*"
   | CatT -> pf ppf "Cat"
   | ObjT c ->
     pf ppf "[%a]" ppt c
@@ -186,8 +190,8 @@ let rec pp_term_gen ?si:(si=false) ppf tm =
   | UCompT (DimSeq ds) ->
     pf ppf "ucomp [ %a ]" (list int) ds
 
-  | CohT ((cn,_),pd,c,s,t) ->
-    pf ppf "@[coh [ %s @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] ]@]" cn
+  | CohT (pd,c,s,t) ->
+    pf ppf "@[coh [ @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] ]@]"
       (pp_pd string) (map_pd pd ~f:fst)
       ppt c ppt s ppt t
 
@@ -216,6 +220,7 @@ let rec free_vars k tm =
   | UCompT _ -> fvs_empty
   | CohT _ -> fvs_empty
   | ArrT c -> free_vars k c
+  | StarT -> fvs_empty
   | CatT -> fvs_empty
   | TypT -> fvs_empty
   | MetaT _ -> fvs_empty
@@ -248,9 +253,10 @@ let rec simple_sub (k : lvl) (tm : term) (sub : term option suite) : term =
   | HomT (c,s,t) ->
     HomT (ss c, ss s, ss t)
   | UCompT ud -> UCompT ud
-  | CohT (cn,pd,c,s,t) ->
-    CohT (cn,pd,c,s,t)
+  | CohT (pd,c,s,t) ->
+    CohT (pd,c,s,t)
   | ArrT c -> ArrT (ss c)
+  | StarT -> StarT
   | CatT -> CatT
   | TypT -> TypT
   | MetaT m -> MetaT m
@@ -264,7 +270,7 @@ module TermPdSyntax = struct
 
   type s = term
 
-  let cat = CatT
+  let star = StarT
   let obj c = ObjT c
   let hom c s t = HomT (c,s,t)
 
@@ -324,8 +330,8 @@ end
 
 module TermPdUtil = PdUtil(TermPdSyntax)
 
-let string_pd_to_term_tele (c : string) (pd : string pd) : term tele =
-  TermPdUtil.string_pd_to_tele c pd
+let string_pd_to_term_tele (pd : string pd) : term tele =
+  TermPdUtil.string_pd_to_tele pd
 
 (*****************************************************************************)
 (*                         Term Syntax Implmentations                        *)
@@ -337,12 +343,12 @@ module TermCohSyntax = struct
   module T = TermPdUtil
 
   let app u v ict = AppT (u,v,ict)
-  let coh cn pd c s t = CohT (cn,pd,c,s,t)
-  let disc_coh cn pd =
+  let coh pd c s t = CohT (pd,c,s,t)
+  let disc_coh pd =
     let lams = fold_right (labels pd) (VarT 0)
         (fun (nm,ict) tm ->
            LamT (nm,ict,tm))
-    in LamT (fst cn, snd cn, lams)
+    in lams
 
 end
 
@@ -366,8 +372,8 @@ module TermUtil = struct
   include SyntaxUtil(TermSyntax)
 end
 
-let term_str_ucomp (c : string) (pd : string pd) : term =
-  TermUtil.str_ucomp c pd
+let term_str_ucomp (pd : string pd) : term =
+  TermUtil.str_ucomp pd
 
 let term_ucomp (pd : 'a pd) : term =
   TermUtil.gen_ucomp pd
@@ -379,7 +385,7 @@ let rec strip_names_tm t =
   | ObjT t -> ObjT (strip_names_tm t)
   | HomT (c,s,t) -> HomT (strip_names_tm c, strip_names_tm s, strip_names_tm t)
   | AppT (u,v,ict) -> AppT (strip_names_tm u, strip_names_tm v, ict)
-  | CohT ((_,ict),pd,c,s,t) -> CohT (("",ict),map_pd pd ~f:(fun (_,ict) -> ("",ict)), strip_names_tm c, strip_names_tm s, strip_names_tm t)
+  | CohT (pd,c,s,t) -> CohT (map_pd pd ~f:(fun (_,ict) -> ("",ict)), strip_names_tm c, strip_names_tm s, strip_names_tm t)
   | s -> s
 
 let alpha_equiv s t = Poly.(=) (strip_names_tm s) (strip_names_tm t)
@@ -392,10 +398,10 @@ let rec top_levelify' top name t =
   | PiT(nm,ict,u,v) -> PiT (nm,ict,tl u,tl v)
   | ObjT c -> ObjT (tl c)
   | HomT (c,s,t) -> HomT(tl c, tl s, tl t)
-  | CohT((cn,ict),pd,c,s,t) ->
-     if alpha_equiv (CohT((cn,ict),pd,c,s,t)) (TermUtil.ucomp_coh (cn,ict) pd)
+  | CohT(pd,c,s,t) ->
+     if alpha_equiv (CohT(pd,c,s,t)) (TermUtil.ucomp_coh pd)
      then UCompT (UnitPd (map_pd pd ~f:(fun _ -> ())))
-     else let t' = CohT((cn,ict),pd,tl c, tl s, tl t) in
+     else let t' = CohT(pd,tl c, tl s, tl t) in
           (try TopT (assoc_with_comp alpha_equiv t' (! top))
           with Lookup_error ->
             let new_name = Fmt.str "def%d" (! name) in
