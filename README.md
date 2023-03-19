@@ -26,9 +26,7 @@ convenience.
 
 # Semistrictness
 
-Semistrictness can be turned on by using the `--sua` flags for strict units or strict units and associators respectively.
-
-For example, to typecheck the examples, change to the `examples` directory and run:
+Semistrictness can be turned on by using the `--sua` flag.  To typecheck the examples, change to the `examples` directory and run:
 
 `../_build/default/bin/catt.exe --sua monoidal.catt`
 
