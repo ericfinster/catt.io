@@ -1,29 +1,29 @@
-coh id C (x) : x => x
+coh id (x) : x => x
 
-coh id1 C (x(f)y) : f => f
+coh id1 (x(f)y) : f => f
 
-coh swap2 C (x(f(a)g)y(h(b)k)z) :
+coh swap2 (x(f(a)g)y(h(b)k)z) :
   ucomp [ 2 1 2 ] (ucomp [ 2 0 1 ] a h)
   	   	  (ucomp [ 1 0 2 ] g b)
   =>
   ucomp [ 2 1 2 ] (ucomp [ 1 0 2 ] f b)
   	      	  (ucomp [ 2 0 1 ] a k)
 
-coh swap3 C (u(x(f(a)g)y(h(b)k)z)v) :
+coh swap3 (u(x(f(a)g)y(h(b)k)z)v) :
   ucomp [ 3 2 3 ] (ucomp [ 2 1 3 ] f b)
   	      	  (ucomp [ 3 1 2 ] a k)
   =>
   ucomp [ 3 2 3 ] (ucomp [ 3 1 2 ] a h)
   	      	  (ucomp [ 2 1 3 ] g b)
 
-coh swap3inv C (u(x(f(a)g)y(h(b)k)z)v) :
+coh swap3inv (u(x(f(a)g)y(h(b)k)z)v) :
   ucomp [ 3 2 3 ] (ucomp [ 3 1 2 ] a h)
   	      	  (ucomp [ 2 1 3 ] g b)
   =>
   ucomp [ 3 2 3 ] (ucomp [ 2 1 3 ] f b)
   	      	  (ucomp [ 3 1 2 ] a k)
 
-coh swap2natleft C (u(x(f(a)g)y)v(s(h)t)w) :
+coh swap2natleft (u(x(f(a)g)y)v(s(h)t)w) :
   ucomp [ 3 2 3 ] (ucomp [ 3 1 2 ] (ucomp [ 3 0 1 ] a s)
   	      	  	       	   (ucomp [ 1 0 2 ] y h))
   	      	  (swap2 g h)
@@ -32,7 +32,7 @@ coh swap2natleft C (u(x(f(a)g)y)v(s(h)t)w) :
   	      	  (ucomp [ 2 1 3 ] (ucomp [ 1 0 2 ] x h)
 		  	       	   (ucomp [ 3 0 1 ] a t))
 
-coh swap2natright C (u(x(g)y)v(s(h(b)k)t)w) :
+coh swap2natright (u(x(g)y)v(s(h(b)k)t)w) :
   ucomp [ 3 2 3 ] (ucomp [ 2 1 3 ] (ucomp [ 2 0 1 ] g s)
   	      	  	       	   (ucomp [ 1 0 3 ] y b))
 		  (swap2 g k)
@@ -41,7 +41,7 @@ coh swap2natright C (u(x(g)y)v(s(h(b)k)t)w) :
   	      	  (ucomp [ 3 1 2 ] (ucomp [ 1 0 3 ] x b)
 		  	       	   (ucomp [ 2 0 1 ] g t))
 
-coh sylcoh C (u(x(f(a)g)y)v(s(h(b)k)t)w) :
+coh sylcoh (u(x(f(a)g)y)v(s(h(b)k)t)w) :
   ucomp [ 4 3 4 3 4 ] (ucomp [ 4 2 3 ] (swap3inv (ucomp [ 3 0 1 ] a s)
   	      	      	       	       		 (ucomp [ 1 0 3 ] y b))
   	      	      	       	       (swap2 g k))
@@ -61,8 +61,8 @@ coh sylcoh C (u(x(f(a)g)y)v(s(h(b)k)t)w) :
            	      (ucomp [ 3 2 4 ] (swap2 f h) (swap3 (ucomp [ 1 0 3 ] x b)
 		      	       	       	      	   	  (ucomp [ 3 0 1 ] a t)))
 
-let syllepsis {C : Cat}
-    {x :: C}
+let syllepsis
+    {x :: *}
     (a :: id1(id x) => id1(id x))
     (b :: id1(id x) => id1(id x))
     : [ swap3inv a b => swap3 b a ]

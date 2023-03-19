@@ -1,15 +1,15 @@
 %{
 
-    open Expr 
+    open Expr
     open Suite
-       
-%} 
+
+%}
 
 %token LET LAMBDA COLON DBLCOLON EQUAL DOT
-%token LPAR RPAR LBR RBR LBRKT RBRKT 
+%token LPAR RPAR LBR RBR LBRKT RBRKT
 %token VBAR DBLARROW ARROW HOLE BARARROW
 %token UCOMP COH NORMALIZE
-%token TYPE CAT ARR
+%token TYPE CAT ARR STAR
 %token <string> IDENT
 %token <int> INT
 %token EOF
@@ -41,7 +41,7 @@ defn:
   | COH id = IDENT pd = pd_expr COLON src = expr1 DBLARROW tgt = expr1
     { CohDef (id,pd,HoleE,src,tgt) }
   | NORMALIZE tl = tele VBAR tm = expr
-    { Normalize (tl,tm) } 
+    { Normalize (tl,tm) }
 
 var_decl:
   | LPAR id = IDENT COLON ty = expr RPAR
@@ -55,7 +55,7 @@ var_decl:
 
 tele:
   | tl = suite(var_decl)
-    { tl } 
+    { tl }
 
 pi_head:
   | v = var_decl
@@ -63,7 +63,7 @@ pi_head:
   | e = expr2
     { ("",Expl,e) }
 
-expr: 
+expr:
   | e = expr1
     { e }
   | s = expr1 DBLARROW t = expr1
@@ -97,7 +97,9 @@ expr3:
   | CAT
     { CatE }
   | HOLE
-    { HoleE } 
+    { HoleE }
+  | STAR
+    { StarE }
   | id = IDENT
     { VarE id }
   | LBRKT c = expr RBRKT
@@ -128,8 +130,8 @@ id_pd:
 pd_expr:
   | tl = tele
     { tl }
-  | cat = IDENT pd = id_pd
-    { string_pd_to_expr_tele cat pd }
+  | pd = id_pd
+    { string_pd_to_expr_tele pd }
 
 coh_expr:
   | UCOMP LBRKT upd = ucomp_pd RBRKT

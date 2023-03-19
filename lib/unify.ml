@@ -80,16 +80,17 @@ module Make (R : ReductionScheme) = struct
        *    | _ -> raise (Failure "rename coh has invalid type")) *)
 
       (* Coherences are closed, so we just quote.... *)
-      | CohV (cn,pd,c,s,t,sp) ->
+      | CohV (pd,c,s,t,sp) ->
 
-         let k' = Suite.length (Pd.labels pd) + 1 in
+         let k' = Suite.length (Pd.labels pd) in
          let c' = quote true k' c in
          let s' = quote true k' s in
          let t' = quote true k' t in
 
-         goSp pr (CohT (cn,pd,c',s',t')) sp
+         goSp pr (CohT (pd,c',s',t')) sp
 
       | ArrV c -> ArrT (go pr c)
+      | StarV -> StarT
       | CatV -> CatT
       | TypV -> TypT
 
@@ -137,12 +138,13 @@ module Make (R : ReductionScheme) = struct
 
   let resolve_coh tm =
     match force_meta tm with
-    | CohV (cn,pd,c,s,t,sp) -> runSpV (CohV(cn,pd,c,s,t,EmpSp)) (map_sp sp ~f:force_meta)
+    | CohV (pd,c,s,t,sp) -> runSpV (CohV(pd,c,s,t,EmpSp)) (map_sp sp ~f:force_meta)
     | x -> x
 
   let rec unify stgy top l t u =
     try (match (resolve_coh t , resolve_coh u) with
     | (TypV , TypV) -> ()
+    | (StarV , StarV) -> ()
     | (CatV , CatV) -> ()
 
     | (LamV (_,_,a) , LamV (_,_,a')) -> unify stgy top (l+1) (a $$ varV l) (a' $$ varV l)
@@ -225,13 +227,13 @@ module Make (R : ReductionScheme) = struct
         * pr "rcs: @[%a@]\n" pp_value (runSpV cohv sp); *)
        unify stgy top l t cohv
 
-    | (CohV (_,pd,c,s,t,sp), CohV (_,pd',c',s',t',sp')) when Pd.shape_eq pd pd' ->
+    | (CohV (pd,c,s,t,sp), CohV (pd',c',s',t',sp')) when Pd.shape_eq pd pd' ->
        unify stgy top 0 c c';
        unify stgy top 0 s s';
        unify stgy top 0 t t';
        unifySp stgy top l sp sp'
 
-    | (CohV (_,pd,_,_,_,_) , CohV (_,pd',_,_,_,_)) ->
+    | (CohV (pd,_,_,_,_) , CohV (pd',_,_,_,_)) ->
 
        let msg = Fmt.str "@[%a@]@;=/= @[%a@]"
                    (Pd.pp_pd pp_nm_ict) pd (Pd.pp_pd pp_nm_ict) pd' in

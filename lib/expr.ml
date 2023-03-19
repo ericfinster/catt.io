@@ -25,6 +25,7 @@ type expr =
   | TypE
 
   (* Categories *)
+  | StarE
   | CatE
   | ObjE of expr
   | HomE of expr * expr * expr
@@ -105,6 +106,7 @@ let rec pp_expr_gen ?tpd:(tpd = tele_to_pd_dummy)
   | TypE -> string ppf "U"
   | HoleE -> string ppf "_"
 
+  | StarE -> string ppf "*"
   | CatE -> string ppf "Cat"
   | ArrE c ->
     if (arr_parens c) then
@@ -125,13 +127,13 @@ let rec pp_expr_gen ?tpd:(tpd = tele_to_pd_dummy)
   | CohE (g,c,s,t) ->
 
     begin match tpd g with
-      | Ok (cn,pd) ->
+      | Ok pd ->
         if full_homs then
-          pf ppf "coh [@[ %s @[%a@] :@;@[%a@]@;|> @[%a =>@;%a @]@]]"
-            cn (pp_pd string) pd ppe c ppe s ppe t
+          pf ppf "coh [@[ @[%a@] :@;@[%a@]@;|> @[%a =>@;%a @]@]]"
+            (pp_pd string) pd ppe c ppe s ppe t
         else
-          pf ppf "coh [@[ %s @[%a@] :@;@[<hov>@[%a@] =>@;@[%a@]@]@]]"
-            cn (pp_pd string) pd ppe s ppe t
+          pf ppf "coh [@[ @[%a@] :@;@[<hov>@[%a@] =>@;@[%a@]@]@]]"
+            (pp_pd string) pd ppe s ppe t
       | Error _ ->
         if full_homs then
           pf ppf "@[coh [ @[%a@] :@;@[%a@]@;|> %a =>@;%a ]@]"
@@ -151,7 +153,7 @@ module ExprPdSyntax = struct
 
   type s = expr
 
-  let cat = CatE
+  let star = StarE
   let obj c = ObjE c
   let hom c s t = HomE (c,s,t)
 
@@ -176,8 +178,8 @@ end
 module ExprPdUtil =
   PdUtil(ExprPdSyntax)
 
-let string_pd_to_expr_tele (c : string) (pd : string pd) : expr tele =
-  ExprPdUtil.string_pd_to_tele c pd
+let string_pd_to_expr_tele (pd : string pd) : expr tele =
+  ExprPdUtil.string_pd_to_tele pd
 
 (*****************************************************************************)
 (*                          Matching pretty printers                         *)
@@ -201,16 +203,16 @@ module ExprCohSyntax = struct
   module E = ExprPdUtil
 
   let app u v ict = AppE (u,v,ict)
-  let coh cn pd c s t =
-    let g = E.nm_ict_pd_to_tele cn pd in
+  let coh pd c s t =
+    let g = E.nm_ict_pd_to_tele pd in
     CohE (g,c,s,t)
-  let disc_coh cn pd =
+  let disc_coh pd =
     let lbls = labels pd in
     let (hnm,_) = head lbls in
     let lams = fold_right lbls (VarE hnm)
         (fun (nm,ict) e ->
            LamE (nm,ict,e))
-    in LamE (fst cn, snd cn, lams)
+    in lams
 
 end
 
@@ -234,8 +236,8 @@ module ExprUtil = struct
   include SyntaxUtil(ExprSyntax)
 end
 
-let expr_str_ucomp (c : string) (pd : string pd) : expr =
-  ExprUtil.str_ucomp c pd
+let expr_str_ucomp (pd : string pd) : expr =
+  ExprUtil.str_ucomp pd
 
 let expr_ucomp (pd : 'a pd) : expr =
   ExprUtil.gen_ucomp pd

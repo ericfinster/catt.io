@@ -151,9 +151,9 @@ let pp_error ppf e =
   | `InternalError -> Fmt.pf ppf "Internal Error"
 
 let rec check gma expr typ =
-  (* let typ_tm = quote false gma.lvl typ in *)
-  (* let typ_expr = term_to_expr (names gma) typ_tm in *)
-  (* pr "Checking @[%a@] has type @[%a@]@," pp_expr_with_impl expr pp_expr_with_impl typ_expr ; *)
+  let typ_tm = quote false gma.lvl typ in
+  let typ_expr = term_to_expr (names gma) typ_tm in
+  pr "Checking @[%a@] has type @[%a@]@," pp_expr_with_impl expr pp_expr_with_impl typ_expr ;
 
   let switch e expected =
     (* pr "switching mode@,"; *)
@@ -196,8 +196,8 @@ let rec check gma expr typ =
   | (e, expected) -> switch e expected
 
 and infer gma expr =
-  (* pr "@[<v>Inferring type of: @[%a@]@,@]"
-   *   pp_expr_with_impl expr ; *)
+  (* pr "@[<v>Inferring type of: @[%a@]@, in: @[%a@]@,@]" *)
+  (*   pp_expr_with_impl expr (pp_suite Fmt.string) (map_suite ~f:(fun (idx,_) -> idx) gma.types); *)
   match expr with
 
   | VarE nm -> (
@@ -251,32 +251,33 @@ and infer gma expr =
 
   | UCompE (UnitPd pd) ->
     let e = expr_ucomp pd in
-    (* pr "@[<v>Generated ucomp: @[%a]@,@]" pp_expr e; *)
-    let* (_,ty) = infer gma e in
-    (* pr "@[<b>Result of inferrence: @[%a]@,@]" pp_term tm; *)
+    pr "@[<v>Generated ucomp: @[%a]@,@]" pp_expr e;
+    let* (tm,ty) = infer gma e in
+    pr "@[<b>Result of inferrence: @[%a]@,@]" pp_term tm;
     Ok (UCompT (UnitPd pd),ty)
 
   | UCompE (DimSeq ds) ->
     let pd = Pd.comp_seq ds in
     let e = expr_ucomp pd in
-    (* pr "@[<v>Generated ucomp: @[%a]@,@]" pp_expr e; *)
+    pr "@[<v>Generated ucomp: @[%a]@,@]" pp_expr e;
     let* (_,ty) = infer gma e in
     Ok (UCompT (DimSeq ds),ty)
 
   | CohE (g,c,s,t) ->
-    let* (tl,cn,pd,ct,st,tt) = check_coh gma g c s t in
+    let* (tl,pd,ct,st,tt) = check_coh gma g c s t in
     let coh_ty = eval gma.top gma.loc
         (tele_to_pi tl (ObjT (HomT (ct,st,tt)))) in
     let ty_nf = term_to_expr Emp (quote false gma.lvl coh_ty) in
     (* pr "@[<v>Coherence: @[%a@]@,inferred to have type: @[%a@]@,@]" *)
     (*   pp_expr_with_impl (CohE (g,c,s,t)) pp_expr_with_impl ty_nf; *)
-    Ok (CohT (cn,pd,ct,st,tt) , coh_ty)
+    Ok (CohT (pd,ct,st,tt) , coh_ty)
 
   | ArrE c ->
     let* c' = check gma c CatV in
     Ok (ArrT c' , CatV)
 
-  | CatE -> Ok (CatT , TypV)
+  | StarE -> Ok (StarT , CatV)
+  | CatE -> Ok (CatT, TypV)
   | TypE -> Ok (TypT , TypV)
 
   | HoleE ->
@@ -298,18 +299,17 @@ and with_tele : 'a . ctx -> expr tele
           (Ext (tt,(id,ict,ty_tm))))
 
 and check_coh gma g c s t =
-  (* pr "@[<v>check_coh@,gma: @[%a@]@,c: @[%a@]@,s: @[%a@]@,t: @[%a@]@,@]"
-   *   (pp_tele pp_expr) g pp_expr c pp_expr s pp_expr t; *)
+  (* pr "@[<v>check_coh@,gma: @[%a@]@,c: @[%a@]@,s: @[%a@]@,t: @[%a@]@,@]" *)
+  (*   (pp_tele pp_expr) g pp_expr c pp_expr s pp_expr t; *)
   with_tele (empty_loc gma) g (fun gma' gv tl ->
 
       (* pr "@[<v>gv: @[%a@]@,@]" (pp_tele pp_value) gv; *)
 
       match ValuePdUtil.tele_to_pd gv with
       | Error msg -> Error (`PastingError msg)
-      | Ok (cn,pd) ->
+      | Ok pd ->
 
-        (* pr "@[<v>cn: %a@,pd: %a@,@]" (pair string pp_ict) cn
-         *   (Pd.pp_pd (pair string pp_ict)) pd; *)
+        (* pr "@[<v>pd: %a@,@]" (Pd.pp_pd (pair string pp_ict)) pd; *)
 
         let lc = gma'.loc in
         let tp = gma'.top in
@@ -324,21 +324,17 @@ and check_coh gma g c s t =
         let* s' = check gma' s (ObjV cv) in
         let* t' = check gma' t (ObjV cv) in
 
-        (* pr "@[<v>source: %a@,@]" pp_term s';
-         * pr "@[<v>target: %a@,@]" pp_term t'; *)
+        (* pr "@[<v>source: %a@,@]" pp_term s'; *)
+        (* pr "@[<v>target: %a@,@]" pp_term t'; *)
 
         let sv = eval tp lc s' in
         let tv = eval tp lc t' in
 
         (* pr "@[<v>cv: %a@,@]" pp_value (force_meta cv); *)
 
-        let (bc,sph) = ValuePdUtil.match_homs cv in
+        let sph = ValuePdUtil.match_homs cv in
 
-        (* pr "@[<v>bc: %a@,@]" pp_value bc; *)
-
-        (* We force the underlying category to be a variable ... *)
-        begin try unify OneShot gma'.top gma'.lvl (varV 0) bc ;
-
+        (* pr "@[<v>sph: %a@,@]" pp_value bc; *)
 
             let k = length gma'.loc in
             let cat_vars = free_vars_val k cv in
@@ -348,15 +344,14 @@ and check_coh gma g c s t =
 
             if (length sph + 1 > pd_dim) then
               (* Coherence Case *)
-
-              let pd_vars = Pd.fold_pd ipd (fvs_singleton cat_idx)
+              let pd_vars = Pd.fold_pd ipd fvs_empty
                   ~f:(fun vs i -> Set.add vs i) in
               let tot_src_vars = Set.union cat_vars src_vars in
               let tot_tgt_vars = Set.union cat_vars tgt_vars in
               if (not (Set.is_subset pd_vars ~of_:tot_src_vars) ||
                   not (Set.is_subset pd_vars ~of_:tot_tgt_vars)) then
                 Error (`FullnessError "coherence case is not full")
-              else Ok (tl,cn,pd,c',s',t')
+              else Ok (tl,pd,c',s',t')
 
             else
 
@@ -365,7 +360,7 @@ and check_coh gma g c s t =
 
               let pd_src_vars = Pd.fold_pd pd_src (fvs_singleton cat_idx)
                   ~f:(fun vs i -> Set.add vs i) in
-              let pd_tgt_vars = Pd.fold_pd pd_tgt (fvs_singleton cat_idx)
+              let pd_tgt_vars = Pd.fold_pd pd_tgt fvs_empty
                   ~f:(fun vs i -> Set.add vs i) in
 
               let tot_src_vars = Set.union cat_vars src_vars in
@@ -379,10 +374,7 @@ and check_coh gma g c s t =
                 let msg = Fmt.str "@[<v>Non-full target:@,pd: @[%a@]@,tgt: @[%a@]@,"
                     (pp_tele pp_expr) g pp_expr t in
                 Error (`FullnessError msg)
-              else Ok (tl,cn,pd,c',s',t')
-
-          with Unify_error _ -> Error (`FullnessError "invalid base category") end
-
+              else Ok (tl,pd,c',s',t')
     )
 
 and check_sph gma sph c =
@@ -403,7 +395,7 @@ and check_cyl_coh gma g c (ssph,s) (tsph,t) =
 
       match ValuePdUtil.tele_to_pd gv with
       | Error msg -> Error (`PastingError msg)
-      | Ok (cn,pd) ->
+      | Ok pd ->
 
         let lc = gma'.loc in
         let tp = gma'.top in
@@ -423,7 +415,7 @@ and check_cyl_coh gma g c (ssph,s) (tsph,t) =
         let sv = eval tp lc s' in
         let tv = eval tp lc t' in
 
-        let (bc,bsphv) = ValuePdUtil.match_homs cv in
+        let (bsphv) = ValuePdUtil.match_homs cv in
 
         let bdim = length bsphv in
         let sdim = length ssph' + bdim in
@@ -431,8 +423,6 @@ and check_cyl_coh gma g c (ssph,s) (tsph,t) =
 
         let* _ = Result.ok_if_true (sdim = tdim)
             ~error:(`PastingError "cylcoh source and target cells have different dims") in
-
-        begin try unify OneShot gma'.top gma'.lvl (varV 0) bc ;
 
             let k = length gma'.loc in
             let src_cat_vars = free_vars_val k scatv in
@@ -445,7 +435,7 @@ and check_cyl_coh gma g c (ssph,s) (tsph,t) =
               (* Coherence Case *)
 
 
-              let pd_vars = Pd.fold_pd ipd (fvs_singleton cat_idx)
+              let pd_vars = Pd.fold_pd ipd fvs_empty
                   ~f:(fun vs i -> Set.add vs i) in
               let tot_src_vars = Set.union src_cat_vars src_vars in
               let tot_tgt_vars = Set.union tgt_cat_vars tgt_vars in
@@ -453,16 +443,16 @@ and check_cyl_coh gma g c (ssph,s) (tsph,t) =
               if (not (Set.is_subset pd_vars ~of_:tot_src_vars) ||
                   not (Set.is_subset pd_vars ~of_:tot_tgt_vars)) then
                 Error (`FullnessError "cylinder coherence case is not full")
-              else Ok (gt,cn,pd,c',(ssph',s'),(tsph',t'))
+              else Ok (gt,pd,c',(ssph',s'),(tsph',t'))
 
             else
 
               let pd_src = Pd.truncate true (pd_dim - 1) ipd in
               let pd_tgt = Pd.truncate false (pd_dim - 1) ipd in
 
-              let pd_src_vars = Pd.fold_pd pd_src (fvs_singleton cat_idx)
+              let pd_src_vars = Pd.fold_pd pd_src fvs_empty
                   ~f:(fun vs i -> Set.add vs i) in
-              let pd_tgt_vars = Pd.fold_pd pd_tgt (fvs_singleton cat_idx)
+              let pd_tgt_vars = Pd.fold_pd pd_tgt fvs_empty
                   ~f:(fun vs i -> Set.add vs i) in
 
               let tot_src_vars = Set.union src_cat_vars src_vars in
@@ -472,9 +462,7 @@ and check_cyl_coh gma g c (ssph,s) (tsph,t) =
                 Error (`FullnessError "non-full source")
               else if (not (Set.is_subset pd_tgt_vars ~of_:tot_tgt_vars)) then
                 Error (`FullnessError "non-full target")
-              else Ok (gt,cn,pd,c',(ssph',s'),(tsph',t'))
-
-          with Unify_error _ -> Error (`FullnessError "invalid base category") end
+              else Ok (gt,pd,c',(ssph',s'),(tsph',t'))
 
     )
 
@@ -499,10 +487,10 @@ let rec check_defs gma defs =
   | (CohDef (id,g,c,s,t))::ds ->
     log_msg "----------------";
     log_msg (Fmt.str "Checking coherence: %s" id);
-    let* (tl,cn,pd,ct,st,tt) = check_coh gma g c s t in
+    let* (tl,pd,ct,st,tt) = check_coh gma g c s t in
     let coh_ty = eval gma.top gma.loc
-        (tele_to_pi tl (ObjT (HomT (ct,st,tt)))) in
-    let coh_tm = eval gma.top gma.loc (CohT (cn,pd,ct,st,tt)) in
+                   (tele_to_pi tl (ObjT (HomT (ct,st,tt)))) in
+    let coh_tm = eval gma.top gma.loc (CohT (pd,ct,st,tt)) in
     let coh_ty_nf = term_to_expr Emp (quote false gma.lvl coh_ty) in
     let coh_tm_nf = term_to_expr Emp (quote false gma.lvl coh_tm) in
     log_msg (Fmt.str "Coh type: @[%a@]" pp_expr coh_ty_nf);
