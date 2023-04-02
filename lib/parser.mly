@@ -40,9 +40,9 @@ defn:
     { CohDef (id,pd,cat,src,tgt) }
   | COH id = IDENT pd = pd_expr COLON src = expr1 DBLARROW tgt = expr1
     { CohDef (id,pd,HoleE,src,tgt) }
-  | NORMALIZE tl = tele VBAR tm = expr
+  | NORMALIZE tl = pd_expr VBAR tm = expr
     { Normalize (tl,tm) }
-  | ASSERT tl = tele VBAR t1 = expr EQUAL t2 = expr
+  | ASSERT tl = pd_expr VBAR t1 = expr EQUAL t2 = expr
     { Assert (tl,t1,t2) }
 
 var_decl:
