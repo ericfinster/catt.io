@@ -55,28 +55,6 @@ module Strict(R : Settings) = struct
       | UCompV (_,cohv,_) -> cohv
       | y -> y
 
-    (* Can this somehow bu merged with unify? *)
-    let rec is_same l a b =
-      match (unfold a, unfold b) with
-      | (TypV , TypV) -> true
-      | (StarV , StarV) -> true
-      | (LamV (_,_,a) , LamV (_,_,a')) -> is_same (l + 1) (a $$ varV l) (a' $$ varV l)
-      | (PiV (_,_,a,b), PiV (_,_,a',b')) -> is_same l a a' && is_same (l+1) (b $$ varV l) (b' $$ varV l)
-      | (RigidV(i,sp), RigidV (i',sp')) when i = i' -> is_same_sp l sp sp'
-      | (FlexV(m,sp), FlexV(m',sp')) when m = m' -> is_same_sp l sp sp'
-      | (ObjV c, ObjV c') -> is_same l c c'
-      | (HomV (c,s,t), HomV (c',s',t')) -> is_same l c c' && is_same l s s' && is_same l t t'
-      | (ArrV c, ArrV c') -> is_same l c c'
-      | (CohV (pd,c,s,t,sp), CohV (pd',c',s',t',sp')) when Pd.shape_eq pd pd' ->
-         is_same l (HomV(c,s,t)) (HomV(c',s',t')) && is_same_sp l sp sp'
-      | _ -> a = b
-
-    and is_same_sp l sp sp' =
-      match (sp, sp') with
-      | (EmpSp,EmpSp) -> true
-      | (AppSp (s,u,_), AppSp (s', u', _)) -> is_same_sp l s s' && is_same l u u'
-      | _ -> false
-
     let rec connect_subs sub1 sub2 =
       match sub2 with
       | Emp -> sub1
@@ -159,9 +137,9 @@ module Strict(R : Settings) = struct
                         (pd_length pd2)
                         part2_1 part2_2) in
          let part3 = (tree_to_sub (connect_right (Br (l,append xsd brs2)) (Br(l,ys)))) in
-         log_val "part1" part1 (pp_suite pp_value);
-         log_val "part2" part2 (pp_suite pp_value);
-         log_val "part3" part3 (pp_suite pp_value);
+         (* log_val "part1" part1 (pp_suite pp_value); *)
+         (* log_val "part2" part2 (pp_suite pp_value); *)
+         (* log_val "part3" part3 (pp_suite pp_value); *)
          Ok (connect_subs (connect_subs part1 part2) part3)
       | (Br (l, brs), Br (l2, Ext (Emp, (l3,p2))), Ext(ns, n)) ->
          let (xs,ys) = split_suite (n+1) brs in

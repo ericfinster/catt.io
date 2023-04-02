@@ -26,9 +26,8 @@ coh pentagon (v(f)w(g)x(h)y(i)z) : vert (assoc (comp f g) h i)
 				      	   (vert (assoc f (comp g h) i)
 					   	 (horiz (id1 f) (assoc g h i)))
 
-normalize {v :: *}
-	       	    {w :: *} (f :: v => w)
-		    {x :: *} (g :: w => x)
-	       	    {y :: *} (h :: x => y)
-		    {z :: *} (i :: y => z)
+normalize (v(f)w(g)x(h)y(i)z)
   | pentagon f g h i
+
+assert (x(f)y)
+  | comp f (id y) = f
