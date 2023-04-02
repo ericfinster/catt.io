@@ -40,6 +40,7 @@ type defn =
   | TermDef of name * expr tele * expr * expr
   | CohDef of name * expr tele * expr * expr * expr
   | Normalize of expr tele * expr
+  | Assert of expr tele * expr * expr
 
 (*****************************************************************************)
 (*                         Pretty Printing Raw Syntax                        *)

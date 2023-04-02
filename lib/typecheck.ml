@@ -137,6 +137,7 @@ type typing_error = [
   | `NotImplemented of string
   | `BadCohQuot of string
   | `InternalError
+  | `AssertError of value * value
 ]
 
 let pp_error ppf e =
@@ -149,11 +150,12 @@ let pp_error ppf e =
   | `BadCohQuot msg -> Fmt.pf ppf "%s" msg
   | `NotImplemented f -> Fmt.pf ppf "Feature not implemented: %s" f
   | `InternalError -> Fmt.pf ppf "Internal Error"
+  | `AssertError (v1, v2) -> Fmt.pf ppf "Assertion Error, %a and %a were not equal" pp_value v1 pp_value v2
 
 let rec check gma expr typ =
   let typ_tm = quote false gma.lvl typ in
   let typ_expr = term_to_expr (names gma) typ_tm in
-  pr "Checking @[%a@] has type @[%a@]@," pp_expr_with_impl expr pp_expr_with_impl typ_expr ;
+  (* pr "Checking @[%a@] has type @[%a@]@," pp_expr_with_impl expr pp_expr_with_impl typ_expr ; *)
 
   let switch e expected =
     (* pr "switching mode@,"; *)
@@ -515,6 +517,18 @@ let rec check_defs gma defs =
         Ok ()
       ) in
     check_defs gma ds
+  | (Assert (tl, t1, t2))::ds ->
+     log_msg "----------------";
+     log_msg (Fmt.str "Asserting: @[%a@] = @[%a@]" pp_expr t1 pp_expr t2);
+     let* _ = with_tele gma tl (fun gma' _ _ ->
+       let* (t1',_) = infer gma' t1 in
+       let* (t2',_) = infer gma' t2 in
+       let t1_val = eval gma'.top gma'.loc t1' in
+       let t2_val = eval gma'.top gma'.loc t2' in
+       if is_same (gma'.lvl) t1_val t2_val then
+         (log_msg "Assertion succeeded"; Ok ()) else
+         Error (`AssertError (t1_val, t2_val))) in
+     check_defs gma ds
 
 
 let run_tc m =
@@ -522,5 +536,5 @@ let run_tc m =
   | Ok _ ->
     Fmt.pr "@[<v>----------------@,Success!@,@,@]"
   | Error err ->
-    Fmt.pr "@,Typing error: @,@,%a@,@," pp_error err
+     Fmt.pr "@,Typing error: @,@,%a@,@," pp_error err
 end

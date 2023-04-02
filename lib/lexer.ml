@@ -37,6 +37,7 @@ let rec token buf =
   | "coh"        -> COH
   | "ucomp"      -> UCOMP
   | "normalize"  -> NORMALIZE
+  | "assert"     -> ASSERT
   | "->"         -> ARROW
   | "=>"         -> DBLARROW
   | "("          -> LPAR
