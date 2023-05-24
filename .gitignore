@@ -23,4 +23,5 @@ lib/bs
 *.mliast
 .merlin
 _build/
+result
 *.agdai

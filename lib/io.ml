@@ -40,6 +40,22 @@ let rec parse lexbuf (checkpoint : 'a I.checkpoint) =
   | I.Rejected ->
     raise (Parse_error (None, "Invalid syntax (parser rejected the input)"))
 
+let parse_string s =
+  let lexbuf = Sedlexing.Utf8.from_string s in
+  try
+    let chkpt = Parser.Incremental.prog (fst (Sedlexing.lexing_positions lexbuf)) in
+    let defs = parse lexbuf chkpt in
+    Printf.sprintf "Success: %d" (List.length defs)
+  with
+  | Parse_error (Some (line,pos), err) ->
+    Printf.sprintf "Parse error: %sLine: %d, Pos: %d@," err line pos
+  | Parse_error (None, err) ->
+    Printf.sprintf "Parse error: %s" err
+  | Lexer.Lexing_error (Some (line,pos), err) ->
+    Printf.sprintf "Lexing error: %s@,Line: %d, Pos: %d@," err line pos
+  | Lexer.Lexing_error (None, err) ->
+    Printf.sprintf "Lexing error: %s@," err
+
 let parse_file f =
   let fi = open_in f in
   let lexbuf = Sedlexing.Utf8.from_channel fi in
