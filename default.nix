@@ -10,14 +10,14 @@ stdenv.mkDerivation {
   buildInputs = ocaml_inputs;
   buildPhase = ''
     rm -rf result
-    dune clean
     dune build
   '';
   installPhase = ''
     mkdir -p $out/bin
     install -Dm755 _build/default/bin/catt.exe $out/bin
     mkdir -p $out/web
-    install -Dm644 _build/default/web/cattweb.bc.js $out/web
+    install -Dm644 _build/default/web/index.html $out/web
+    install -Dm644 _build/default/web/*.js $out/web
   '';
 }
 

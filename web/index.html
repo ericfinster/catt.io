@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>Editor</title>
+  <style type="text/css" media="screen">
+    body {
+        overflow: hidden;
+    }
+
+    #editor {
+        margin: 0;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+  </style>
+</head>
+<body>
+
+<pre id="editor">
+coh id (x) : x => x
+
+coh id1 (x(f)y) : f => f
+
+coh comp (x(f)y(g)z) : x => z
+</pre>
+
+<script src="cattweb.bc.js" type="text/javascript" charset="utf-8"></script>
+<script src="ace.js" type="text/javascript" charset="utf-8"></script>
+<script src="theme-gruvbox.js" type="text/javascript" charset="utf-8"></script>
+<script type="text/javascript">
+    var editor = ace.edit("editor");
+    editor.setTheme("ace/theme/gruvbox");
+	editor.setOption("fontSize", "16px");
+
+	function validate() {
+		editor.session.clearAnnotations();
+		var lines = editor.session.getDocument().getAllLines();
+		let annotations = [];
+
+		var text = editor.getValue();
+		let parse_res = parse(text);
+		console.log("Parse res", parse_res);
+
+		if (parse_res.search("Success") == -1) {
+			annotations.push({
+				row: 0,
+				type: "error",
+				text: parse_res
+			});
+		}
+		editor.session.setAnnotations(annotations);
+	}
+
+	editor.commands.addCommand({
+		name: 'parse',
+		bindKey: {win: 'Ctrl-M', mac: 'Command-M'},
+		exec: function(editor) {
+			validate()
+		},
+		readOnly: true
+});
+
+</script>
+
+</body>
+</html>
