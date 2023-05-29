@@ -20,52 +20,109 @@
   </style>
 </head>
 <body>
-
-<pre id="editor">
-coh id (x) : x => x
-
-coh id1 (x(f)y) : f => f
-
-coh comp (x(f)y(g)z) : x => z
-</pre>
-
 <script src="cattweb.bc.js" type="text/javascript" charset="utf-8"></script>
 <script src="ace.js" type="text/javascript" charset="utf-8"></script>
 <script src="theme-gruvbox.js" type="text/javascript" charset="utf-8"></script>
 <script type="text/javascript">
-    var editor = ace.edit("editor");
-    editor.setTheme("ace/theme/gruvbox");
-	editor.setOption("fontSize", "16px");
+	var buildDom = ace.require("ace/lib/dom").buildDom;
+	let options = {
+		theme: "ace/theme/gruvbox",
+		fontSize: "16px",
+		newLineMode: "windows",
+		minLines: 50,
+		maxLines: 50
+	};
+	var refs = {};
 
-	function validate() {
-		editor.session.clearAnnotations();
-		var lines = editor.session.getDocument().getAllLines();
-		let annotations = [];
+    var editor = ace.edit();
+	editor.setOptions(options);
+	var output = ace.edit();
+	output.setOptions(options);
+	output.setOption("readOnly", true);
+	output.setOption("wrap", 80);
 
-		var text = editor.getValue();
-		let parse_res = parse(text);
-		console.log("Parse res", parse_res);
-
-		if (parse_res.search("Success") == -1) {
-			annotations.push({
-				row: 0,
-				type: "error",
-				text: parse_res
-			});
-		}
-		editor.session.setAnnotations(annotations);
+	function updateToolbar() {
+		refs.saveButton.disabled = editor.session.getUndoManager().isClean();
+		refs.undoButton.disabled = !editor.session.getUndoManager().hasUndo();
+		refs.redoButton.disabled = !editor.session.getUndoManager().hasRedo();
 	}
 
+	function run() {
+		var text = editor.getValue();
+		// OCaml code is invoked here
+		let tc_result = typecheck(text);
+		output.session.setValue(tc_result);
+		updateToolbar();
+	}
+
+	function save() {
+		localStorage.savedValue = editor.getValue();
+		editor.session.getUndoManager().markClean();
+		updateToolbar();
+	}
+
+	function undo() {
+		editor.undo();
+		updateToolbar();
+	}
+
+	function redo() {
+		editor.redo();
+		updateToolbar();
+	}
+
+	editor.on("input", updateToolbar);
+
 	editor.commands.addCommand({
-		name: 'parse',
-		bindKey: {win: 'Ctrl-M', mac: 'Command-M'},
-		exec: function(editor) {
-			validate()
-		},
+		name: 'run',
+		bindKey: {win: 'Ctrl-R', mac: 'Command-R'},
+		exec: function(editor) {run()},
 		readOnly: true
-});
+	});
+	editor.commands.addCommand({
+		name: 'save',
+		bindKey: {win: 'Ctrl-S', mac: 'Command-S'},
+		exec: function(editor) {save()},
+		readOnly: true
+	});
+	editor.commands.addCommand({
+		name: 'undo',
+		bindKey: {win: 'Ctrl-Z', mac: 'Command-Z'},
+		exec: function(editor) {undo()},
+		readOnly: true
+	});
+	editor.commands.addCommand({
+		name: 'redo',
+		bindKey: {win: 'Ctrl-Shift-Z', mac: 'Command-Shift-Z'},
+		exec: function(editor) {redo()},
+		readOnly: true
+	});
 
+	buildDom([
+		"div", {}, ["div", {class: "toolbar"}, [
+			"button", {ref: "runButton", onclick: run}, "Run"
+		], [
+			"button", {ref: "saveButton", onclick: save}, "Save"
+		], [
+			"button", {ref: "undoButton", onclick: undo}, "Undo"
+		], [
+			"button", {ref: "redoButton", onclick: redo}, "Redo"
+		]
+	], [
+		"div", {id: "main", style: "display: flex; flex-direction: row; gap: 0.5rem"}, [
+			"div", {id: "main_editor", style: "flex-grow: 1"}, []
+		], [
+			"div", {id: "main_output", style: "flex-grow: 1"}, []
+	]]], document.body, refs);
+	document.getElementById("main_editor").appendChild(editor.container);
+	document.getElementById("main_output").appendChild(output.container);
+
+	editor.session.setValue(localStorage.savedValue ||
+		"\ncoh id (x) : x => x\ncoh id1 (x(f)y) : f => f\ncoh comp (x(f)y(g)z) : x => z"
+	);
+	output.session.setValue(
+		"Typechecker output is shown here!"
+	);
 </script>
-
 </body>
 </html>

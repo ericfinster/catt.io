@@ -42,9 +42,12 @@ let rec parse lexbuf (checkpoint : 'a I.checkpoint) =
 
 let parse_string s =
   let lexbuf = Sedlexing.Utf8.from_string s in
+  let chkpt = Parser.Incremental.prog (fst (Sedlexing.lexing_positions lexbuf)) in
+    parse lexbuf chkpt
+
+let parse_stringify s =
   try
-    let chkpt = Parser.Incremental.prog (fst (Sedlexing.lexing_positions lexbuf)) in
-    let defs = parse lexbuf chkpt in
+    let defs = parse_string s in
     Printf.sprintf "Success: %d" (List.length defs)
   with
   | Parse_error (Some (line,pos), err) ->

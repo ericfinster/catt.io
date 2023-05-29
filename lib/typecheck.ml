@@ -537,4 +537,11 @@ let run_tc m =
     Fmt.pr "@[<v>----------------@,Success!@,@,@]"
   | Error err ->
      Fmt.pr "@,Typing error: @,@,%a@,@," pp_error err
+
+let print_tc m =
+  match m with
+  | Ok _ ->
+    Printf.sprintf "@[<v>----------------@,Typecheck Success!@,@,@]"
+  | Error err ->
+    Printf.sprintf "@[<v>----------------@,Typecheck Failure!@,@,@]"
 end
