@@ -28,14 +28,19 @@
 	let options = {
 		theme: "ace/theme/gruvbox",
 		fontSize: "16px",
-		newLineMode: "windows",
+		newLineMode: "unix",
 		minLines: 50,
 		maxLines: 50
 	};
 	var refs = {};
+	// 0 is fully strict
+	// 1 is strictly unital
+	// 2 is strictly unital and associative
+	var strictness = 0;
 
     var editor = ace.edit();
 	editor.setOptions(options);
+
 	var output = ace.edit();
 	output.setOptions(options);
 	output.setOption("readOnly", true);
@@ -47,10 +52,22 @@
 		refs.redoButton.disabled = !editor.session.getUndoManager().hasRedo();
 	}
 
+	function changeStrictnessMode() {
+		strictness = (strictness + 1) % 3;
+		let text = (strictness == 0 ?
+			"Mode: Weak" : (strictness == 1 ?
+			"Mode: SU" : "Mode: SUA"
+		));
+		document.getElementById("mode_button").innerText = text;
+	}
+
 	function run() {
 		var text = editor.getValue();
 		// OCaml code is invoked here
-		let tc_result = typecheck(text);
+		let tc_result = (strictness == 0 ?
+			typecheckweak(text) : (strictness == 1 ?
+				typechecksu(text) :	typechecksua(text)
+		));
 		output.session.setValue(tc_result);
 		updateToolbar();
 	}
@@ -107,6 +124,8 @@
 			"button", {ref: "undoButton", onclick: undo}, "Undo"
 		], [
 			"button", {ref: "redoButton", onclick: redo}, "Redo"
+		], [
+			"button", {ref: "modeButton", onclick: changeStrictnessMode, id: "mode_button"}, "Mode: Weak"
 		]
 	], [
 		"div", {id: "main", style: "display: flex; flex-direction: row; gap: 0.5rem"}, [
@@ -117,9 +136,17 @@
 	document.getElementById("main_editor").appendChild(editor.container);
 	document.getElementById("main_output").appendChild(output.container);
 
-	editor.session.setValue(localStorage.savedValue ||
-		"\ncoh id (x) : x => x\ncoh id1 (x(f)y) : f => f\ncoh comp (x(f)y(g)z) : x => z"
-	);
+	let default_text = ["",
+		"coh id (x) : x => x",
+		"coh id1 (x(f)y) : f => f", "",
+		"coh comp (x(f)y(g)z) : x => z",
+		"coh comp2 (x(f(a)g(b)h)z) : f => h", "",
+		"coh assoc (x(f)y(g)z(h)w) : (comp f (comp g h)) => (comp (comp f g) h)",
+		"coh whiskr (x(f(a)g)y(h)z) : (comp f h) => (comp g h)", "",
+		"normalize (x(f(a)g)y(h)z(j)w)",
+		"  | (comp2 (whiskr a (comp h (comp (id z) j))) (assoc g h (comp (id z) j)))", ""
+	].join("\n");
+	editor.session.setValue(localStorage.savedValue || default_text);
 	output.session.setValue(
 		"Typechecker output is shown here!"
 	);
