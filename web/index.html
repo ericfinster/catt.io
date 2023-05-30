@@ -28,6 +28,7 @@
 	let options = {
 		theme: "ace/theme/gruvbox",
 		fontSize: "16px",
+		highlightActiveLine: true,
 		newLineMode: "unix",
 		minLines: 50,
 		maxLines: 50
@@ -46,6 +47,11 @@
 	output.setOption("readOnly", true);
 	output.setOption("wrap", 80);
 
+	function printJS(s) {
+		output.insert(s);
+		output.gotoLine(output.session.getLength());
+	}
+
 	function updateToolbar() {
 		refs.saveButton.disabled = editor.session.getUndoManager().isClean();
 		refs.undoButton.disabled = !editor.session.getUndoManager().hasUndo();
@@ -62,13 +68,17 @@
 	}
 
 	function run() {
+		// Clear output terminal
+		output.session.setValue("");
+		output.gotoLine(0);
+
 		var text = editor.getValue();
 		// OCaml code is invoked here
 		let tc_result = (strictness == 0 ?
 			typecheckweak(text) : (strictness == 1 ?
 				typechecksu(text) :	typechecksua(text)
 		));
-		output.session.setValue(tc_result);
+		console.log("Typecheck result", tc_result);
 		updateToolbar();
 	}
 
