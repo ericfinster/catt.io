@@ -534,7 +534,7 @@ let rec check_defs gma defs =
 let run_tc m =
   match m with
   | Ok _ ->
-    Fmt.pr "@[<v>----------------@,Success!@,@,@]"
+    Fmt.pr "@[<v>----------------@,Success!@,@,@]%!"
   | Error err ->
-     Fmt.pr "@,Typing error: @,@,%a@,@," pp_error err
+     Fmt.pr "@,Typing error: @,@,%a@,@,%!" pp_error err
 end

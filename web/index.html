@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>Editor</title>
+  <style type="text/css" media="screen">
+    body {
+        overflow: hidden;
+    }
+
+    #editor {
+        margin: 0;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+  </style>
+</head>
+<body>
+<script src="cattweb.bc.js" type="text/javascript" charset="utf-8"></script>
+<script src="ace.js" type="text/javascript" charset="utf-8"></script>
+<script src="theme-gruvbox.js" type="text/javascript" charset="utf-8"></script>
+<script type="text/javascript">
+	var buildDom = ace.require("ace/lib/dom").buildDom;
+	let options = {
+		theme: "ace/theme/gruvbox",
+		fontSize: "16px",
+		highlightActiveLine: true,
+		newLineMode: "unix",
+		minLines: 50,
+		maxLines: 50
+	};
+	var refs = {};
+	// 0 is fully strict
+	// 1 is strictly unital
+	// 2 is strictly unital and associative
+	var strictness = 0;
+
+    var editor = ace.edit();
+	editor.setOptions(options);
+
+	var output = ace.edit();
+	output.setOptions(options);
+	output.setOption("readOnly", true);
+	output.setOption("wrap", 80);
+
+	function printJS(s) {
+		output.insert(s);
+		output.gotoLine(output.session.getLength());
+	}
+
+	function updateToolbar() {
+		refs.saveButton.disabled = editor.session.getUndoManager().isClean();
+		refs.undoButton.disabled = !editor.session.getUndoManager().hasUndo();
+		refs.redoButton.disabled = !editor.session.getUndoManager().hasRedo();
+	}
+
+	function changeStrictnessMode() {
+		strictness = (strictness + 1) % 3;
+		let text = (strictness == 0 ?
+			"Mode: Weak" : (strictness == 1 ?
+			"Mode: SU" : "Mode: SUA"
+		));
+		document.getElementById("mode_button").innerText = text;
+	}
+
+	function run() {
+		// Clear output terminal
+		output.session.setValue("");
+		output.gotoLine(0);
+
+		var text = editor.getValue();
+		// OCaml code is invoked here
+		let tc_result = (strictness == 0 ?
+			typecheckweak(text) : (strictness == 1 ?
+				typechecksu(text) :	typechecksua(text)
+		));
+		console.log("Typecheck result", tc_result);
+		updateToolbar();
+	}
+
+	function save() {
+		localStorage.savedValue = editor.getValue();
+		editor.session.getUndoManager().markClean();
+		updateToolbar();
+	}
+
+	function undo() {
+		editor.undo();
+		updateToolbar();
+	}
+
+	function redo() {
+		editor.redo();
+		updateToolbar();
+	}
+
+	editor.on("input", updateToolbar);
+
+	editor.commands.addCommand({
+		name: 'run',
+		bindKey: {win: 'Ctrl-R', mac: 'Command-R'},
+		exec: function(editor) {run()},
+		readOnly: true
+	});
+	editor.commands.addCommand({
+		name: 'save',
+		bindKey: {win: 'Ctrl-S', mac: 'Command-S'},
+		exec: function(editor) {save()},
+		readOnly: true
+	});
+	editor.commands.addCommand({
+		name: 'undo',
+		bindKey: {win: 'Ctrl-Z', mac: 'Command-Z'},
+		exec: function(editor) {undo()},
+		readOnly: true
+	});
+	editor.commands.addCommand({
+		name: 'redo',
+		bindKey: {win: 'Ctrl-Shift-Z', mac: 'Command-Shift-Z'},
+		exec: function(editor) {redo()},
+		readOnly: true
+	});
+
+	buildDom([
+		"div", {}, ["div", {class: "toolbar"}, [
+			"button", {ref: "runButton", onclick: run}, "Run"
+		], [
+			"button", {ref: "saveButton", onclick: save}, "Save"
+		], [
+			"button", {ref: "undoButton", onclick: undo}, "Undo"
+		], [
+			"button", {ref: "redoButton", onclick: redo}, "Redo"
+		], [
+			"button", {ref: "modeButton", onclick: changeStrictnessMode, id: "mode_button"}, "Mode: Weak"
+		]
+	], [
+		"div", {id: "main", style: "display: flex; flex-direction: row; gap: 0.5rem"}, [
+			"div", {id: "main_editor", style: "flex-grow: 1"}, []
+		], [
+			"div", {id: "main_output", style: "flex-grow: 1"}, []
+	]]], document.body, refs);
+	document.getElementById("main_editor").appendChild(editor.container);
+	document.getElementById("main_output").appendChild(output.container);
+
+	let default_text = ["",
+		"coh id (x) : x => x",
+		"coh id1 (x(f)y) : f => f", "",
+		"coh comp (x(f)y(g)z) : x => z",
+		"coh comp2 (x(f(a)g(b)h)z) : f => h", "",
+		"coh assoc (x(f)y(g)z(h)w) : (comp f (comp g h)) => (comp (comp f g) h)",
+		"coh whiskr (x(f(a)g)y(h)z) : (comp f h) => (comp g h)", "",
+		"normalize (x(f(a)g)y(h)z(j)w)",
+		"  | (comp2 (whiskr a (comp h (comp (id z) j))) (assoc g h (comp (id z) j)))", ""
+	].join("\n");
+	editor.session.setValue(localStorage.savedValue || default_text);
+	output.session.setValue(
+		"Typechecker output is shown here!"
+	);
+</script>
+</body>
+</html>
