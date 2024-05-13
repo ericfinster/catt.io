@@ -1,3 +1,5 @@
+{-# OPTIONS --rewriting #-}
+
 --
 --  A formalization of the language of Catt
 --

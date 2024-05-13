@@ -1,280 +1,420 @@
 (*****************************************************************************)
 (*                                                                           *)
-(*                        Internal Term Representation                       *)
+(*                              Internal Syntax                              *)
 (*                                                                           *)
 (*****************************************************************************)
 
-open Format
-
+open Fmt
 open Pd
+open Base
+open Expr
 open Suite
-
-open Mtl
-
-module StringErr =
-  ErrMnd(struct type t = string end)
-
-open MonadSyntax(StringErr) 
+open Syntax
 
 (*****************************************************************************)
-(*                                   Terms                                   *)
+(*                              Type Definitions                             *)
 (*****************************************************************************)
-    
-type ty_term =
-  | ObjT
-  | ArrT of ty_term * tm_term * tm_term
-          
- and tm_term =
-   | VarT of int
-   | DefAppT of string * tm_term suite
-   | CohT of tm_term pd * ty_term * tm_term suite
 
-let rec map_ty f ty =
-  match ty with
-  | ObjT -> ObjT
-  | ArrT (typ,src,tgt) ->
-    let typ' = map_ty f typ in 
-    let src' = map_tm f src in 
-    let tgt' = map_tm f tgt in 
-    ArrT (typ',src',tgt')
+type term =
 
-and map_tm f tm =
+  (* Primitives *)
+  | VarT of idx
+  | TopT of name
+  | LamT of name * icit * term
+  | AppT of term * term * icit
+  | PiT of name * icit * term * term
+  | MetaT of mvar
+  | InsMetaT of mvar
+  | TypT
+
+  (* Categories *)
+  | StarT
+  | CatT
+  | ObjT of term
+  | ArrT of term
+  | HomT of term * term * term
+
+  (* Coherences *)
+  | UCompT of ucmp_desc
+  | CohT of nm_ict pd * term * term * term
+
+(*****************************************************************************)
+(*                              DeBrujin Lifting                             *)
+(*****************************************************************************)
+
+let rec db_lift_by l k tm =
+  let lft = db_lift_by l k in
   match tm with
-  | VarT i -> VarT (f i)
-  | DefAppT (id, args) ->
-    DefAppT (id, map (map_tm f) args)
-  | CohT (pd, typ, args) ->
-    CohT (pd, typ, map (map_tm f) args)
+  | VarT i ->
+    if (i >= l) then VarT (k+i) else VarT i
+  | TopT nm -> TopT nm
+  | LamT (nm,ict,tm) ->
+    LamT (nm, ict, db_lift_by (l+1) k tm)
+  | AppT (u,v,ict) -> AppT (lft u, lft v, ict)
+  | PiT (nm,ict,a,b) ->
+    PiT (nm,ict,lft a, db_lift_by (l+1) k b)
+  | MetaT m -> MetaT m
+  | InsMetaT m -> InsMetaT m
+  | TypT -> TypT
 
-let rec dim_typ typ =
-  match typ with
-  | ObjT -> 0
-  | ArrT (typ',_,_) -> 1 + dim_typ typ'
+  | ObjT tm -> ObjT (lft tm)
+  | HomT (c,s,t) -> HomT (lft c, lft s, lft t)
+  | ArrT c -> ArrT (lft c)
+  | StarT -> StarT
+  | CatT -> CatT
 
-let rec nth_tgt n typ tm =
-  if (n <= 0) then Ok (typ, tm) else
-    match typ with
-    | ObjT -> Fail "Target of object"
-    | ArrT (typ',_,tgt) -> nth_tgt (n-1) typ' tgt
+  | UCompT pd -> UCompT pd
+  | CohT (pd,c,s,t) -> CohT (pd,c,s,t)
 
-let rec nth_src n typ tm = 
-  if (n <= 0) then Ok (typ, tm) else
-    match typ with
-    | ObjT -> Fail "Target of object"
-    | ArrT (typ',src,_) -> nth_src (n-1) typ' src
+let db_lift l t = db_lift_by l 1 t
 
-(* Enclose the given pasting diagram of terms
- * with the boundaries specified by the given type *)
-let rec suspend_with ty pd =
-  match ty with
-  | ObjT -> pd
-  | ArrT (typ, src, tgt) ->
-    suspend_with typ (Br (src, singleton (tgt,pd)))
-
-(* Return the term-labelled pasting diagram 
- * associated to a type/term pair *)
-let disc_pd ty tm =
-  suspend_with ty (Br (tm, Emp))
-
-let disc_sub ty tm =
-  labels (disc_pd ty tm)
-
-(* This is a bit of an orphan and should probably
-   go somewhere else ... *)
-let err_lookup_var i l =
-  try Ok (nth i l)
-  with Not_found -> Fail (sprintf "Unknown index: %d" i)
-
-(* map the given arguments into the 
-   pasting diagram *)
-let args_to_pd pd args =
-  let module PdT = PdTraverse(MndToApp(StringErr)) in 
-  let get_arg t =
-    match t with
-    | VarT i -> err_lookup_var i args
-    | _ -> Fail "Invalid term in pasting diagram"
-  in PdT.traverse get_arg pd
-
-      
 (*****************************************************************************)
-(*                             Printing Raw Terms                            *)
+(*                            Terms to Expressions                           *)
 (*****************************************************************************)
 
-let rec pp_print_ty ppf ty =
-  match ty with
-  | ObjT -> fprintf ppf "*"
-  | ArrT (typ, src, tgt) ->
-    fprintf ppf "%a | %a @,-> %a"
-      pp_print_ty typ
-      pp_print_tm src
-      pp_print_tm tgt
-              
-and pp_print_tm ppf tm =
+let rec term_to_expr nms tm =
+  let tte = term_to_expr in
   match tm with
-  | VarT i -> fprintf ppf "%d" i 
-  | DefAppT (id, args) ->
-    fprintf ppf "@[<hov>%s(%a)@]"
-      id (pp_print_suite_horiz pp_print_tm) args
-  | CohT (pd, typ, args) ->
-    fprintf ppf "@[<hov>coh[%a @,: %a](%a)@]"
-      (pp_print_pd pp_print_tm) pd
-      pp_print_ty typ
-      (pp_print_suite_horiz pp_print_tm) args
+  | VarT i ->
+    let nm = db_get i nms in VarE nm
+  | TopT nm -> VarE nm
+  | LamT (nm,ict,bdy) ->
+    LamE (nm, ict, tte (Ext (nms,nm)) bdy)
+  | AppT (u,v,ict) ->
+    AppE (tte nms u, tte nms v, ict)
+  | PiT (nm,ict,a,b) ->
+    PiE (nm, ict, tte nms a, tte (Ext (nms,nm)) b)
+  | MetaT _ -> HoleE
+  (* Somewhat dubious, since we lose the implicit application ... *)
+  | InsMetaT _ -> HoleE
+  | TypT -> TypE
 
-let pp_print_ctx ppf gma =
-  pp_print_suite pp_print_ty ppf gma
+  | StarT -> StarE
+  | CatT -> CatE
+  | ArrT c -> ArrE (tte nms c)
+  | ObjT c -> ObjE (tte nms c)
+  | HomT (c,s,t) ->
+    HomE (tte nms c, tte nms s, tte nms t)
 
-let print_tm = pp_print_tm std_formatter
-let print_ty = pp_print_ty std_formatter
-
-let print_ctx gma =
-  fprintf std_formatter "@[<v>%a@]"
-    pp_print_ctx gma 
-
-let pp_print_term_pd ppf pd =
-  pp_print_pd pp_print_tm ppf pd
-    
-let print_term_pd pd =
-  pp_print_term_pd std_formatter pd
-
-let pp_print_sub ppf sub =
-  fprintf ppf "@[<hov>(%a)@]"
-    (pp_print_suite_horiz pp_print_tm) sub
-    
-(*****************************************************************************)
-(*                             De Brujin Indices                             *)
-(*****************************************************************************)
-
-(* De Brujin Lifting *)
-let lift_tm tm k = map_tm ((+) k) tm
-let lift_ty ty k = map_ty ((+) k) ty
-
-(* Labels a given pasting diagram with 
- * its appropriate de Bruijn levels
- *)
-    
-let rec pd_to_db_br k pd =
-  match pd with
-  | Br (_,brs) ->
-    let (k', brs') = pd_to_db_brs (k+1) brs
-    in (k', Br (VarT k, brs'))
-    
-and pd_to_db_brs k brs =
-  match brs with
-  | Emp -> (k,Emp)
-  | Ext (bs,(_,b)) ->
-    let (k', bs') = pd_to_db_brs k bs in
-    let (k'', b') = pd_to_db_br (k'+1) b in 
-    (k'', Ext (bs',(VarT k', b')))
-
-let pd_to_db pd = snd (pd_to_db_br 0 pd)
+  | UCompT pd -> UCompE pd
+  | CohT (pd,c,s,t) ->
+    let g = ExprPdUtil.nm_ict_pd_to_tele pd in
+    fold_accum_cont g nms
+      (fun (nm,_,_) nms' -> ((),Ext (nms',nm)))
+      (fun _ nms' ->
+         let c' = tte nms' c in
+         let s' = tte nms' s in
+         let t' = tte nms' t in
+         CohE (g,c',s',t'))
 
 (*****************************************************************************)
-(*                         Context <-> Pd Conversion                         *)
+(*                                 Telescopes                                *)
 (*****************************************************************************)
-    
-(* Convert a pasting diagram to a context. *)
-let rec pd_to_ctx_br gma typ k br =
-  match br with
-  | Br (_,brs) ->
-    pd_to_ctx_brs (Ext (gma, typ)) (VarT k) typ (k+1) brs 
 
-and pd_to_ctx_brs gma src typ k brs =
-  match brs with
-  | Emp -> (gma, src, k, typ)
-  | Ext (brs',(_,br)) ->
-    
-    let (gma',src',k',typ') = pd_to_ctx_brs gma src typ k brs' in
-    
-    let br_gma = Ext (gma', typ') in 
-    let br_typ = ArrT (typ', src', VarT k') in
+let rec tele_to_pi tl ty =
+  match tl with
+  | Emp -> ty
+  | Ext (tl',(nm,ict,ty_tm)) ->
+    tele_to_pi tl' (PiT (nm,ict,ty_tm,ty))
 
-    let (gma'',_,k'',typ'') = pd_to_ctx_br br_gma br_typ (k'+1) br in
-    
-    match typ'' with
-    | ObjT -> raise Not_found
-    | ArrT (bt,_,tgt) ->
-      (gma'', tgt, k'', bt)
-
-let pd_to_ctx pd = let (rpd,_,_,_) = pd_to_ctx_br Emp ObjT 0 pd in rpd 
-
-(* Try to convert a context to a pasting diagram *)
-let rec ctx_to_unit_pd gma =
-  match gma with
-  | Emp -> Fail "Empty context is not a pasting diagram"
-  | Ext (Emp, ObjT) -> Ok (Br (VarT 0,Emp), ObjT, VarT 0, 0, 0)
-  | Ext (Emp, _) -> Fail "Pasting context does not begin with an object"
-  | Ext (Ext (gma', ttyp), ftyp) ->
-    
-    let* (pd, styp, stm, k, dim) = ctx_to_unit_pd gma' in
-    
-    let tdim = dim_typ ttyp in
-    let codim = dim - tdim in
-    
-    let* (styp', stm') = nth_tgt codim styp stm in
-    
-    (* print_ctx gma;
-     * pp_print_newline std_formatter ();
-     * 
-     * fprintf std_formatter "@[<v>Dim: %d@,Target dim: %d@,Source type: %a@,Source term: %a@]"
-     *   dim tdim
-     *   pp_print_ty styp
-     *   pp_print_tm stm;
-     * pp_print_newline std_formatter ();
-     * 
-     * fprintf std_formatter "@[<v>Extracted Source type: %a@,Extracted Source term: %a@]"
-     *   pp_print_ty styp'
-     *   pp_print_tm stm';
-     * pp_print_newline std_formatter ();
-     * 
-     * pp_print_string std_formatter "************************";
-     * pp_print_newline std_formatter (); *)
-    
-    if (styp' <> ttyp) then
-      
-      let msg = asprintf 
-          "@[<v>Source and target types incompatible.
-              @,Source: %a
-              @,Target: %a@]"
-          pp_print_ty styp' pp_print_ty ttyp
-      in Fail msg
-
-    else let etyp = ArrT (styp', stm', VarT (k+1)) in
-      if (ftyp <> etyp) then
-
-        let msg = asprintf
-            "@[<v>Incorrect filling type.
-                @,Expected: %a
-                @,Provided: %a@]"
-            pp_print_ty etyp
-            pp_print_ty ftyp
-        in Fail msg
-
-      else let* rpd = insert pd tdim (VarT (k+1)) (Br (VarT (k+2), Emp)) in 
-        Ok (rpd, ftyp, VarT (k+2), k+2, tdim+1)
-
-let ctx_to_pd gma =
-  let* (unit_pd,_,_,_,_) = ctx_to_unit_pd gma in
-  Ok (pd_to_db unit_pd)
+let pi_to_tele ty =
+  let rec go tl ty =
+    match ty with
+    | PiT (nm,ict,a,b) ->
+      go (Ext (tl,(nm,ict,a))) b
+    | _ -> (tl,ty)
+  in go Emp ty
 
 (*****************************************************************************)
-(*                                Substitution                               *)
+(*                              Pretty Printing                              *)
 (*****************************************************************************)
-        
-let rec subst_ty sub ty =
-  match ty with
-  | ObjT -> ObjT
-  | ArrT (typ, src, tgt) ->
-     let typ' = subst_ty sub typ in
-     let src' = subst_tm sub src in
-     let tgt' = subst_tm sub tgt in
-     ArrT (typ', src', tgt')
 
-and subst_tm sub tm =
+let is_app_tm tm =
   match tm with
-  | VarT i -> nth i sub 
-  | DefAppT (id, args) ->
-     DefAppT (id, map (subst_tm sub) args)
-  | CohT (pd, typ, args) ->
-     CohT (pd, typ, map (subst_tm sub) args)
-    
+  | AppT (_,_,_) -> true
+  | _ -> false
+
+let is_pi_tm tm =
+  match tm with
+  | PiT (_,_,_,_) -> true
+  | _ -> false
+
+let rec pp_term_gen ?si:(si=false) ppf tm =
+  let ppt = pp_term_gen ~si:si in
+  match tm with
+  | VarT i -> int ppf i
+  | TopT nm -> string ppf nm
+  | LamT (nm,Impl,t) ->
+    pf ppf "\\{%s}. %a" nm ppt t
+  | LamT (nm,Expl,t) ->
+    pf ppf "\\%s. %a" nm ppt t
+  | AppT (u,v,Impl) ->
+    if si then
+      pf ppf "%a {%a}" ppt u ppt v
+    else
+      pf ppf "%a" ppt u
+  | AppT (u,v,Expl) ->
+    (* Need's a generic lookahead for parens routine ... *)
+    let pp_v = if (is_app_tm v) then
+        parens ppt
+      else ppt in
+    pf ppf "%a@;%a" ppt u pp_v v
+  | PiT (nm,Impl,a,p) ->
+    pf ppf "{%s : %a}@;-> %a" nm
+      ppt a ppt p
+  | PiT (nm,Expl,a,p) when Poly.(=) nm "" ->
+    let pp_a = if (is_pi_tm a) then
+        parens ppt
+      else ppt in
+    pf ppf "%a@;-> %a"
+      pp_a a ppt p
+  | PiT (nm,Expl,a,p) ->
+    pf ppf "(%s : %a)@;-> %a" nm
+      ppt a ppt p
+  | MetaT _ -> pf ppf "_"
+  (* Again, misses some implicit information ... *)
+  | InsMetaT _ -> pf ppf "*_*"
+  | TypT -> pf ppf "U"
+
+  | StarT -> pf ppf "*"
+  | CatT -> pf ppf "Cat"
+  | ObjT c ->
+    pf ppf "[%a]" ppt c
+  | HomT (_,s,t) ->
+    (* pf ppf "@[%a@] |@, @[%a => %a@]" ppt c ppt s ppt t *)
+    pf ppf "@[%a@] =>@;@[%a@]" ppt s ppt t
+  | ArrT c -> pf ppf "Arr %a" ppt c
+
+  | UCompT (UnitPd pd) ->
+    pf ppf "ucomp [ %a ]" pp_tr pd
+  | UCompT (DimSeq ds) ->
+    pf ppf "ucomp [ %a ]" (list int) ds
+
+  | CohT (pd,c,s,t) ->
+    pf ppf "@[coh [ @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] ]@]"
+      (pp_pd string) (map_pd pd ~f:fst)
+      ppt c ppt s ppt t
+
+let pp_term = pp_term_gen ~si:false
+
+(*****************************************************************************)
+(*                               Free Variables                              *)
+(*****************************************************************************)
+
+let fvs_empty = Set.empty (module Int)
+let fvs_singleton k = Set.singleton (module Int) k
+
+let rec free_vars k tm =
+  match tm with
+  | VarT i when i >= k -> fvs_singleton i
+  | VarT _ -> fvs_empty
+  | TopT _ -> fvs_empty
+  | LamT (_,_,bdy) -> free_vars (k+1) bdy
+  | AppT (u,v,_) ->
+    Set.union (free_vars k u) (free_vars k v)
+  | PiT (_,_,a,b) ->
+    Set.union (free_vars k a) (free_vars (k+1) b)
+  | ObjT c -> free_vars k c
+  | HomT (c,s,t) ->
+    Set.union (free_vars k c) (Set.union (free_vars k s) (free_vars k t))
+  | UCompT _ -> fvs_empty
+  | CohT _ -> fvs_empty
+  | ArrT c -> free_vars k c
+  | StarT -> fvs_empty
+  | CatT -> fvs_empty
+  | TypT -> fvs_empty
+  | MetaT _ -> fvs_empty
+  | InsMetaT _ -> fvs_empty
+
+
+(*****************************************************************************)
+(*                            Simple Substitutions                           *)
+(*****************************************************************************)
+
+let rec simple_sub (k : lvl) (tm : term) (sub : term option suite) : term =
+  let ss u = simple_sub k u sub in
+  match tm with
+  | VarT i when i >= k ->
+    begin match db_get (i - k) sub with
+      | Some t -> t
+      | None -> failwith (Fmt.str "undefined term in sub (i=%d) (k=%d)" i k)
+    end
+  | VarT i -> VarT i
+  | TopT nm -> TopT nm
+  | LamT (nm,ict,bdy) ->
+    let bdy' = simple_sub (k+1) bdy sub in
+    LamT (nm,ict,bdy')
+  | AppT (u,v,ict) ->
+    AppT (ss u, ss v, ict)
+  | PiT (nm,ict,a,b) ->
+    let b' = simple_sub (k+1) b sub in
+    PiT (nm,ict,ss a,b')
+  | ObjT c -> ObjT (ss c)
+  | HomT (c,s,t) ->
+    HomT (ss c, ss s, ss t)
+  | UCompT ud -> UCompT ud
+  | CohT (pd,c,s,t) ->
+    CohT (pd,c,s,t)
+  | ArrT c -> ArrT (ss c)
+  | StarT -> StarT
+  | CatT -> CatT
+  | TypT -> TypT
+  | MetaT m -> MetaT m
+  | InsMetaT m -> InsMetaT m
+
+(*****************************************************************************)
+(*                             Term Pd Conversion                            *)
+(*****************************************************************************)
+
+module TermPdSyntax = struct
+
+  type s = term
+
+  let star = StarT
+  let obj c = ObjT c
+  let hom c s t = HomT (c,s,t)
+
+  let match_hom e =
+    match e with
+    | HomT (c,s,t) -> Some (c,s,t)
+    | _ -> None
+
+  let match_obj e =
+    match e with
+    | ObjT c -> Some c
+    | _ -> None
+
+  let lift i t = db_lift_by 0 i t
+  let var k l _ = VarT (lvl_to_idx k l)
+
+  let pp_dbg = pp_term
+
+  let strengthen (src: bool) (dim : int) (pd : 'a pd) : term -> term =
+
+    let bpd = Pd.truncate src dim pd in
+    let blvl = pd_length bpd in
+
+    (* log_msg "-------------------";
+     * log_msg "strengthening ...";
+     * log_val "pd" pd Pd.pp_tr;
+     * log_val "bpd" bpd Pd.pp_tr;
+     * log_val "blvl" blvl Fmt.int; *)
+
+    let sub = Pd.fold_pd_with_type pd (Ext (Emp, Some (VarT blvl)) , blvl - 1)
+        (fun _ ty (s,i) ->
+           let incld = (Ext (s,Some (VarT i)),i-1) in
+           let excld = (Ext (s,None),i) in
+           match ty with
+           | SrcCell d ->
+             if src then
+               (if (d > dim) then excld else incld)
+             else
+               (if (d < dim) then incld else excld)
+           | TgtCell d ->
+             if src then
+               (if (d < dim) then incld else excld)
+             else
+               (if (d > dim) then excld else incld)
+           | IntCell d ->
+             if (d < dim) then incld else excld
+           | LocMaxCell d ->
+             if (d <= dim) then incld else excld
+        ) in
+
+    (* log_val "sub" (fst sub) (pp_suite (Fmt.option ~none:(any "*") pp_term));
+     * log_msg "-------------------"; *)
+
+    fun tm -> simple_sub 0 tm (fst sub)
+
+end
+
+module TermPdUtil = PdUtil(TermPdSyntax)
+
+let string_pd_to_term_tele (pd : string pd) : term tele =
+  TermPdUtil.string_pd_to_tele pd
+
+(*****************************************************************************)
+(*                         Term Syntax Implmentations                        *)
+(*****************************************************************************)
+
+module TermCohSyntax = struct
+  include TermPdSyntax
+
+  module T = TermPdUtil
+
+  let app u v ict = AppT (u,v,ict)
+  let coh pd c s t = CohT (pd,c,s,t)
+  let disc_coh pd =
+    let lams = fold_right (labels pd) (VarT 0)
+        (fun (nm,ict) tm ->
+           LamT (nm,ict,tm))
+    in lams
+
+end
+
+module TermCylSyntax = struct
+  include TermCohSyntax
+
+  let arr e = ArrT e
+
+end
+
+module TermSyntax = struct
+  include TermCylSyntax
+  let lam nm ict bdy = LamT (nm,ict,bdy)
+  let pi nm ict dom cod = PiT (nm,ict,dom,cod)
+  let pp_s = pp_term
+end
+
+module TermUtil = struct
+  include PdUtil(TermPdSyntax)
+  include CohUtil(TermCohSyntax)
+  include SyntaxUtil(TermSyntax)
+end
+
+let term_str_ucomp (pd : string pd) : term =
+  TermUtil.str_ucomp pd
+
+let term_ucomp (pd : 'a pd) : term =
+  TermUtil.gen_ucomp pd
+
+let rec strip_names_tm t =
+  match t with
+  | LamT (nm,ict,t) -> LamT ("",ict,strip_names_tm t)
+  | PiT (nm,ict,u,v) -> PiT ("",ict,strip_names_tm u, strip_names_tm v)
+  | ObjT t -> ObjT (strip_names_tm t)
+  | HomT (c,s,t) -> HomT (strip_names_tm c, strip_names_tm s, strip_names_tm t)
+  | AppT (u,v,ict) -> AppT (strip_names_tm u, strip_names_tm v, ict)
+  | CohT (pd,c,s,t) -> CohT (map_pd pd ~f:(fun (_,ict) -> ("",ict)), strip_names_tm c, strip_names_tm s, strip_names_tm t)
+  | s -> s
+
+let alpha_equiv s t = Poly.(=) (strip_names_tm s) (strip_names_tm t)
+
+let rec top_levelify' top name t =
+  let tl = top_levelify' top name in
+  match t with
+  | LamT (nm,ict,t) -> LamT (nm,ict,tl t)
+  | AppT (u,v,ict) -> AppT (tl u, tl v, ict)
+  | PiT(nm,ict,u,v) -> PiT (nm,ict,tl u,tl v)
+  | ObjT c -> ObjT (tl c)
+  | HomT (c,s,t) -> HomT(tl c, tl s, tl t)
+  | CohT(pd,c,s,t) ->
+     if alpha_equiv (CohT(pd,c,s,t)) (TermUtil.ucomp_coh pd)
+     then UCompT (UnitPd (map_pd pd ~f:(fun _ -> ())))
+     else let t' = CohT(pd,tl c, tl s, tl t) in
+          (try TopT (assoc_with_comp alpha_equiv t' (! top))
+          with Lookup_error ->
+            let new_name = Fmt.str "def%d" (! name) in
+            name := ! name + 1;
+            top := Ext (! top, (t',new_name));
+            TopT new_name)
+
+  | s -> s
+
+
+
+
+let top_levelify top v =
+  let top_ref : ((term * name) suite) ref = ref top in
+  let next_name : int ref = ref 0 in
+  (!top_ref,top_levelify' top_ref next_name v)
