@@ -29,5 +29,6 @@ convenience.
 Semistrictness can be turned on by using the `--sua` flag.  To typecheck the examples, change to the `examples` directory and run:
 
 `../_build/default/bin/catt.exe --sua monoidal.catt`
+
 `../_build/default/bin/catt.exe --sua syllepsis.catt`
 
