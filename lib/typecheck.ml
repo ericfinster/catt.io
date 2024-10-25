@@ -35,6 +35,7 @@ type ctx = {
   loc : loc_env;
   lvl : lvl;
   types : (name * (bd * value)) suite;
+  is_terminal : bool; 
 }
 
 let empty_ctx = {
@@ -42,6 +43,7 @@ let empty_ctx = {
   loc = Emp;
   lvl = 0;
   types = Emp;
+  is_terminal = false;
 }
 
 let empty_loc gma = {
@@ -52,8 +54,8 @@ let empty_loc gma = {
       (fun (_,(bd,_)) ->
          match bd with
          | Defined -> true
-         | Bound -> false)
-
+         | Bound -> false);
+  is_terminal  = gma.is_terminal
 }
 
 let bind gma nm ty =
@@ -62,6 +64,7 @@ let bind gma nm ty =
     top = gma.top;
     lvl = l+1;
     types = Ext (gma.types,(nm,(Bound,ty)));
+    is_terminal  = gma.is_terminal
   }
 
 let define gma nm tm ty = {
@@ -69,6 +72,7 @@ let define gma nm tm ty = {
   top = Ext (gma.top,(nm,tm));
   lvl = gma.lvl;
   types = Ext (gma.types,(nm,(Defined,ty)));
+  is_terminal  = gma.is_terminal
 }
 
 let names gma =
@@ -138,6 +142,7 @@ type typing_error = [
   | `BadCohQuot of string
   | `InternalError
   | `AssertError of value * value
+  | `IllegalCVar
 ]
 
 let pp_error ppf e =
@@ -151,6 +156,7 @@ let pp_error ppf e =
   | `NotImplemented f -> Fmt.pf ppf "Feature not implemented: %s" f
   | `InternalError -> Fmt.pf ppf "Internal Error"
   | `AssertError (v1, v2) -> Fmt.pf ppf "Assertion Error, %a and %a were not equal" pp_value v1 pp_value v2
+  | `IllegalCVar -> Fmt.pf ppf "Illegal use of computope varialbe in non-terminal context" 
 
 let rec check gma expr typ =
   let typ_tm = quote false gma.lvl typ in
@@ -195,6 +201,12 @@ let rec check gma expr typ =
   | (HoleE , _) -> (* pr "fresh meta@,"; *)
     let mv = fresh_meta () in Ok mv
 
+  (* A computope variable has any object type *) 
+  | (CVarE , ObjV _) ->
+    if (not gma.is_terminal) then
+      Error `IllegalCVar
+    else Ok CVarT
+
   | (e, expected) -> switch e expected
 
 and infer gma expr =
@@ -211,6 +223,14 @@ and infer gma expr =
       with Lookup_error -> Error (`NameNotInScope nm)
     )
 
+  | CVarE ->
+    if (not gma.is_terminal) then
+      Error `IllegalCVar
+    else
+      let at = ObjT (fresh_meta ()) in 
+      let a = eval gma.top gma.loc at in
+      Ok (CVarT , a) 
+      
   | LamE (nm,ict,e) ->
     let a = eval gma.top gma.loc (fresh_meta ()) in
     let* (e', t) = insert gma (infer (bind gma nm a) e) in
@@ -379,94 +399,94 @@ and check_coh gma g c s t =
               else Ok (tl,pd,c',s',t')
     )
 
-and check_sph gma sph c =
-  match sph with
-  | Emp -> Ok (c,Emp)
-  | Ext (sph',(s,t)) ->
-    let* (c',sph'') = check_sph gma sph' c in
-    let* s' = check gma s (ObjV c') in
-    let sv = eval gma.top gma.loc s' in
-    let* t' = check gma t (ObjV c') in
-    let tv = eval gma.top gma.loc t' in
-    Ok (HomV (c',sv,tv), Ext (sph'',(s',t')))
+(* and check_sph gma sph c = *)
+(*   match sph with *)
+(*   | Emp -> Ok (c,Emp) *)
+(*   | Ext (sph',(s,t)) -> *)
+(*     let* (c',sph'') = check_sph gma sph' c in *)
+(*     let* s' = check gma s (ObjV c') in *)
+(*     let sv = eval gma.top gma.loc s' in *)
+(*     let* t' = check gma t (ObjV c') in *)
+(*     let tv = eval gma.top gma.loc t' in *)
+(*     Ok (HomV (c',sv,tv), Ext (sph'',(s',t'))) *)
 
-and check_cyl_coh gma g c (ssph,s) (tsph,t) =
-  (* pr "@[<v>check_cyl_coh@,gma: @[%a@]@,c: @[%a@]@,s: @[%a@]@,t: @[%a@]@,@]"
-   *   (pp_tele pp_expr) g pp_expr c pp_expr s pp_expr t; *)
-  with_tele (empty_loc gma) g (fun gma' gv gt ->
+(* and check_cyl_coh gma g c (ssph,s) (tsph,t) = *)
+(*   (\* pr "@[<v>check_cyl_coh@,gma: @[%a@]@,c: @[%a@]@,s: @[%a@]@,t: @[%a@]@,@]" *)
+(*    *   (pp_tele pp_expr) g pp_expr c pp_expr s pp_expr t; *\) *)
+(*   with_tele (empty_loc gma) g (fun gma' gv gt -> *)
 
-      match ValuePdUtil.tele_to_pd gv with
-      | Error msg -> Error (`PastingError msg)
-      | Ok pd ->
+(*       match ValuePdUtil.tele_to_pd gv with *)
+(*       | Error msg -> Error (`PastingError msg) *)
+(*       | Ok pd -> *)
 
-        let lc = gma'.loc in
-        let tp = gma'.top in
+(*         let lc = gma'.loc in *)
+(*         let tp = gma'.top in *)
 
-        let cat_idx = length gv - 1 in
-        let ipd = idx_pd pd in
+(*         let cat_idx = length gv - 1 in *)
+(*         let ipd = idx_pd pd in *)
 
-        let* c' = check gma' c CatV in
-        let cv = eval tp lc c' in
+(*         let* c' = check gma' c CatV in *)
+(*         let cv = eval tp lc c' in *)
 
-        let* (scatv,ssph') = check_sph gma' ssph cv in
-        let* (tcatv,tsph') = check_sph gma' tsph cv in
+(*         let* (scatv,ssph') = check_sph gma' ssph cv in *)
+(*         let* (tcatv,tsph') = check_sph gma' tsph cv in *)
 
-        let* s' = check gma' s (ObjV scatv) in
-        let* t' = check gma' t (ObjV tcatv) in
+(*         let* s' = check gma' s (ObjV scatv) in *)
+(*         let* t' = check gma' t (ObjV tcatv) in *)
 
-        let sv = eval tp lc s' in
-        let tv = eval tp lc t' in
+(*         let sv = eval tp lc s' in *)
+(*         let tv = eval tp lc t' in *)
 
-        let (bsphv) = ValuePdUtil.match_homs cv in
+(*         let (bsphv) = ValuePdUtil.match_homs cv in *)
 
-        let bdim = length bsphv in
-        let sdim = length ssph' + bdim in
-        let tdim = length tsph' + bdim in
+(*         let bdim = length bsphv in *)
+(*         let sdim = length ssph' + bdim in *)
+(*         let tdim = length tsph' + bdim in *)
 
-        let* _ = Result.ok_if_true (sdim = tdim)
-            ~error:(`PastingError "cylcoh source and target cells have different dims") in
+(*         let* _ = Result.ok_if_true (sdim = tdim) *)
+(*             ~error:(`PastingError "cylcoh source and target cells have different dims") in *)
 
-            let k = length gma'.loc in
-            let src_cat_vars = free_vars_val k scatv in
-            let src_vars = free_vars_val k sv in
-            let tgt_cat_vars = free_vars_val k tcatv in
-            let tgt_vars = free_vars_val k tv in
-            let pd_dim = Pd.dim_pd pd in
+(*             let k = length gma'.loc in *)
+(*             let src_cat_vars = free_vars_val k scatv in *)
+(*             let src_vars = free_vars_val k sv in *)
+(*             let tgt_cat_vars = free_vars_val k tcatv in *)
+(*             let tgt_vars = free_vars_val k tv in *)
+(*             let pd_dim = Pd.dim_pd pd in *)
 
-            if (sdim > pd_dim) then
-              (* Coherence Case *)
+(*             if (sdim > pd_dim) then *)
+(*               (\* Coherence Case *\) *)
 
 
-              let pd_vars = Pd.fold_pd ipd fvs_empty
-                  ~f:(fun vs i -> Set.add vs i) in
-              let tot_src_vars = Set.union src_cat_vars src_vars in
-              let tot_tgt_vars = Set.union tgt_cat_vars tgt_vars in
+(*               let pd_vars = Pd.fold_pd ipd fvs_empty *)
+(*                   ~f:(fun vs i -> Set.add vs i) in *)
+(*               let tot_src_vars = Set.union src_cat_vars src_vars in *)
+(*               let tot_tgt_vars = Set.union tgt_cat_vars tgt_vars in *)
 
-              if (not (Set.is_subset pd_vars ~of_:tot_src_vars) ||
-                  not (Set.is_subset pd_vars ~of_:tot_tgt_vars)) then
-                Error (`FullnessError "cylinder coherence case is not full")
-              else Ok (gt,pd,c',(ssph',s'),(tsph',t'))
+(*               if (not (Set.is_subset pd_vars ~of_:tot_src_vars) || *)
+(*                   not (Set.is_subset pd_vars ~of_:tot_tgt_vars)) then *)
+(*                 Error (`FullnessError "cylinder coherence case is not full") *)
+(*               else Ok (gt,pd,c',(ssph',s'),(tsph',t')) *)
 
-            else
+(*             else *)
 
-              let pd_src = Pd.truncate true (pd_dim - 1) ipd in
-              let pd_tgt = Pd.truncate false (pd_dim - 1) ipd in
+(*               let pd_src = Pd.truncate true (pd_dim - 1) ipd in *)
+(*               let pd_tgt = Pd.truncate false (pd_dim - 1) ipd in *)
 
-              let pd_src_vars = Pd.fold_pd pd_src fvs_empty
-                  ~f:(fun vs i -> Set.add vs i) in
-              let pd_tgt_vars = Pd.fold_pd pd_tgt fvs_empty
-                  ~f:(fun vs i -> Set.add vs i) in
+(*               let pd_src_vars = Pd.fold_pd pd_src fvs_empty *)
+(*                   ~f:(fun vs i -> Set.add vs i) in *)
+(*               let pd_tgt_vars = Pd.fold_pd pd_tgt fvs_empty *)
+(*                   ~f:(fun vs i -> Set.add vs i) in *)
 
-              let tot_src_vars = Set.union src_cat_vars src_vars in
-              let tot_tgt_vars = Set.union tgt_cat_vars tgt_vars in
+(*               let tot_src_vars = Set.union src_cat_vars src_vars in *)
+(*               let tot_tgt_vars = Set.union tgt_cat_vars tgt_vars in *)
 
-              if (not (Set.is_subset pd_src_vars ~of_:tot_src_vars)) then
-                Error (`FullnessError "non-full source")
-              else if (not (Set.is_subset pd_tgt_vars ~of_:tot_tgt_vars)) then
-                Error (`FullnessError "non-full target")
-              else Ok (gt,pd,c',(ssph',s'),(tsph',t'))
+(*               if (not (Set.is_subset pd_src_vars ~of_:tot_src_vars)) then *)
+(*                 Error (`FullnessError "non-full source") *)
+(*               else if (not (Set.is_subset pd_tgt_vars ~of_:tot_tgt_vars)) then *)
+(*                 Error (`FullnessError "non-full target") *)
+(*               else Ok (gt,pd,c',(ssph',s'),(tsph',t')) *)
 
-    )
+(*     ) *)
 
 let rec check_defs gma defs =
   let module E = ExprUtil in
@@ -529,7 +549,19 @@ let rec check_defs gma defs =
          (log_msg "Assertion succeeded"; Ok ()) else
          Error (`AssertError (t1_val, t2_val))) in
      check_defs gma ds
+  | (Computope (id,typ))::ds ->
+    
+     log_msg "----------------";
+     log_msg (Fmt.str "Checking computope %s : @[%a@]" id pp_expr typ);
 
+     let term_gma = { gma with is_terminal = true } in
+     let* typ' = check term_gma typ CatV in 
+     let typv = eval term_gma.top term_gma.loc typ' in 
+     let ctyp_nf = term_to_expr Emp (quote false term_gma.lvl typv) in
+     
+     log_msg (Fmt.str "Computope Type: @[%a@]" (pp_expr_gen ~tpd:ExprPdUtil.tele_to_name_pd ~si:false ~pc:true ~fh:true) ctyp_nf); 
+     
+     check_defs gma ds
 
 let run_tc m =
   match m with

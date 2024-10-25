@@ -10,6 +10,7 @@
 %token VBAR DBLARROW ARROW HOLE BARARROW
 %token UCOMP COH NORMALIZE ASSERT
 %token TYPE CAT ARR STAR
+%token CVAR COMPUTOPE
 %token <string> IDENT
 %token <int> INT
 %token EOF
@@ -44,6 +45,8 @@ defn:
     { Normalize (tl,tm) }
   | ASSERT tl = pd_expr VBAR t1 = expr EQUAL t2 = expr
     { Assert (tl,t1,t2) }
+  | COMPUTOPE id = IDENT EQUAL typ = expr 
+    { Computope (id,typ) } 
 
 var_decl:
   | LPAR id = IDENT COLON ty = expr RPAR
@@ -102,6 +105,8 @@ expr3:
     { HoleE }
   | STAR
     { StarE }
+  | CVAR
+    { CVarE } 
   | id = IDENT
     { VarE id }
   | LBRKT c = expr RBRKT

@@ -93,6 +93,7 @@ module Make (R : ReductionScheme) = struct
       | StarV -> StarT
       | CatV -> CatT
       | TypV -> TypT
+      | CVarV -> CVarT 
 
     and goSp pr v sp =
       match sp with
@@ -146,6 +147,7 @@ module Make (R : ReductionScheme) = struct
     | (TypV , TypV) -> ()
     | (StarV , StarV) -> ()
     | (CatV , CatV) -> ()
+    | (CVarV , CVarV) -> () 
 
     | (LamV (_,_,a) , LamV (_,_,a')) -> unify stgy top (l+1) (a $$ varV l) (a' $$ varV l)
     | (t' , LamV(_,i,a')) -> unify stgy top (l+1) (appV t' (varV l) i) (a' $$ varV l)

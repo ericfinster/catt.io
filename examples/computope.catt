@@ -1,0 +1,13 @@
+#
+#  computope.catt - experiments with computopes
+#
+
+coh id (x) : x => x
+coh comp (x(f)y(g)z) : x => z
+coh assoc (x(f)y(g)z(h)w) : comp (comp f g) h => comp f (comp g h)
+
+computope object = *
+computope arrow = ● => ●
+computope loop = ● => id ●
+computope square = comp {●} {●} ● {●} ● => comp {●} {●} ● {●} ●
+computope simplex = comp {●} {●} ● {●} ● => ● 

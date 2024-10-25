@@ -35,12 +35,16 @@ type expr =
   | UCompE of ucmp_desc
   | CohE of expr tele * expr * expr * expr
 
+  (* The universal variable for computopes *) 
+  | CVarE              
+
 (* This probably belongs elsewhere .... *)
 type defn =
   | TermDef of name * expr tele * expr * expr
   | CohDef of name * expr tele * expr * expr * expr
   | Normalize of expr tele * expr
   | Assert of expr tele * expr * expr
+  | Computope of name * expr 
 
 (*****************************************************************************)
 (*                         Pretty Printing Raw Syntax                        *)
@@ -143,6 +147,8 @@ let rec pp_expr_gen ?tpd:(tpd = tele_to_pd_dummy)
           pf ppf "@[coh [ @[%a@] :@;@[<hov>@[%a@] =>@;@[%a@]@]]@]"
             (pp_tele ppe) g ppe s ppe t
     end
+
+  | CVarE -> pf ppf "\u{25CF}" 
 
 let pp_expr_dummy = pp_expr_gen ~tpd:tele_to_pd_dummy ~si:true ~fh:true ~pc:true
 

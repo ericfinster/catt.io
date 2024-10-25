@@ -60,6 +60,7 @@ module Make (R : ReductionScheme) = struct
     | TypT -> TypV
     | MetaT m -> metaV m
     | InsMetaT m -> appLocV loc (metaV m)
+    | CVarT -> CVarV 
 
   and metaV m =
     match lookup_meta m with
@@ -192,7 +193,8 @@ module Make (R : ReductionScheme) = struct
     | StarV -> StarT
     | CatV -> CatT
     | TypV -> TypT
-
+    | CVarV -> CVarT 
+  
   and quote_sp ufld k t sp =
     let qc x = quote ufld k x in
     let qcs x s = quote_sp ufld k x s in
@@ -239,6 +241,7 @@ module Make (R : ReductionScheme) = struct
     | StarV -> fvs_empty
     | CatV -> fvs_empty
     | TypV -> fvs_empty
+    | CVarV -> fvs_empty
 
   and free_vars_sp k sp =
     let module S = Base.Set in

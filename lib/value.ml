@@ -36,6 +36,8 @@ type value =
   | UCompV of ucmp_desc * value * spine
   | CohV of (name * icit) pd * value * value * value * spine
 
+  | CVarV 
+
 and spine =
   | EmpSp
   | AppSp of spine * value * icit
@@ -88,6 +90,8 @@ let rec pp_value ppf v =
     pf ppf "@[coh [ %@[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] @[%a] ]@]"
       (pp_pd string) (map_pd pd ~f:fst)
       pp_value c pp_value s pp_value t pp_spine sp
+  | CVarV -> pf ppf "\u{25CF}"       
+
 
 and pp_spine_gen ?sep:(sep=Fmt.sp) ppf sp =
   match sp with

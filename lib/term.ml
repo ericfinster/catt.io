@@ -38,6 +38,8 @@ type term =
   | UCompT of ucmp_desc
   | CohT of nm_ict pd * term * term * term
 
+  | CVarT 
+
 (*****************************************************************************)
 (*                              DeBrujin Lifting                             *)
 (*****************************************************************************)
@@ -65,6 +67,7 @@ let rec db_lift_by l k tm =
 
   | UCompT pd -> UCompT pd
   | CohT (pd,c,s,t) -> CohT (pd,c,s,t)
+  | CVarT -> CVarT 
 
 let db_lift l t = db_lift_by l 1 t
 
@@ -106,6 +109,8 @@ let rec term_to_expr nms tm =
          let s' = tte nms' s in
          let t' = tte nms' t in
          CohE (g,c',s',t'))
+
+  | CVarT -> CVarE 
 
 (*****************************************************************************)
 (*                                 Telescopes                                *)
@@ -194,6 +199,7 @@ let rec pp_term_gen ?si:(si=false) ppf tm =
     pf ppf "@[coh [ @[%a@] :@;@[%a@]@;|> @[@[%a@] =>@;@[%a@]@] ]@]"
       (pp_pd string) (map_pd pd ~f:fst)
       ppt c ppt s ppt t
+  | CVarT -> pf ppf "\u{25CF}"       
 
 let pp_term = pp_term_gen ~si:false
 
@@ -225,7 +231,7 @@ let rec free_vars k tm =
   | TypT -> fvs_empty
   | MetaT _ -> fvs_empty
   | InsMetaT _ -> fvs_empty
-
+  | CVarT -> fvs_empty
 
 (*****************************************************************************)
 (*                            Simple Substitutions                           *)
@@ -261,6 +267,7 @@ let rec simple_sub (k : lvl) (tm : term) (sub : term option suite) : term =
   | TypT -> TypT
   | MetaT m -> MetaT m
   | InsMetaT m -> InsMetaT m
+  | CVarT -> CVarT 
 
 (*****************************************************************************)
 (*                             Term Pd Conversion                            *)
@@ -410,8 +417,6 @@ let rec top_levelify' top name t =
             TopT new_name)
 
   | s -> s
-
-
 
 
 let top_levelify top v =
