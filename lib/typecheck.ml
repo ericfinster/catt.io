@@ -203,6 +203,7 @@ let rec check gma expr typ =
 
   (* A computope variable has any object type *) 
   | (CVarE , ObjV _) ->
+    (* pr "checking a cvar\n";  *)
     if (not gma.is_terminal) then
       Error `IllegalCVar
     else Ok CVarT
@@ -224,6 +225,7 @@ and infer gma expr =
     )
 
   | CVarE ->
+    (* pr "inferring a cvar\n";  *)
     if (not gma.is_terminal) then
       Error `IllegalCVar
     else

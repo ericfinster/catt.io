@@ -10,4 +10,5 @@ computope object = *
 computope arrow = ● => ●
 computope loop = ● => id ●
 computope square = comp {●} {●} ● {●} ● => comp {●} {●} ● {●} ●
-computope simplex = comp {●} {●} ● {●} ● => ● 
+computope simplex = comp {●} {●} ● {●} ● => ●
+computope is-assoc = assoc {●} {●} ● {●} ● {●} ● => ●
