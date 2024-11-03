@@ -4,11 +4,31 @@
 
 coh id (x) : x => x
 coh comp (x(f)y(g)z) : x => z
-coh assoc (x(f)y(g)z(h)w) : comp (comp f g) h => comp f (comp g h)
+coh assoc-r (x(f)y(g)z(h)w) : comp (comp f g) h => comp f (comp g h)
+coh assoc-l (x(f)y(g)z(h)w) : comp f (comp g h) => comp (comp f g) h 
+coh whisker-l (x(f)y(g(a)h)z) : comp f g => comp f h 
+coh whisker-r (x(f(a)g)y(h)z) : comp f h => comp g h 
+coh vcomp (x(f(a)g(b)h)y) : f => h 
+coh vcomp-3 (x(f(a)g(b)h(c)k)y) : f => k 
+coh vcomp-6 (x(f(a)g(b)h(c)k(d)i(e)j(m)l)y) : f => l
 
-computope object = *
-computope arrow = ● => ●
-computope loop = ● => id ●
-computope square = comp {●} {●} ● {●} ● => comp {●} {●} ● {●} ●
-computope simplex = comp {●} {●} ● {●} ● => ●
-computope is-assoc = assoc {●} {●} ● {●} ● {●} ● => ●
+computope obj = *
+computope arrow = obj => obj
+computope loop = arrow => id obj 
+computope square = comp arrow arrow => comp arrow arrow 
+computope simplex = comp arrow arrow => ●
+computope is-assoc-l = assoc-l arrow arrow arrow => ●
+
+computope cube =
+  vcomp-6 (whisker-r square arrow)
+  	  (assoc-r arrow arrow arrow)
+	  (whisker-l arrow square)
+	  (assoc-l arrow arrow arrow)
+	  (whisker-r square arrow)
+  	  (assoc-r arrow arrow arrow) =>
+  vcomp-6 (assoc-r arrow arrow arrow)
+  	  (whisker-l arrow square)
+	  (assoc-l arrow arrow arrow)
+	  (whisker-r square arrow)
+	  (assoc-r arrow arrow arrow)
+	  (whisker-l arrow square) 

@@ -14,46 +14,34 @@ open Pd
 (*****************************************************************************)
 
 type sub = idx suite 
-type 'a g_diagram = (sub * 'a tele * sub) pd 
+type 'a globular_diagram = (sub * 'a tele * sub) pd 
 
-let g_limit (d : 'a g_diagram) (gma : 'a tele) : 'a tele =
-  match d with
-  | Br ((lsub,ctx,rsub),brs) ->
+let compose (s : sub) (t : sub) : sub =
+  map_suite s ~f:(fun i -> db_get i t) 
 
-    
-    failwith "not done" 
+let globular_limit (d : term globular_diagram) : sub pd * term tele =
+  failwith "in progress"
 
-type computope = term sph 
-type pointed_computope = computope * term 
 
-let rec realize (c : computope) : (sub * term tele * term) sph =
-  match c with 
-  | Emp -> Emp
-  | Ext (c',(s,t)) ->
+(*****************************************************************************)
+(*                       Realization of Computopes                           *) 
+(*****************************************************************************)
 
-    let bdry = realize c in 
+let rec app_to_sub (tm : term) : term * term suite =
+  match tm with
+  | AppT (f,a,_) ->
+    let (stem,sub) = app_to_sub f in 
+    (stem,Ext(sub,a)) 
+  | _ -> (tm,Emp) 
 
-    
-    failwith "not done"
-
-let realize_term (bdry : (sub * term tele * term) sph) (t : term) : term =
-  match t with
+let realize_term (tm : term) (ty : term) : (sub * term) sph * term tele * term =
+  let (stem,sub) = app_to_sub tm in 
+  match stem with
   | CVarT ->
-    
-    begin match bdry with
-      | Emp -> failwith "" 
-      | Ext (bdry',((_,s_ctx,s_tm),(_,t_ctx,t_tm))) ->
-
-        
-
-
-        failwith ""
-    end
-      
+    failwith "a cvar"
   | CohT (pd,c,s,t) ->
     failwith "a coherence cell"
+  | _ -> failwith "not a computope"
 
 
-  | _ -> failwith "not a computopic term" 
-                                              
     

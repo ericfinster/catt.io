@@ -558,12 +558,13 @@ let rec check_defs gma defs =
 
      let term_gma = { gma with is_terminal = true } in
      let* typ' = check term_gma typ CatV in 
-     let typv = eval term_gma.top term_gma.loc typ' in 
+     let typv = eval term_gma.top term_gma.loc typ' in
+     let cvarv = eval term_gma.top term_gma.loc CVarT in 
      let ctyp_nf = term_to_expr Emp (quote false term_gma.lvl typv) in
      
      log_msg (Fmt.str "Computope Type: @[%a@]" (pp_expr_gen ~tpd:ExprPdUtil.tele_to_name_pd ~si:false ~pc:true ~fh:true) ctyp_nf); 
-     
-     check_defs gma ds
+     check_defs (define gma id cvarv (ObjV typv)) ds
+     (* check_defs gma ds *)
 
 let run_tc m =
   match m with
